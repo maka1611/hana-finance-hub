@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { AuthTopBar } from "@/components/AuthTopBar";
 
 export const Route = createFileRoute("/signup")({
   head: () => ({ meta: [{ title: "Регистрация — NoorPay" }] }),
@@ -45,7 +46,8 @@ function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 girih-pattern">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 pt-24 pb-12 girih-pattern relative">
+      <AuthTopBar />
       <div className="w-full max-w-md bg-card rounded-3xl ring-1 ring-border p-8 shadow-xl">
         <Link to="/" className="font-extrabold text-xl tracking-tighter uppercase block mb-8">
           Noor<span className="text-primary">Pay</span>
