@@ -1,7 +1,10 @@
 import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Home, Plus, List } from "lucide-react";
+import { LogOut, Home, Plus, List, ShieldCheck } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { getMyRoles } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/app")({
   component: AppLayout,
@@ -9,6 +12,9 @@ export const Route = createFileRoute("/_authenticated/app")({
 
 function AppLayout() {
   const navigate = useNavigate();
+  const rolesFn = useServerFn(getMyRoles);
+  const { data: roles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
+  const isStaff = (roles ?? []).some((r) => r === "manager" || r === "admin" || r === "owner");
   const logout = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/" });
@@ -46,9 +52,19 @@ function AppLayout() {
               </Link>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={logout}>
-            <LogOut className="size-4" /> Выйти
-          </Button>
+          <div className="flex items-center gap-2">
+            {isStaff && (
+              <Link
+                to="/admin"
+                className="text-sm font-semibold px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/15 transition-colors flex items-center gap-1.5"
+              >
+                <ShieldCheck className="size-3.5" /> Админка
+              </Link>
+            )}
+            <Button variant="ghost" size="sm" onClick={logout}>
+              <LogOut className="size-4" /> Выйти
+            </Button>
+          </div>
         </div>
       </nav>
       <main className="max-w-7xl mx-auto px-6 py-10">
