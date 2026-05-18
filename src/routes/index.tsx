@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Calculator } from "@/components/Calculator";
 
 export const Route = createFileRoute("/")({
@@ -22,6 +24,17 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const navigate = useNavigate();
+  const [isAuthed, setIsAuthed] = useState(false);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setIsAuthed(!!data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setIsAuthed(!!s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+  const logout = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/" });
+  };
   return (
     <div className="min-h-screen bg-background text-foreground">
       <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
@@ -36,18 +49,37 @@ function Index() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              to="/login"
-              className="text-sm font-medium px-4 py-2 hover:bg-muted rounded-full transition-colors"
-            >
-              Войти
-            </Link>
-            <Link
-              to="/signup"
-              className="text-sm font-semibold bg-primary text-primary-foreground px-5 py-2 rounded-full hover:opacity-90 transition-all"
-            >
-              Начать
-            </Link>
+            {isAuthed ? (
+              <>
+                <button
+                  onClick={logout}
+                  className="text-sm font-medium px-4 py-2 hover:bg-muted rounded-full transition-colors"
+                >
+                  Выйти
+                </button>
+                <Link
+                  to="/app"
+                  className="text-sm font-semibold bg-primary text-primary-foreground px-5 py-2 rounded-full hover:opacity-90 transition-all"
+                >
+                  Кабинет
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="text-sm font-medium px-4 py-2 hover:bg-muted rounded-full transition-colors"
+                >
+                  Войти
+                </Link>
+                <Link
+                  to="/signup"
+                  className="text-sm font-semibold bg-primary text-primary-foreground px-5 py-2 rounded-full hover:opacity-90 transition-all"
+                >
+                  Начать
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
