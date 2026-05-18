@@ -14,16 +14,209 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      installment_contracts: {
+        Row: {
+          client_id: string
+          created_at: string
+          down_payment: number
+          id: string
+          markup_amount: number
+          markup_rate: number
+          monthly_payment: number
+          principal: number
+          product_image_url: string | null
+          product_name: string
+          product_price: number
+          start_date: string
+          status: Database["public"]["Enums"]["contract_status"]
+          term_months: number
+          total_sale_price: number
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          down_payment?: number
+          id?: string
+          markup_amount: number
+          markup_rate?: number
+          monthly_payment: number
+          principal: number
+          product_image_url?: string | null
+          product_name: string
+          product_price: number
+          start_date?: string
+          status?: Database["public"]["Enums"]["contract_status"]
+          term_months: number
+          total_sale_price: number
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          down_payment?: number
+          id?: string
+          markup_amount?: number
+          markup_rate?: number
+          monthly_payment?: number
+          principal?: number
+          product_image_url?: string | null
+          product_name?: string
+          product_price?: number
+          start_date?: string
+          status?: Database["public"]["Enums"]["contract_status"]
+          term_months?: number
+          total_sale_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payment_schedules: {
+        Row: {
+          amount: number
+          contract_id: string
+          created_at: string
+          due_date: string
+          id: string
+          seq: number
+          status: Database["public"]["Enums"]["payment_status"]
+        }
+        Insert: {
+          amount: number
+          contract_id: string
+          created_at?: string
+          due_date: string
+          id?: string
+          seq: number
+          status?: Database["public"]["Enums"]["payment_status"]
+        }
+        Update: {
+          amount?: number
+          contract_id?: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          seq?: number
+          status?: Database["public"]["Enums"]["payment_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_schedules_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "installment_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          contract_id: string
+          id: string
+          method: string | null
+          paid_at: string
+          schedule_id: string | null
+        }
+        Insert: {
+          amount: number
+          contract_id: string
+          id?: string
+          method?: string | null
+          paid_at?: string
+          schedule_id?: string | null
+        }
+        Update: {
+          amount?: number
+          contract_id?: string
+          id?: string
+          method?: string | null
+          paid_at?: string
+          schedule_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "installment_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "payment_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_staff: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "client" | "manager" | "admin" | "owner"
+      contract_status: "pending" | "active" | "closed" | "overdue"
+      payment_status: "pending" | "paid" | "overdue"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +343,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["client", "manager", "admin", "owner"],
+      contract_status: ["pending", "active", "closed", "overdue"],
+      payment_status: ["pending", "paid", "overdue"],
+    },
   },
 } as const
