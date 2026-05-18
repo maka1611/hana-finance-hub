@@ -58,7 +58,7 @@ export function Calculator({ onSubmit, compact }: CalculatorProps) {
                 className="text-3xl font-extrabold p-0 border-none focus-visible:ring-0 bg-transparent h-auto"
               />
               <span className="absolute right-0 top-1 text-2xl font-medium opacity-20">
-                ₸
+                ₽
               </span>
             </div>
             <div className="h-1 bg-muted rounded-full" />

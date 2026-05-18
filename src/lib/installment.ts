@@ -47,7 +47,7 @@ export function calcInstallment(input: CalcInput): CalcResult {
   };
 }
 
-export function formatMoney(value: number, currency = "₸"): string {
+export function formatMoney(value: number, currency = "₽"): string {
   if (!Number.isFinite(value)) return `0 ${currency}`;
   return `${Math.round(value).toLocaleString("ru-RU")} ${currency}`;
 }
