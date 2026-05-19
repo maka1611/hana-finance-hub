@@ -210,6 +210,135 @@ export const adminMakeMeOwner = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// === Карточка клиента (для админа) ===
+
+export const adminGetClient = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const [profileR, phonesR, rolesR, contractsR, applicationsR, schedulesR, paymentsR] =
+      await Promise.all([
+        supabaseAdmin.from("profiles").select("*").eq("id", data.id).maybeSingle(),
+        supabaseAdmin.from("user_phones").select("*").eq("user_id", data.id).order("created_at"),
+        supabaseAdmin.from("user_roles").select("role").eq("user_id", data.id),
+        supabaseAdmin
+          .from("installment_contracts")
+          .select("*")
+          .eq("client_id", data.id)
+          .order("created_at", { ascending: false }),
+        supabaseAdmin
+          .from("installment_applications")
+          .select("*")
+          .eq("client_id", data.id)
+          .order("created_at", { ascending: false }),
+        supabaseAdmin
+          .from("payment_schedules")
+          .select("id,contract_id,status,amount,due_date,seq,installment_contracts!inner(client_id)")
+          .eq("installment_contracts.client_id", data.id),
+        supabaseAdmin
+          .from("payments")
+          .select("id,amount,paid_at,method,contract_id,installment_contracts!inner(client_id)")
+          .eq("installment_contracts.client_id", data.id)
+          .order("paid_at", { ascending: false }),
+      ]);
+
+    if (!profileR.data) throw new Error("Клиент не найден");
+
+    const schedules = (schedulesR.data ?? []) as Array<{
+      status: string; amount: number; due_date: string;
+    }>;
+    const today = new Date().toISOString().slice(0, 10);
+    let paid = 0, overdue = 0, pending = 0;
+    let paidAmount = 0, overdueAmount = 0, pendingAmount = 0;
+    for (const s of schedules) {
+      const amt = Number(s.amount);
+      if (s.status === "paid") { paid++; paidAmount += amt; }
+      else if (s.status === "overdue" || (s.status === "pending" && s.due_date < today)) {
+        overdue++; overdueAmount += amt;
+      } else { pending++; pendingAmount += amt; }
+    }
+    const ratingBase = paid + overdue;
+    const ratingScore = ratingBase === 0 ? 100 : Math.round((paid / ratingBase) * 100);
+    const stars = Math.max(1, Math.round(ratingScore / 20));
+    let tier: "new" | "bronze" | "silver" | "gold" | "platinum" = "new";
+    if (paid === 0 && overdue === 0) tier = "new";
+    else if (ratingScore >= 95) tier = "platinum";
+    else if (ratingScore >= 80) tier = "gold";
+    else if (ratingScore >= 60) tier = "silver";
+    else tier = "bronze";
+
+    return {
+      profile: profileR.data,
+      phones: phonesR.data ?? [],
+      roles: (rolesR.data ?? []).map((r) => r.role as string),
+      contracts: contractsR.data ?? [],
+      applications: applicationsR.data ?? [],
+      payments: paymentsR.data ?? [],
+      rating: {
+        score: ratingScore,
+        stars,
+        tier,
+        paidCount: paid,
+        overdueCount: overdue,
+        pendingCount: pending,
+        paidAmount,
+        overdueAmount,
+        pendingAmount,
+      },
+    };
+  });
+
+export const adminUpdateClient = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      fullName: z.string().trim().max(200).optional().nullable(),
+      email: z.string().trim().email().max(200).optional().nullable(),
+      phone: z.string().trim().max(50).optional().nullable(),
+    }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const patch: { full_name?: string | null; email?: string | null; phone?: string | null } = {};
+    if (data.fullName !== undefined) patch.full_name = data.fullName || null;
+    if (data.email !== undefined) patch.email = data.email || null;
+    if (data.phone !== undefined) patch.phone = data.phone || null;
+    if (Object.keys(patch).length === 0) return { ok: true };
+    const { error } = await supabaseAdmin.from("profiles").update(patch).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminAddClientPhone = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      userId: z.string().uuid(),
+      phone: z.string().trim().min(3).max(50).regex(/^[+\d\s()\-]+$/, "Неверный формат"),
+      label: z.string().trim().max(50).optional().nullable(),
+    }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { error } = await supabaseAdmin
+      .from("user_phones")
+      .insert({ user_id: data.userId, phone: data.phone, label: data.label ?? null });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminDeleteClientPhone = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { error } = await supabaseAdmin.from("user_phones").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // === Управление пользователями и ролями ===
 
 const ROLE_VALUES = ["client", "manager", "admin", "owner"] as const;

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { adminListClients } from "@/lib/admin.functions";
@@ -11,6 +11,7 @@ export const Route = createFileRoute("/_authenticated/admin/clients")({
 
 function ClientsPage() {
   const fn = useServerFn(adminListClients);
+  const navigate = useNavigate();
   const { data, isLoading } = useQuery({ queryKey: ["admin-clients"], queryFn: () => fn() });
   return (
     <div className="space-y-6">
@@ -40,8 +41,12 @@ function ClientsPage() {
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10">Нет клиентов</TableCell></TableRow>
             ) : (
               (data ?? []).map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.full_name ?? "—"}</TableCell>
+                <TableRow
+                  key={c.id}
+                  className="cursor-pointer hover:bg-muted/40 transition-colors"
+                  onClick={() => navigate({ to: "/admin/clients/$id", params: { id: c.id } })}
+                >
+                  <TableCell className="font-medium text-primary">{c.full_name ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{c.email ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{c.phone ?? "—"}</TableCell>
                   <TableCell className="text-center">{c.contracts_count}</TableCell>
