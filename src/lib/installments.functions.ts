@@ -9,6 +9,11 @@ const CreateSchema = z.object({
   productPrice: z.number().positive().max(1_000_000_000),
   downPayment: z.number().min(0).max(1_000_000_000),
   termMonths: z.number().int().min(1).max(24),
+  productDescription: z.string().max(2000).optional().nullable(),
+  clientFullName: z.string().min(1).max(200).optional().nullable(),
+  clientTelegram: z.string().max(100).optional().nullable(),
+  clientComment: z.string().max(2000).optional().nullable(),
+  firstPaymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
 export const createInstallment = createServerFn({ method: "POST" })
@@ -21,12 +26,32 @@ export const createInstallment = createServerFn({ method: "POST" })
       downPayment: data.downPayment,
       termMonths: data.termMonths,
     });
-    const startDate = new Date();
+    // Дата первого платежа: если указана — используем её, иначе сегодня+1 месяц
+    const startDate = data.firstPaymentDate
+      ? new Date(data.firstPaymentDate + "T00:00:00")
+      : (() => {
+          const d = new Date();
+          d.setMonth(d.getMonth() + 1);
+          return d;
+        })();
+
+    // Обновим профиль если ФИО/телефон переданы (мягко)
+    if (data.clientFullName) {
+      await supabase
+        .from("profiles")
+        .update({ full_name: data.clientFullName })
+        .eq("id", userId);
+    }
+
     const { data: contract, error } = await supabase
       .from("installment_contracts")
       .insert({
         client_id: userId,
         product_name: data.productName,
+        product_description: data.productDescription ?? null,
+        client_full_name: data.clientFullName ?? null,
+        client_telegram: data.clientTelegram ?? null,
+        client_comment: data.clientComment ?? null,
         product_image_url: data.productImageUrl ?? null,
         product_price: data.productPrice,
         down_payment: data.downPayment,
@@ -43,7 +68,10 @@ export const createInstallment = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
-    const schedule = buildSchedule(startDate, calc.termMonths, calc.monthlyPayment).map((s) => ({
+    // График строим начиная с указанной даты первого платежа (платежи N, N+1мес, ...)
+    const scheduleStart = new Date(startDate);
+    scheduleStart.setMonth(scheduleStart.getMonth() - 1);
+    const schedule = buildSchedule(scheduleStart, calc.termMonths, calc.monthlyPayment).map((s) => ({
       contract_id: contract.id,
       seq: s.seq,
       due_date: s.dueDate.toISOString().slice(0, 10),

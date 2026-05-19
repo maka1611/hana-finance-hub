@@ -16,7 +16,10 @@ export type Database = {
     Tables: {
       installment_contracts: {
         Row: {
+          client_comment: string | null
+          client_full_name: string | null
           client_id: string
+          client_telegram: string | null
           created_at: string
           down_payment: number
           id: string
@@ -24,6 +27,7 @@ export type Database = {
           markup_rate: number
           monthly_payment: number
           principal: number
+          product_description: string | null
           product_image_url: string | null
           product_name: string
           product_price: number
@@ -34,7 +38,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          client_comment?: string | null
+          client_full_name?: string | null
           client_id: string
+          client_telegram?: string | null
           created_at?: string
           down_payment?: number
           id?: string
@@ -42,6 +49,7 @@ export type Database = {
           markup_rate?: number
           monthly_payment: number
           principal: number
+          product_description?: string | null
           product_image_url?: string | null
           product_name: string
           product_price: number
@@ -52,7 +60,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          client_comment?: string | null
+          client_full_name?: string | null
           client_id?: string
+          client_telegram?: string | null
           created_at?: string
           down_payment?: number
           id?: string
@@ -60,6 +71,7 @@ export type Database = {
           markup_rate?: number
           monthly_payment?: number
           principal?: number
+          product_description?: string | null
           product_image_url?: string | null
           product_name?: string
           product_price?: number

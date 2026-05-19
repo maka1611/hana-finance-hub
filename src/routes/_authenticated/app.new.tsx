@@ -1,13 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useMemo, type FormEvent } from "react";
+import { useState, useMemo, useEffect, type FormEvent } from "react";
 import { calcInstallment, formatMoney, MAX_TERM } from "@/lib/installment";
 import { createInstallment } from "@/lib/installments.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type NewSearch = { price?: number; down?: number; term?: number };
 
@@ -27,10 +29,33 @@ function NewInstallment() {
   const fn = useServerFn(createInstallment);
 
   const [productName, setProductName] = useState("");
+  const [productDescription, setProductDescription] = useState("");
   const [productPrice, setProductPrice] = useState<number>(search.price ?? 250000);
   const [downPayment, setDownPayment] = useState<number>(search.down ?? 50000);
   const [termMonths, setTermMonths] = useState<number>(search.term ?? 12);
+  const [clientFullName, setClientFullName] = useState("");
+  const [clientTelegram, setClientTelegram] = useState("");
+  const [clientComment, setClientComment] = useState("");
+  const [firstPaymentDate, setFirstPaymentDate] = useState<string>(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    return d.toISOString().slice(0, 10);
+  });
   const [loading, setLoading] = useState(false);
+
+  // Подтягиваем ФИО из профиля
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (data?.full_name) setClientFullName(data.full_name);
+    })();
+  }, []);
 
   const calc = useMemo(
     () => calcInstallment({ productPrice, downPayment, termMonths }),
@@ -40,10 +65,21 @@ function NewInstallment() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!productName.trim()) return toast.error("Укажите название товара");
+    if (!clientFullName.trim()) return toast.error("Укажите ФИО клиента");
     setLoading(true);
     try {
       const res = await fn({
-        data: { productName, productPrice, downPayment, termMonths },
+        data: {
+          productName,
+          productDescription: productDescription || null,
+          productPrice,
+          downPayment,
+          termMonths,
+          clientFullName,
+          clientTelegram: clientTelegram || null,
+          clientComment: clientComment || null,
+          firstPaymentDate,
+        },
       });
       toast.success("Рассрочка оформлена");
       navigate({ to: "/app/installments/$id", params: { id: res.id } });
@@ -64,6 +100,45 @@ function NewInstallment() {
       </div>
 
       <form onSubmit={submit} className="bg-card rounded-2xl ring-1 ring-border p-6 md:p-8 space-y-6">
+        <div className="space-y-4">
+          <h2 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+            Данные клиента
+          </h2>
+          <div className="space-y-2">
+            <Label>ФИО</Label>
+            <Input
+              value={clientFullName}
+              onChange={(e) => setClientFullName(e.target.value)}
+              placeholder="Иванов Иван Иванович"
+              required
+            />
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label>Telegram <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
+              <Input
+                value={clientTelegram}
+                onChange={(e) => setClientTelegram(e.target.value)}
+                placeholder="@username"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Комментарий <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
+              <Input
+                value={clientComment}
+                onChange={(e) => setClientComment(e.target.value)}
+                placeholder="Доп. информация"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="h-px bg-border" />
+
+        <h2 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+          Данные товара
+        </h2>
+
         <div className="space-y-2">
           <Label>Название товара</Label>
           <Input
@@ -71,6 +146,16 @@ function NewInstallment() {
             onChange={(e) => setProductName(e.target.value)}
             placeholder="iPhone 16 Pro, диван и т.д."
             required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Описание товара <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
+          <Textarea
+            value={productDescription}
+            onChange={(e) => setProductDescription(e.target.value)}
+            placeholder="Цвет, модель, состояние и т.д."
+            rows={2}
           />
         </div>
 
@@ -99,18 +184,29 @@ function NewInstallment() {
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="flex justify-between">
-            <Label>Срок</Label>
-            <span className="text-sm font-mono text-primary font-bold">{termMonths} мес</span>
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <Label>Срок рассрочки</Label>
+              <span className="text-sm font-mono text-primary font-bold">{termMonths} мес</span>
+            </div>
+            <Slider
+              min={1}
+              max={MAX_TERM}
+              step={1}
+              value={[termMonths]}
+              onValueChange={(v) => setTermMonths(v[0])}
+            />
           </div>
-          <Slider
-            min={1}
-            max={MAX_TERM}
-            step={1}
-            value={[termMonths]}
-            onValueChange={(v) => setTermMonths(v[0])}
-          />
+          <div className="space-y-2">
+            <Label>Дата первого платежа</Label>
+            <Input
+              type="date"
+              value={firstPaymentDate}
+              onChange={(e) => setFirstPaymentDate(e.target.value)}
+              required
+            />
+          </div>
         </div>
 
         <div className="bg-muted/40 rounded-xl p-5 space-y-2 text-sm">

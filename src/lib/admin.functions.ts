@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { DEFAULT_MARKUP_RATE } from "@/lib/installment";
 
 async function assertStaff(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -207,4 +208,343 @@ export const adminMakeMeOwner = createServerFn({ method: "POST" })
       .insert({ user_id: context.userId, role: "owner" });
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+// === Управление пользователями и ролями ===
+
+const ROLE_VALUES = ["client", "manager", "admin", "owner"] as const;
+type RoleValue = (typeof ROLE_VALUES)[number];
+
+async function assertAdmin(userId: string): Promise<RoleValue[]> {
+  const roles = await assertStaff(userId);
+  const isAdmin = roles.some((r) => r === "admin" || r === "owner");
+  if (!isAdmin) throw new Error("Forbidden: admin or owner required");
+  return roles as RoleValue[];
+}
+
+export const adminListUsers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    const { data: profiles, error } = await supabaseAdmin
+      .from("profiles")
+      .select("id,email,full_name,phone,created_at")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    const { data: rolesRows } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id,role");
+    const map: Record<string, RoleValue[]> = {};
+    for (const r of rolesRows ?? []) {
+      (map[r.user_id] ??= []).push(r.role as RoleValue);
+    }
+    return (profiles ?? []).map((p) => ({ ...p, roles: map[p.id] ?? [] }));
+  });
+
+export const adminSetUserRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      userId: z.string().uuid(),
+      role: z.enum(ROLE_VALUES),
+      grant: z.boolean(),
+    }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const myRoles = await assertAdmin(context.userId);
+    const iAmOwner = myRoles.includes("owner");
+
+    // Только owner может назначать/снимать admin и owner
+    if ((data.role === "admin" || data.role === "owner") && !iAmOwner) {
+      throw new Error("Только владелец может назначать роли admin/owner");
+    }
+
+    // Нельзя снимать с себя owner (защита от случайного блока)
+    if (
+      data.role === "owner" &&
+      !data.grant &&
+      data.userId === context.userId
+    ) {
+      throw new Error("Нельзя снять с себя роль владельца");
+    }
+
+    if (data.grant) {
+      const { error } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: data.userId, role: data.role });
+      // Игнорируем конфликт уникальности
+      if (error && !error.message.toLowerCase().includes("duplicate")) {
+        throw new Error(error.message);
+      }
+    } else {
+      const { error } = await supabaseAdmin
+        .from("user_roles")
+        .delete()
+        .eq("user_id", data.userId)
+        .eq("role", data.role);
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  });
+
+// === Платежи ===
+
+export const adminListPayments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      status: z.enum(["all", "pending", "paid", "overdue"]).default("all"),
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      search: z.string().max(200).optional(),
+    }).parse(input ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+
+    // Авто-пометка просроченных
+    const today = new Date().toISOString().slice(0, 10);
+    await supabaseAdmin
+      .from("payment_schedules")
+      .update({ status: "overdue" })
+      .eq("status", "pending")
+      .lt("due_date", today);
+
+    let q = supabaseAdmin
+      .from("payment_schedules")
+      .select("*")
+      .order("due_date", { ascending: true });
+
+    if (data.status !== "all") q = q.eq("status", data.status);
+    if (data.from) q = q.gte("due_date", data.from);
+    if (data.to) q = q.lte("due_date", data.to);
+
+    const { data: schedules, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const contractIds = [...new Set((schedules ?? []).map((s) => s.contract_id))];
+    const { data: contracts } = await supabaseAdmin
+      .from("installment_contracts")
+      .select("id,client_id,product_name,client_full_name")
+      .in("id", contractIds.length ? contractIds : ["00000000-0000-0000-0000-000000000000"]);
+
+    const clientIds = [...new Set((contracts ?? []).map((c) => c.client_id))];
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id,full_name,email,phone")
+      .in("id", clientIds.length ? clientIds : ["00000000-0000-0000-0000-000000000000"]);
+
+    const contractMap = new Map((contracts ?? []).map((c) => [c.id, c]));
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+    const enriched = (schedules ?? []).map((s) => {
+      const c = contractMap.get(s.contract_id);
+      const p = c ? profileMap.get(c.client_id) : null;
+      return {
+        ...s,
+        product_name: c?.product_name ?? "—",
+        client_full_name: c?.client_full_name ?? p?.full_name ?? "—",
+        client_email: p?.email ?? null,
+        client_phone: p?.phone ?? null,
+      };
+    });
+
+    const q2 = data.search?.trim().toLowerCase();
+    const filtered = q2
+      ? enriched.filter(
+          (s) =>
+            s.client_full_name.toLowerCase().includes(q2) ||
+            (s.client_email ?? "").toLowerCase().includes(q2) ||
+            s.product_name.toLowerCase().includes(q2),
+        )
+      : enriched;
+
+    // KPI и aging
+    const allSched = enriched;
+    const monthStart = today.slice(0, 7) + "-01";
+    const monthEndDate = new Date();
+    monthEndDate.setMonth(monthEndDate.getMonth() + 1);
+    monthEndDate.setDate(0);
+    const monthEnd = monthEndDate.toISOString().slice(0, 10);
+
+    const kpi = {
+      dueThisMonth: allSched
+        .filter((s) => s.status === "pending" && s.due_date >= monthStart && s.due_date <= monthEnd)
+        .reduce((a, s) => a + Number(s.amount), 0),
+      overdueAmount: allSched.filter((s) => s.status === "overdue").reduce((a, s) => a + Number(s.amount), 0),
+      overdueCount: allSched.filter((s) => s.status === "overdue").length,
+      paidThisMonth: allSched
+        .filter((s) => s.status === "paid" && s.due_date >= monthStart && s.due_date <= monthEnd)
+        .reduce((a, s) => a + Number(s.amount), 0),
+    };
+
+    const aging = { d0_7: 0, d8_30: 0, d31_60: 0, d60p: 0 };
+    for (const s of allSched) {
+      if (s.status !== "overdue") continue;
+      const diff = Math.floor((new Date(today).getTime() - new Date(s.due_date).getTime()) / (1000 * 60 * 60 * 24));
+      if (diff <= 7) aging.d0_7 += Number(s.amount);
+      else if (diff <= 30) aging.d8_30 += Number(s.amount);
+      else if (diff <= 60) aging.d31_60 += Number(s.amount);
+      else aging.d60p += Number(s.amount);
+    }
+
+    return { items: filtered, kpi, aging };
+  });
+
+export const adminMarkSchedulePaid = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ scheduleId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { data: sched, error } = await supabaseAdmin
+      .from("payment_schedules")
+      .select("*")
+      .eq("id", data.scheduleId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (sched.status === "paid") return { ok: true };
+    await supabaseAdmin.from("payments").insert({
+      contract_id: sched.contract_id,
+      schedule_id: sched.id,
+      amount: sched.amount,
+      method: "cash",
+    });
+    await supabaseAdmin
+      .from("payment_schedules")
+      .update({ status: "paid" })
+      .eq("id", sched.id);
+    const { data: remaining } = await supabaseAdmin
+      .from("payment_schedules")
+      .select("status")
+      .eq("contract_id", sched.contract_id);
+    if ((remaining ?? []).every((r) => r.status === "paid")) {
+      await supabaseAdmin
+        .from("installment_contracts")
+        .update({ status: "closed" })
+        .eq("id", sched.contract_id);
+    }
+    return { ok: true };
+  });
+
+// === Демо-данные ===
+
+const DEMO_NAMES = [
+  "Алиев Руслан", "Бекова Айгуль", "Сулейманов Тимур", "Закирова Динара",
+  "Махмудов Рамиль", "Юсупова Лейла", "Кадыров Алишер", "Нурлыбекова Сабина",
+  "Османов Карим", "Гаджиева Зарема",
+];
+const DEMO_PRODUCTS = [
+  { name: "iPhone 16 Pro 256GB", price: 130000 },
+  { name: "MacBook Air M3", price: 145000 },
+  { name: "Диван угловой 'Милан'", price: 89000 },
+  { name: "Кухонный гарнитур", price: 220000 },
+  { name: "Стиральная машина Bosch", price: 65000 },
+  { name: "Холодильник Samsung", price: 95000 },
+  { name: "Велосипед горный", price: 42000 },
+  { name: "Samsung Galaxy S24 Ultra", price: 110000 },
+  { name: "Телевизор LG 65''", price: 78000 },
+  { name: "Игровой ПК RTX 4070", price: 185000 },
+];
+
+function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+function rand(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+export const adminSeedDemoData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const roles = await assertStaff(context.userId);
+    if (!roles.includes("owner")) throw new Error("Только владелец может загружать демо-данные");
+
+    // 1) 10 профилей
+    const profileRows = DEMO_NAMES.map((name, i) => ({
+      id: crypto.randomUUID(),
+      full_name: name,
+      email: `demo${i + 1}+${Date.now()}@noorpay.test`,
+      phone: `+7900${rand(1000000, 9999999)}`,
+    }));
+    const { error: profErr } = await supabaseAdmin.from("profiles").insert(profileRows);
+    if (profErr) throw new Error("profiles: " + profErr.message);
+
+    // client роли
+    await supabaseAdmin
+      .from("user_roles")
+      .insert(profileRows.map((p) => ({ user_id: p.id, role: "client" as const })));
+
+    // 2) 20 договоров
+    const today = new Date();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const contracts: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const schedules: any[] = [];
+
+    for (let i = 0; i < 20; i++) {
+      const profile = pick(profileRows);
+      const product = pick(DEMO_PRODUCTS);
+      const term = pick([6, 9, 12, 18, 24]);
+      const down = Math.round(product.price * (rand(10, 30) / 100));
+      const principal = product.price - down;
+      const markupRate = DEFAULT_MARKUP_RATE;
+      const markupAmount = principal * markupRate * term;
+      const totalDebt = principal + markupAmount;
+      const totalSale = down + totalDebt;
+      const monthly = totalDebt / term;
+
+      // случайно: 70% активных, 15% закрытых, 15% просроченных
+      const r = Math.random();
+      const status = r < 0.15 ? "closed" : r < 0.3 ? "overdue" : "active";
+      const monthsAgo = rand(1, 10);
+      const start = new Date(today);
+      start.setMonth(start.getMonth() - monthsAgo);
+
+      const contractId = crypto.randomUUID();
+      contracts.push({
+        id: contractId,
+        client_id: profile.id,
+        client_full_name: profile.full_name,
+        client_telegram: Math.random() > 0.5 ? "@" + profile.full_name.split(" ")[0].toLowerCase() : null,
+        product_name: product.name,
+        product_description: null,
+        product_price: product.price,
+        down_payment: down,
+        principal,
+        markup_rate: markupRate,
+        markup_amount: markupAmount,
+        total_sale_price: totalSale,
+        monthly_payment: monthly,
+        term_months: term,
+        start_date: start.toISOString().slice(0, 10),
+        status,
+      });
+
+      // график платежей
+      const monthsPaid =
+        status === "closed" ? term :
+        status === "overdue" ? Math.max(0, monthsAgo - 2) :
+        Math.min(monthsAgo, term);
+
+      for (let j = 1; j <= term; j++) {
+        const due = new Date(start);
+        due.setMonth(due.getMonth() + j);
+        const dueStr = due.toISOString().slice(0, 10);
+        let st: "pending" | "paid" | "overdue" = "pending";
+        if (j <= monthsPaid) st = "paid";
+        else if (dueStr < today.toISOString().slice(0, 10)) st = "overdue";
+        schedules.push({
+          contract_id: contractId,
+          seq: j,
+          due_date: dueStr,
+          amount: monthly,
+          status: st,
+        });
+      }
+    }
+
+    const { error: cErr } = await supabaseAdmin.from("installment_contracts").insert(contracts);
+    if (cErr) throw new Error("contracts: " + cErr.message);
+    const { error: sErr } = await supabaseAdmin.from("payment_schedules").insert(schedules);
+    if (sErr) throw new Error("schedules: " + sErr.message);
+
+    return { ok: true, profiles: profileRows.length, contracts: contracts.length };
   });
