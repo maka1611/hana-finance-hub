@@ -16,7 +16,7 @@ import { formatMoney, formatDate } from "@/lib/installment";
 import { toast } from "sonner";
 import {
   ArrowLeft, Mail, Phone, Plus, Trash2, Star, Award,
-  CheckCircle2, AlertTriangle, Clock, User, Save,
+  CheckCircle2, AlertTriangle, Clock, Save,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/clients/$id")({
@@ -314,5 +314,3 @@ function AppStatusBadge({ status }: { status: string }) {
     </span>
   );
 }
-
-function _useUserIcon() { return User; }
