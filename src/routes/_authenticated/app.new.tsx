@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect, type FormEvent } from "react";
 import { calcInstallment, formatMoney, MAX_TERM } from "@/lib/installment";
-import { createInstallment } from "@/lib/installments.functions";
+import { submitApplication } from "@/lib/applications.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,11 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { FileCheck2 } from "lucide-react";
 
 type NewSearch = { price?: number; down?: number; term?: number };
 
 export const Route = createFileRoute("/_authenticated/app/new")({
-  head: () => ({ meta: [{ title: "Новая рассрочка — NoorPay" }] }),
+  head: () => ({ meta: [{ title: "Заявка на рассрочку — NoorPay" }] }),
   validateSearch: (s: Record<string, unknown>): NewSearch => ({
     price: s.price ? Number(s.price) : undefined,
     down: s.down ? Number(s.down) : undefined,
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/app/new")({
 function NewInstallment() {
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const fn = useServerFn(createInstallment);
+  const fn = useServerFn(submitApplication);
 
   const [productName, setProductName] = useState("");
   const [productDescription, setProductDescription] = useState("");
@@ -35,6 +36,7 @@ function NewInstallment() {
   const [termMonths, setTermMonths] = useState<number>(search.term ?? 12);
   const [clientFullName, setClientFullName] = useState("");
   const [clientTelegram, setClientTelegram] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
   const [clientComment, setClientComment] = useState("");
   const [firstPaymentDate, setFirstPaymentDate] = useState<string>(() => {
     const d = new Date();
@@ -43,17 +45,18 @@ function NewInstallment() {
   });
   const [loading, setLoading] = useState(false);
 
-  // Подтягиваем ФИО из профиля
+  // Подтягиваем ФИО/телефон из профиля
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, phone")
         .eq("id", user.id)
         .maybeSingle();
       if (data?.full_name) setClientFullName(data.full_name);
+      if (data?.phone) setClientPhone(data.phone);
     })();
   }, []);
 
@@ -68,7 +71,7 @@ function NewInstallment() {
     if (!clientFullName.trim()) return toast.error("Укажите ФИО клиента");
     setLoading(true);
     try {
-      const res = await fn({
+      await fn({
         data: {
           productName,
           productDescription: productDescription || null,
@@ -77,12 +80,13 @@ function NewInstallment() {
           termMonths,
           clientFullName,
           clientTelegram: clientTelegram || null,
+          clientPhone: clientPhone || null,
           clientComment: clientComment || null,
           firstPaymentDate,
         },
       });
-      toast.success("Рассрочка оформлена");
-      navigate({ to: "/app/installments/$id", params: { id: res.id } });
+      toast.success("Заявка отправлена. Менеджер свяжется с вами");
+      navigate({ to: "/app/profile" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Ошибка");
     } finally {
@@ -94,9 +98,13 @@ function NewInstallment() {
     <div className="max-w-3xl space-y-8">
       <div>
         <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">
-          Шаг 1 из 1
+          Заявка
         </p>
-        <h1 className="text-4xl font-extrabold tracking-tight">Новая рассрочка</h1>
+        <h1 className="text-4xl font-extrabold tracking-tight">Подать заявку на рассрочку</h1>
+        <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
+          Заполните заявку — менеджер проверит данные, при необходимости свяжется
+          с вами и оформит рассрочку. После одобрения договор и график появятся в личном кабинете.
+        </p>
       </div>
 
       <form onSubmit={submit} className="bg-card rounded-2xl ring-1 ring-border p-6 md:p-8 space-y-6">
@@ -123,13 +131,22 @@ function NewInstallment() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Комментарий <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
+              <Label>Телефон <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
               <Input
-                value={clientComment}
-                onChange={(e) => setClientComment(e.target.value)}
-                placeholder="Доп. информация"
+                value={clientPhone}
+                onChange={(e) => setClientPhone(e.target.value)}
+                placeholder="+7 ..."
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Комментарий менеджеру <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
+            <Textarea
+              value={clientComment}
+              onChange={(e) => setClientComment(e.target.value)}
+              placeholder="Дополнительная информация"
+              rows={2}
+            />
           </div>
         </div>
 
@@ -211,13 +228,16 @@ function NewInstallment() {
 
         <div className="bg-muted/40 rounded-xl p-5 space-y-2 text-sm">
           <Row k="Остаток" v={formatMoney(calc.principal)} />
-          <Row k="Наценка за рассрочку" v={formatMoney(calc.markupAmount)} />
-          <Row k="Ежемесячный платёж" v={formatMoney(calc.monthlyPayment)} bold />
-          <Row k="Итоговая цена продажи" v={formatMoney(calc.totalSalePrice)} bold />
+          <Row k="Наценка за рассрочку (предв.)" v={formatMoney(calc.markupAmount)} />
+          <Row k="Ежемесячный платёж (предв.)" v={formatMoney(calc.monthlyPayment)} bold />
+          <Row k="Итоговая цена (предв.)" v={formatMoney(calc.totalSalePrice)} bold />
+          <p className="text-[11px] text-muted-foreground pt-1">
+            Окончательные условия определит менеджер при одобрении заявки.
+          </p>
         </div>
 
         <Button type="submit" className="w-full py-6 text-base font-bold" disabled={loading}>
-          {loading ? "Оформление..." : "Оформить рассрочку"}
+          <FileCheck2 className="size-4" /> {loading ? "Отправка..." : "Отправить заявку"}
         </Button>
       </form>
     </div>
