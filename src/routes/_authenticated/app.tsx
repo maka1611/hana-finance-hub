@@ -5,6 +5,8 @@ import { LogOut, Home, Plus, List, ShieldCheck } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getMyRoles } from "@/lib/admin.functions";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/app")({
   component: AppLayout,
@@ -15,6 +17,34 @@ function AppLayout() {
   const rolesFn = useServerFn(getMyRoles);
   const { data: roles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
   const isStaff = (roles ?? []).some((r) => r === "manager" || r === "admin" || r === "owner");
+  const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(null);
+  useEffect(() => {
+    (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", user.id)
+        .maybeSingle();
+      setProfile({
+        full_name:
+          data?.full_name ??
+          (user.user_metadata?.full_name as string | undefined) ??
+          (user.user_metadata?.name as string | undefined) ??
+          null,
+        email: data?.email ?? user.email ?? null,
+      });
+    })();
+  }, []);
+  const displayName = profile?.full_name?.trim() || profile?.email?.split("@")[0] || "Пользователь";
+  const initials = (profile?.full_name || profile?.email || "U")
+    .split(/\s+|@/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase())
+    .join("");
   const logout = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/" });
@@ -61,6 +91,21 @@ function AppLayout() {
                 <ShieldCheck className="size-3.5" /> Админка
               </Link>
             )}
+            <div className="flex items-center gap-2.5 pl-2 pr-3 py-1 rounded-full bg-muted/60 border border-border/60">
+              <Avatar className="size-7">
+                <AvatarFallback className="text-[11px] font-semibold bg-primary/15 text-primary">
+                  {initials || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="hidden sm:flex flex-col leading-tight">
+                <span className="text-xs font-semibold truncate max-w-[160px]">{displayName}</span>
+                {profile?.email && (
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[160px]">
+                    {profile.email}
+                  </span>
+                )}
+              </div>
+            </div>
             <Button variant="ghost" size="sm" onClick={logout}>
               <LogOut className="size-4" /> Выйти
             </Button>
