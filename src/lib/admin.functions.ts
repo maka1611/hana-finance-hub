@@ -285,3 +285,144 @@ export const adminSetUserRole = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+// === Платежи ===
+
+export const adminListPayments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      status: z.enum(["all", "pending", "paid", "overdue"]).default("all"),
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      search: z.string().max(200).optional(),
+    }).parse(input ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+
+    // Авто-пометка просроченных
+    const today = new Date().toISOString().slice(0, 10);
+    await supabaseAdmin
+      .from("payment_schedules")
+      .update({ status: "overdue" })
+      .eq("status", "pending")
+      .lt("due_date", today);
+
+    let q = supabaseAdmin
+      .from("payment_schedules")
+      .select("*")
+      .order("due_date", { ascending: true });
+
+    if (data.status !== "all") q = q.eq("status", data.status);
+    if (data.from) q = q.gte("due_date", data.from);
+    if (data.to) q = q.lte("due_date", data.to);
+
+    const { data: schedules, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const contractIds = [...new Set((schedules ?? []).map((s) => s.contract_id))];
+    const { data: contracts } = await supabaseAdmin
+      .from("installment_contracts")
+      .select("id,client_id,product_name,client_full_name")
+      .in("id", contractIds.length ? contractIds : ["00000000-0000-0000-0000-000000000000"]);
+
+    const clientIds = [...new Set((contracts ?? []).map((c) => c.client_id))];
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id,full_name,email,phone")
+      .in("id", clientIds.length ? clientIds : ["00000000-0000-0000-0000-000000000000"]);
+
+    const contractMap = new Map((contracts ?? []).map((c) => [c.id, c]));
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+    const enriched = (schedules ?? []).map((s) => {
+      const c = contractMap.get(s.contract_id);
+      const p = c ? profileMap.get(c.client_id) : null;
+      return {
+        ...s,
+        product_name: c?.product_name ?? "—",
+        client_full_name: c?.client_full_name ?? p?.full_name ?? "—",
+        client_email: p?.email ?? null,
+        client_phone: p?.phone ?? null,
+      };
+    });
+
+    const q2 = data.search?.trim().toLowerCase();
+    const filtered = q2
+      ? enriched.filter(
+          (s) =>
+            s.client_full_name.toLowerCase().includes(q2) ||
+            (s.client_email ?? "").toLowerCase().includes(q2) ||
+            s.product_name.toLowerCase().includes(q2),
+        )
+      : enriched;
+
+    // KPI и aging
+    const allSched = enriched;
+    const monthStart = today.slice(0, 7) + "-01";
+    const monthEndDate = new Date();
+    monthEndDate.setMonth(monthEndDate.getMonth() + 1);
+    monthEndDate.setDate(0);
+    const monthEnd = monthEndDate.toISOString().slice(0, 10);
+
+    const kpi = {
+      dueThisMonth: allSched
+        .filter((s) => s.status === "pending" && s.due_date >= monthStart && s.due_date <= monthEnd)
+        .reduce((a, s) => a + Number(s.amount), 0),
+      overdueAmount: allSched.filter((s) => s.status === "overdue").reduce((a, s) => a + Number(s.amount), 0),
+      overdueCount: allSched.filter((s) => s.status === "overdue").length,
+      paidThisMonth: allSched
+        .filter((s) => s.status === "paid" && s.due_date >= monthStart && s.due_date <= monthEnd)
+        .reduce((a, s) => a + Number(s.amount), 0),
+    };
+
+    const aging = { d0_7: 0, d8_30: 0, d31_60: 0, d60p: 0 };
+    for (const s of allSched) {
+      if (s.status !== "overdue") continue;
+      const diff = Math.floor((new Date(today).getTime() - new Date(s.due_date).getTime()) / (1000 * 60 * 60 * 24));
+      if (diff <= 7) aging.d0_7 += Number(s.amount);
+      else if (diff <= 30) aging.d8_30 += Number(s.amount);
+      else if (diff <= 60) aging.d31_60 += Number(s.amount);
+      else aging.d60p += Number(s.amount);
+    }
+
+    return { items: filtered, kpi, aging };
+  });
+
+export const adminMarkSchedulePaid = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ scheduleId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { data: sched, error } = await supabaseAdmin
+      .from("payment_schedules")
+      .select("*")
+      .eq("id", data.scheduleId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (sched.status === "paid") return { ok: true };
+    await supabaseAdmin.from("payments").insert({
+      contract_id: sched.contract_id,
+      schedule_id: sched.id,
+      amount: sched.amount,
+      method: "cash",
+    });
+    await supabaseAdmin
+      .from("payment_schedules")
+      .update({ status: "paid" })
+      .eq("id", sched.id);
+    const { data: remaining } = await supabaseAdmin
+      .from("payment_schedules")
+      .select("status")
+      .eq("contract_id", sched.contract_id);
+    if ((remaining ?? []).every((r) => r.status === "paid")) {
+      await supabaseAdmin
+        .from("installment_contracts")
+        .update({ status: "closed" })
+        .eq("id", sched.contract_id);
+    }
+    return { ok: true };
+  });
