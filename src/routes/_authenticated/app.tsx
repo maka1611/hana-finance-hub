@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Home, Plus, List, ShieldCheck } from "lucide-react";
+import { LogOut, Home, FileCheck2, List, ShieldCheck, User } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getMyRoles } from "@/lib/admin.functions";
@@ -78,7 +78,14 @@ function AppLayout() {
                 activeProps={{ className: "bg-muted" }}
                 className="px-3 py-1.5 rounded-full flex items-center gap-1.5 hover:bg-muted transition-colors"
               >
-                <Plus className="size-3.5" /> Новая
+                <FileCheck2 className="size-3.5" /> Заявка
+              </Link>
+              <Link
+                to="/app/profile"
+                activeProps={{ className: "bg-muted" }}
+                className="px-3 py-1.5 rounded-full flex items-center gap-1.5 hover:bg-muted transition-colors"
+              >
+                <User className="size-3.5" /> Профиль
               </Link>
             </div>
           </div>
