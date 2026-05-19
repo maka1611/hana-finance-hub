@@ -23,10 +23,10 @@ export const submitApplication = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     // обновим профиль (имя/телефон) мягко
-    const patch: Record<string, string> = {};
-    if (data.clientFullName) patch.full_name = data.clientFullName;
-    if (data.clientPhone) patch.phone = data.clientPhone;
-    if (Object.keys(patch).length) {
+    if (data.clientFullName || data.clientPhone) {
+      const patch: { full_name?: string; phone?: string } = {};
+      if (data.clientFullName) patch.full_name = data.clientFullName;
+      if (data.clientPhone) patch.phone = data.clientPhone;
       await supabase.from("profiles").update(patch).eq("id", userId);
     }
     const { data: row, error } = await supabase
@@ -164,7 +164,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const patch: Record<string, string | null> = {};
+    const patch: { full_name?: string | null; phone?: string | null } = {};
     if (data.fullName !== undefined) patch.full_name = data.fullName || null;
     if (data.phone !== undefined) patch.phone = data.phone || null;
     if (Object.keys(patch).length === 0) return { ok: true };
@@ -244,7 +244,19 @@ export const adminUpdateApplication = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => AdminUpdateAppSchema.parse(input))
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
-    const patch: Record<string, unknown> = {};
+    const patch: {
+      product_name?: string;
+      product_description?: string | null;
+      product_price?: number;
+      down_payment?: number;
+      term_months?: number;
+      first_payment_date?: string | null;
+      client_full_name?: string | null;
+      client_telegram?: string | null;
+      client_phone?: string | null;
+      client_comment?: string | null;
+      admin_note?: string | null;
+    } = {};
     if (data.productName !== undefined) patch.product_name = data.productName;
     if (data.productDescription !== undefined) patch.product_description = data.productDescription;
     if (data.productPrice !== undefined) patch.product_price = data.productPrice;
