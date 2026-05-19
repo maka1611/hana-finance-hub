@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { DEFAULT_MARKUP_RATE } from "@/lib/installment";
 
 async function assertStaff(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -473,8 +474,9 @@ export const adminSeedDemoData = createServerFn({ method: "POST" })
 
     // 2) 20 договоров
     const today = new Date();
-    const contracts: Array<Record<string, unknown>> = [];
-    const schedules: Array<Record<string, unknown>> = [];
+    type ContractInsert = Parameters<typeof supabaseAdmin.from<"installment_contracts">>[0] extends never ? never : never;
+    const contracts: any[] = [];
+    const schedules: any[] = [];
 
     for (let i = 0; i < 20; i++) {
       const profile = pick(profileRows);
