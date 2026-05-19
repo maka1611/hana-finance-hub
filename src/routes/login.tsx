@@ -18,6 +18,7 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -29,9 +30,11 @@ function LoginPage() {
   };
 
   const handleGoogle = async () => {
+    setGoogleLoading(true);
     try {
       const r = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/app",
+        redirect_uri: window.location.origin,
+        extraParams: { prompt: "select_account" },
       });
       if (r.redirected) return;
       if (r.error) {
@@ -41,6 +44,8 @@ function LoginPage() {
       window.location.assign("/app");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -69,8 +74,8 @@ function LoginPage() {
         <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
           <div className="flex-1 h-px bg-border" /> ИЛИ <div className="flex-1 h-px bg-border" />
         </div>
-        <Button variant="outline" className="w-full" onClick={handleGoogle}>
-          Войти через Google
+        <Button type="button" variant="outline" className="w-full" onClick={handleGoogle} disabled={googleLoading}>
+          {googleLoading ? "Открываем Google..." : "Войти через Google"}
         </Button>
         <p className="text-sm text-center text-muted-foreground mt-6">
           Нет аккаунта?{" "}
