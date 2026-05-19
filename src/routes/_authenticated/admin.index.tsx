@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { adminStats } from "@/lib/admin.functions";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { adminStats, adminSeedDemoData, getMyRoles } from "@/lib/admin.functions";
 import { formatMoney } from "@/lib/installment";
 import { TrendingUp, Users, AlertTriangle, Wallet, FileText, Calendar, CalendarClock, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   component: AdminDashboard,
@@ -11,15 +14,43 @@ export const Route = createFileRoute("/_authenticated/admin/")({
 
 function AdminDashboard() {
   const fn = useServerFn(adminStats);
+  const seedFn = useServerFn(adminSeedDemoData);
+  const myRolesFn = useServerFn(getMyRoles);
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fn() });
+  const { data: myRoles } = useQuery({ queryKey: ["my-roles"], queryFn: () => myRolesFn() });
+  const iAmOwner = (myRoles ?? []).includes("owner");
+
+  const seed = useMutation({
+    mutationFn: () => seedFn(),
+    onSuccess: (r) => {
+      toast.success(`Загружено: ${r.profiles} клиентов, ${r.contracts} договоров`);
+      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
+  });
 
   return (
     <div className="space-y-8">
-      <div>
-        <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
-          Обзор
-        </p>
-        <h1 className="text-3xl font-extrabold tracking-tight">Дашборд</h1>
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
+            Обзор
+          </p>
+          <h1 className="text-3xl font-extrabold tracking-tight">Дашборд</h1>
+        </div>
+        {iAmOwner && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (confirm("Загрузить 10 демо-клиентов и 20 договоров?")) seed.mutate();
+            }}
+            disabled={seed.isPending}
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            {seed.isPending ? "Загрузка..." : "Загрузить демо-данные"}
+          </Button>
+        )}
       </div>
 
       {isLoading || !data ? (
