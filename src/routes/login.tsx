@@ -29,8 +29,19 @@ function LoginPage() {
   };
 
   const handleGoogle = async () => {
-    const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/app" });
-    if (r.error) toast.error(String((r.error as Error)?.message ?? r.error));
+    try {
+      const r = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin + "/app",
+      });
+      if (r.redirected) return;
+      if (r.error) {
+        toast.error(String((r.error as Error)?.message ?? r.error));
+        return;
+      }
+      window.location.assign("/app");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
   };
 
   return (
