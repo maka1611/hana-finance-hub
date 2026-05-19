@@ -18,6 +18,7 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/ap
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppNewRouteImport } from './routes/_authenticated/app.new'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin.payments'
@@ -25,8 +26,10 @@ import { Route as AuthenticatedAdminClientsRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminAnalyticsRouteImport } from './routes/_authenticated/admin.analytics'
 import { Route as AuthenticatedAppInstallmentsIndexRouteImport } from './routes/_authenticated/app.installments.index'
 import { Route as AuthenticatedAdminContractsIndexRouteImport } from './routes/_authenticated/admin.contracts.index'
+import { Route as AuthenticatedAdminApplicationsIndexRouteImport } from './routes/_authenticated/admin.applications.index'
 import { Route as AuthenticatedAppInstallmentsIdRouteImport } from './routes/_authenticated/app.installments.$id'
 import { Route as AuthenticatedAdminContractsIdRouteImport } from './routes/_authenticated/admin.contracts.$id'
+import { Route as AuthenticatedAdminApplicationsIdRouteImport } from './routes/_authenticated/admin.applications.$id'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -72,6 +75,11 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAppProfileRoute = AuthenticatedAppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppNewRoute = AuthenticatedAppNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -112,6 +120,12 @@ const AuthenticatedAdminContractsIndexRoute =
     path: '/contracts/',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminApplicationsIndexRoute =
+  AuthenticatedAdminApplicationsIndexRouteImport.update({
+    id: '/applications/',
+    path: '/applications/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAppInstallmentsIdRoute =
   AuthenticatedAppInstallmentsIdRouteImport.update({
     id: '/installments/$id',
@@ -122,6 +136,12 @@ const AuthenticatedAdminContractsIdRoute =
   AuthenticatedAdminContractsIdRouteImport.update({
     id: '/contracts/$id',
     path: '/contracts/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminApplicationsIdRoute =
+  AuthenticatedAdminApplicationsIdRouteImport.update({
+    id: '/applications/$id',
+    path: '/applications/$id',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 
@@ -137,10 +157,13 @@ export interface FileRoutesByFullPath {
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/app/new': typeof AuthenticatedAppNewRoute
+  '/app/profile': typeof AuthenticatedAppProfileRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
+  '/admin/applications/$id': typeof AuthenticatedAdminApplicationsIdRoute
   '/admin/contracts/$id': typeof AuthenticatedAdminContractsIdRoute
   '/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
+  '/admin/applications/': typeof AuthenticatedAdminApplicationsIndexRoute
   '/admin/contracts/': typeof AuthenticatedAdminContractsIndexRoute
   '/app/installments/': typeof AuthenticatedAppInstallmentsIndexRoute
 }
@@ -154,10 +177,13 @@ export interface FileRoutesByTo {
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/app/new': typeof AuthenticatedAppNewRoute
+  '/app/profile': typeof AuthenticatedAppProfileRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
+  '/admin/applications/$id': typeof AuthenticatedAdminApplicationsIdRoute
   '/admin/contracts/$id': typeof AuthenticatedAdminContractsIdRoute
   '/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
+  '/admin/applications': typeof AuthenticatedAdminApplicationsIndexRoute
   '/admin/contracts': typeof AuthenticatedAdminContractsIndexRoute
   '/app/installments': typeof AuthenticatedAppInstallmentsIndexRoute
 }
@@ -175,10 +201,13 @@ export interface FileRoutesById {
   '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/app/new': typeof AuthenticatedAppNewRoute
+  '/_authenticated/app/profile': typeof AuthenticatedAppProfileRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/_authenticated/admin/applications/$id': typeof AuthenticatedAdminApplicationsIdRoute
   '/_authenticated/admin/contracts/$id': typeof AuthenticatedAdminContractsIdRoute
   '/_authenticated/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
+  '/_authenticated/admin/applications/': typeof AuthenticatedAdminApplicationsIndexRoute
   '/_authenticated/admin/contracts/': typeof AuthenticatedAdminContractsIndexRoute
   '/_authenticated/app/installments/': typeof AuthenticatedAppInstallmentsIndexRoute
 }
@@ -196,10 +225,13 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/users'
     | '/app/new'
+    | '/app/profile'
     | '/admin/'
     | '/app/'
+    | '/admin/applications/$id'
     | '/admin/contracts/$id'
     | '/app/installments/$id'
+    | '/admin/applications/'
     | '/admin/contracts/'
     | '/app/installments/'
   fileRoutesByTo: FileRoutesByTo
@@ -213,10 +245,13 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/users'
     | '/app/new'
+    | '/app/profile'
     | '/admin'
     | '/app'
+    | '/admin/applications/$id'
     | '/admin/contracts/$id'
     | '/app/installments/$id'
+    | '/admin/applications'
     | '/admin/contracts'
     | '/app/installments'
   id:
@@ -233,10 +268,13 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/payments'
     | '/_authenticated/admin/users'
     | '/_authenticated/app/new'
+    | '/_authenticated/app/profile'
     | '/_authenticated/admin/'
     | '/_authenticated/app/'
+    | '/_authenticated/admin/applications/$id'
     | '/_authenticated/admin/contracts/$id'
     | '/_authenticated/app/installments/$id'
+    | '/_authenticated/admin/applications/'
     | '/_authenticated/admin/contracts/'
     | '/_authenticated/app/installments/'
   fileRoutesById: FileRoutesById
@@ -314,6 +352,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/app/profile': {
+      id: '/_authenticated/app/profile'
+      path: '/profile'
+      fullPath: '/app/profile'
+      preLoaderRoute: typeof AuthenticatedAppProfileRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/new': {
       id: '/_authenticated/app/new'
       path: '/new'
@@ -363,6 +408,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminContractsIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/applications/': {
+      id: '/_authenticated/admin/applications/'
+      path: '/applications'
+      fullPath: '/admin/applications/'
+      preLoaderRoute: typeof AuthenticatedAdminApplicationsIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/app/installments/$id': {
       id: '/_authenticated/app/installments/$id'
       path: '/installments/$id'
@@ -377,6 +429,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminContractsIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/applications/$id': {
+      id: '/_authenticated/admin/applications/$id'
+      path: '/applications/$id'
+      fullPath: '/admin/applications/$id'
+      preLoaderRoute: typeof AuthenticatedAdminApplicationsIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
@@ -386,7 +445,9 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminApplicationsIdRoute: typeof AuthenticatedAdminApplicationsIdRoute
   AuthenticatedAdminContractsIdRoute: typeof AuthenticatedAdminContractsIdRoute
+  AuthenticatedAdminApplicationsIndexRoute: typeof AuthenticatedAdminApplicationsIndexRoute
   AuthenticatedAdminContractsIndexRoute: typeof AuthenticatedAdminContractsIndexRoute
 }
 
@@ -396,7 +457,10 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
   AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedAdminApplicationsIdRoute: AuthenticatedAdminApplicationsIdRoute,
   AuthenticatedAdminContractsIdRoute: AuthenticatedAdminContractsIdRoute,
+  AuthenticatedAdminApplicationsIndexRoute:
+    AuthenticatedAdminApplicationsIndexRoute,
   AuthenticatedAdminContractsIndexRoute: AuthenticatedAdminContractsIndexRoute,
 }
 
@@ -405,6 +469,7 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppNewRoute: typeof AuthenticatedAppNewRoute
+  AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
   AuthenticatedAppInstallmentsIdRoute: typeof AuthenticatedAppInstallmentsIdRoute
   AuthenticatedAppInstallmentsIndexRoute: typeof AuthenticatedAppInstallmentsIndexRoute
@@ -412,6 +477,7 @@ interface AuthenticatedAppRouteChildren {
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppNewRoute: AuthenticatedAppNewRoute,
+  AuthenticatedAppProfileRoute: AuthenticatedAppProfileRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
   AuthenticatedAppInstallmentsIdRoute: AuthenticatedAppInstallmentsIdRoute,
   AuthenticatedAppInstallmentsIndexRoute:

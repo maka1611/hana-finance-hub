@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listMyInstallments } from "@/lib/installments.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp, Calendar, Wallet } from "lucide-react";
+import { FileCheck2, TrendingUp, Calendar, Wallet } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/")({
   head: () => ({ meta: [{ title: "Личный кабинет — NoorPay" }] }),
@@ -34,7 +34,7 @@ function Dashboard() {
           <h1 className="text-4xl font-extrabold tracking-tight">Личный кабинет</h1>
         </div>
         <Button onClick={() => router.navigate({ to: "/app/new" })}>
-          <Plus className="size-4" /> Новая рассрочка
+          <FileCheck2 className="size-4" /> Подать заявку
         </Button>
       </div>
 
@@ -64,7 +64,7 @@ function Dashboard() {
           <div className="bg-card rounded-2xl ring-1 ring-border p-10 text-center">
             <p className="text-muted-foreground mb-4">У вас пока нет рассрочек</p>
             <Button onClick={() => router.navigate({ to: "/app/new" })}>
-              Оформить первую
+              Подать первую заявку
             </Button>
           </div>
         ) : (
