@@ -426,3 +426,122 @@ export const adminMarkSchedulePaid = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+// === Демо-данные ===
+
+const DEMO_NAMES = [
+  "Алиев Руслан", "Бекова Айгуль", "Сулейманов Тимур", "Закирова Динара",
+  "Махмудов Рамиль", "Юсупова Лейла", "Кадыров Алишер", "Нурлыбекова Сабина",
+  "Османов Карим", "Гаджиева Зарема",
+];
+const DEMO_PRODUCTS = [
+  { name: "iPhone 16 Pro 256GB", price: 130000 },
+  { name: "MacBook Air M3", price: 145000 },
+  { name: "Диван угловой 'Милан'", price: 89000 },
+  { name: "Кухонный гарнитур", price: 220000 },
+  { name: "Стиральная машина Bosch", price: 65000 },
+  { name: "Холодильник Samsung", price: 95000 },
+  { name: "Велосипед горный", price: 42000 },
+  { name: "Samsung Galaxy S24 Ultra", price: 110000 },
+  { name: "Телевизор LG 65''", price: 78000 },
+  { name: "Игровой ПК RTX 4070", price: 185000 },
+];
+
+function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+function rand(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+export const adminSeedDemoData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const roles = await assertStaff(context.userId);
+    if (!roles.includes("owner")) throw new Error("Только владелец может загружать демо-данные");
+
+    // 1) 10 профилей
+    const profileRows = DEMO_NAMES.map((name, i) => ({
+      id: crypto.randomUUID(),
+      full_name: name,
+      email: `demo${i + 1}+${Date.now()}@noorpay.test`,
+      phone: `+7900${rand(1000000, 9999999)}`,
+    }));
+    const { error: profErr } = await supabaseAdmin.from("profiles").insert(profileRows);
+    if (profErr) throw new Error("profiles: " + profErr.message);
+
+    // client роли
+    await supabaseAdmin
+      .from("user_roles")
+      .insert(profileRows.map((p) => ({ user_id: p.id, role: "client" as const })));
+
+    // 2) 20 договоров
+    const today = new Date();
+    const contracts: Array<Record<string, unknown>> = [];
+    const schedules: Array<Record<string, unknown>> = [];
+
+    for (let i = 0; i < 20; i++) {
+      const profile = pick(profileRows);
+      const product = pick(DEMO_PRODUCTS);
+      const term = pick([6, 9, 12, 18, 24]);
+      const down = Math.round(product.price * (rand(10, 30) / 100));
+      const principal = product.price - down;
+      const markupRate = DEFAULT_MARKUP_RATE;
+      const markupAmount = principal * markupRate * term;
+      const totalDebt = principal + markupAmount;
+      const totalSale = down + totalDebt;
+      const monthly = totalDebt / term;
+
+      // случайно: 70% активных, 15% закрытых, 15% просроченных
+      const r = Math.random();
+      const status = r < 0.15 ? "closed" : r < 0.3 ? "overdue" : "active";
+      const monthsAgo = rand(1, 10);
+      const start = new Date(today);
+      start.setMonth(start.getMonth() - monthsAgo);
+
+      const contractId = crypto.randomUUID();
+      contracts.push({
+        id: contractId,
+        client_id: profile.id,
+        client_full_name: profile.full_name,
+        client_telegram: Math.random() > 0.5 ? "@" + profile.full_name.split(" ")[0].toLowerCase() : null,
+        product_name: product.name,
+        product_description: null,
+        product_price: product.price,
+        down_payment: down,
+        principal,
+        markup_rate: markupRate,
+        markup_amount: markupAmount,
+        total_sale_price: totalSale,
+        monthly_payment: monthly,
+        term_months: term,
+        start_date: start.toISOString().slice(0, 10),
+        status,
+      });
+
+      // график платежей
+      const monthsPaid =
+        status === "closed" ? term :
+        status === "overdue" ? Math.max(0, monthsAgo - 2) :
+        Math.min(monthsAgo, term);
+
+      for (let j = 1; j <= term; j++) {
+        const due = new Date(start);
+        due.setMonth(due.getMonth() + j);
+        const dueStr = due.toISOString().slice(0, 10);
+        let st: "pending" | "paid" | "overdue" = "pending";
+        if (j <= monthsPaid) st = "paid";
+        else if (dueStr < today.toISOString().slice(0, 10)) st = "overdue";
+        schedules.push({
+          contract_id: contractId,
+          seq: j,
+          due_date: dueStr,
+          amount: monthly,
+          status: st,
+        });
+      }
+    }
+
+    const { error: cErr } = await supabaseAdmin.from("installment_contracts").insert(contracts);
+    if (cErr) throw new Error("contracts: " + cErr.message);
+    const { error: sErr } = await supabaseAdmin.from("payment_schedules").insert(schedules);
+    if (sErr) throw new Error("schedules: " + sErr.message);
+
+    return { ok: true, profiles: profileRows.length, contracts: contracts.length };
+  });
