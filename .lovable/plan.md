@@ -1,76 +1,76 @@
-# План: NoorPay — халяльная рассрочка (Этап 1: клиентская часть)
+Сделаю всё последовательно в одном проходе. Ниже — что войдёт.
 
-Большой MVP разбит на этапы. Сейчас делаем клиентскую часть. Админ-панель, скоринг, документы, уведомления — отдельными следующими этапами.
+## 1. Расширение формы оформления `/app/new`
+Добавлю недостающие поля к карточке клиента и товара:
+- **ФИО** — автозаполнение из `profiles.full_name`, редактируемое (сохранение обратно в профиль)
+- **Telegram** (необязательно)
+- **Комментарий** (необязательно)
+- **Описание товара** (необязательно)
+- **Дата первого платежа** (date picker, по умолчанию — сегодня + 1 мес)
 
-## Что войдёт в этот этап
+Для этого добавлю в `installment_contracts` колонки: `client_full_name`, `client_telegram`, `client_comment`, `product_description`. График платежей будет строиться от выбранной даты первого платежа.
 
-1. **Лендинг `/`** — герой + крупный калькулятор + блок «Принципы» + мини-превью кабинета + футер.
-2. **Калькулятор рассрочки** — поля «Сумма товара», «Первый взнос», авто-«Остаток», ползунок срока 1–24 мес, наценка 4.5% × n, итоговая цена продажи, ежемесячный платёж, помесячный график, кнопка «Оформить рассрочку».
-3. **Авторизация** — `/login`, `/signup`, `/reset-password`: Email/пароль + вход через Google.
-4. **Личный кабинет клиента** `/app`:
-   - Дашборд: ближайший платёж, сумма, остаток к оплате, активные рассрочки.
-   - Список рассрочек: активные / закрытые / просроченные.
-   - Карточка рассрочки `/app/installments/:id`: товар, цены, наценка, срок, статус, график платежей, история оплат.
-   - Оформление новой рассрочки `/app/new` (форма с пред-заполнением из калькулятора).
-5. **Дизайн** Geometric Precision: белый фон, тёмно-зелёный primary (`hsl(158 64% 18%)`), мягкий серый, Inter + JetBrains Mono, лёгкий girih-паттерн на герое, адаптив для мобильного.
+## 2. Управление ролями в админке
+Новая страница `/admin/users`:
+- Список всех пользователей (профили + роли)
+- Поиск по email/ФИО
+- Назначение/снятие ролей `client | manager | admin` (только `owner` может назначать `admin`; `admin`/`owner` могут назначать `manager`)
+- Серверная функция `setUserRole` с проверкой прав через `has_role`
+- RLS на `user_roles`: разрешить INSERT/DELETE для `owner`/`admin` через политики
 
-## Архитектура
+## 3. Раздел «Платежи» в админке
+Новая страница `/admin/payments`:
+- Сводные KPI: ожидается в этом месяце, просрочено, поступило за период
+- Таблица всех `payment_schedules` с join на контракт и клиента
+- Фильтры: статус (pending/paid/overdue), период, поиск по клиенту
+- Aging buckets: 0–7, 8–30, 31–60, 60+ дней просрочки
+- Кнопка «Отметить оплачено» прямо из таблицы
+- Cron-логика статуса: помечать `overdue`, если `due_date < today` и статус `pending` (через серверную функцию, триггеримую при загрузке страницы)
 
-### Стек
-TanStack Start (текущий шаблон) + Tailwind v4 + shadcn/ui + Lovable Cloud (Postgres + Auth).
+## 4. Сид-данные
+Серверная функция `seedDemoData` (вызов кнопкой в админке, только для `owner`):
+- 10 демо-клиентов (profiles + user_roles)
+- 20 договоров с разными статусами и сроками
+- Графики платежей с частично оплаченными/просроченными позициями
 
-### Формула (фиксируется в момент оформления)
+## 5. Email-уведомления (через Lovable Emails)
+- Настройка домена и инфраструктуры email
+- Транзакционные шаблоны: «договор оформлен», «напоминание о платеже за 3 дня», «платёж получен», «просрочка»
+- Cron-job (pg_cron → public API route) раз в день рассылает напоминания и просрочки
+
+## Технические детали
+
+**Миграции:**
+```sql
+ALTER TABLE installment_contracts
+  ADD COLUMN client_full_name text,
+  ADD COLUMN client_telegram text,
+  ADD COLUMN client_comment text,
+  ADD COLUMN product_description text;
+
+-- RLS на user_roles: разрешить admin/owner управлять
+CREATE POLICY "Admins manage roles" ON user_roles
+  FOR ALL USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'owner'));
 ```
-P = S - D            // остаток
-R = P * 0.045 * n    // наценка
-Sale = D + P + R     // итоговая цена продажи
-Monthly = (P + R) / n
-```
-После оформления значения сохраняются в БД и не пересчитываются.
 
-### Маршруты
-```text
-/                       — лендинг с калькулятором
-/login, /signup
-/reset-password
-/app                    — _authenticated layout
-/app/                   — дашборд клиента
-/app/installments       — список
-/app/installments/:id   — карточка + график + история
-/app/new                — оформление рассрочки
-```
+**Серверные функции** (createServerFn, в `src/lib/`):
+- `contracts.functions.ts` — расширить `createContract` новыми полями + `firstPaymentDate`
+- `admin-users.functions.ts` — `listUsers`, `setUserRole`, `removeRole`
+- `admin-payments.functions.ts` — `listPayments`, `markPaid`, `refreshOverdueStatuses`
+- `seed.functions.ts` — `seedDemoData`
+- `notifications.functions.ts` — `sendContractCreated`, `sendPaymentReminder`, `sendPaymentReceived`
 
-### Схема БД (Lovable Cloud)
-- `profiles(id uuid PK → auth.users, full_name, phone, email, created_at)` — авто-создание триггером.
-- `user_roles(user_id, role app_role)` — enum `client|manager|admin|owner` (нужен для следующих этапов; сейчас используется только `client`).
-- `installment_contracts(id, client_id, product_name, product_image_url, product_price, down_payment, principal, markup_rate, term_months, markup_amount, total_sale_price, monthly_payment, start_date, status, created_at)` — статус: `pending|active|closed|overdue`.
-- `payment_schedules(id, contract_id, seq, due_date, amount, status)` — статус: `pending|paid|overdue`.
-- `payments(id, contract_id, schedule_id, amount, paid_at, method)` — история оплат.
-- RLS: клиент видит только свои записи (`client_id = auth.uid()`). Запись через server functions.
+**Маршруты:**
+- `/admin/users`, `/admin/payments`
+- `/api/public/cron/send-reminders` (для pg_cron, проверка по shared secret)
 
-### Server functions (`src/lib/*.functions.ts`)
-- `createInstallment` — создаёт контракт + генерирует `payment_schedules` (n строк).
-- `listMyInstallments`, `getInstallmentById` — выборки.
-- `getUpcomingPayment` — ближайший платёж клиента для дашборда.
+**Email:**
+- Использую Lovable Emails (нужна настройка домена — попрошу через диалог настройки на этапе реализации)
 
-### Компоненты
-- `Calculator` — управляемая форма, локальный пересчёт + helpers в `src/lib/installment.ts`.
-- `PaymentScheduleTable` / `PaymentScheduleChart` — переиспользуем на лендинге и в карточке.
-- `InstallmentCard`, `StatusBadge`, `AppSidebar` (для `_authenticated`).
+## Что НЕ войдёт (отложим)
+- Скоринг клиентов
+- Генерация PDF (договор, чек)
+- Реальный платёжный шлюз
+- 2FA, audit_logs, charity/penalty
 
-### Авторизация
-Включаем Lovable Cloud, email/пароль + Google OAuth. `_authenticated` layout с `beforeLoad` и редиректом на `/login`. После регистрации триггер создаёт `profile` и роль `client`.
-
-### Сид-данные
-1 demo-клиент с 2 активными и 1 закрытой рассрочкой + графики платежей (через миграцию, после регистрации можно «привязать» к своему uid вручную в следующей итерации).
-
-## За рамками этого этапа (следующие шаги)
-- Админ-панель, дашборд, аналитика, графики
-- Раздел «Платежи», aging-анализ просрочек
-- Скоринг и теги клиентов
-- Генерация PDF (договор, квитанции, акт)
-- Email-уведомления (требует подключения почтового домена)
-- Реальный платёжный шлюз — кнопка «Оплатить» пока имитирует оплату
-- 2FA, audit_logs, charity/penalty модуль
-
-После подтверждения этого плана — реализую этап 1 и предложу перейти к админке.
+После реализации этих 5 пунктов система будет полностью рабочей для запуска. Скажешь — добавим остальное.
