@@ -474,8 +474,9 @@ export const adminSeedDemoData = createServerFn({ method: "POST" })
 
     // 2) 20 договоров
     const today = new Date();
-    type ContractInsert = Parameters<typeof supabaseAdmin.from<"installment_contracts">>[0] extends never ? never : never;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const contracts: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const schedules: any[] = [];
 
     for (let i = 0; i < 20; i++) {
