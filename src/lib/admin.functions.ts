@@ -208,3 +208,80 @@ export const adminMakeMeOwner = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// === Управление пользователями и ролями ===
+
+const ROLE_VALUES = ["client", "manager", "admin", "owner"] as const;
+type RoleValue = (typeof ROLE_VALUES)[number];
+
+async function assertAdmin(userId: string): Promise<RoleValue[]> {
+  const roles = await assertStaff(userId);
+  const isAdmin = roles.some((r) => r === "admin" || r === "owner");
+  if (!isAdmin) throw new Error("Forbidden: admin or owner required");
+  return roles as RoleValue[];
+}
+
+export const adminListUsers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    const { data: profiles, error } = await supabaseAdmin
+      .from("profiles")
+      .select("id,email,full_name,phone,created_at")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    const { data: rolesRows } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id,role");
+    const map: Record<string, RoleValue[]> = {};
+    for (const r of rolesRows ?? []) {
+      (map[r.user_id] ??= []).push(r.role as RoleValue);
+    }
+    return (profiles ?? []).map((p) => ({ ...p, roles: map[p.id] ?? [] }));
+  });
+
+export const adminSetUserRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      userId: z.string().uuid(),
+      role: z.enum(ROLE_VALUES),
+      grant: z.boolean(),
+    }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const myRoles = await assertAdmin(context.userId);
+    const iAmOwner = myRoles.includes("owner");
+
+    // Только owner может назначать/снимать admin и owner
+    if ((data.role === "admin" || data.role === "owner") && !iAmOwner) {
+      throw new Error("Только владелец может назначать роли admin/owner");
+    }
+
+    // Нельзя снимать с себя owner (защита от случайного блока)
+    if (
+      data.role === "owner" &&
+      !data.grant &&
+      data.userId === context.userId
+    ) {
+      throw new Error("Нельзя снять с себя роль владельца");
+    }
+
+    if (data.grant) {
+      const { error } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: data.userId, role: data.role });
+      // Игнорируем конфликт уникальности
+      if (error && !error.message.toLowerCase().includes("duplicate")) {
+        throw new Error(error.message);
+      }
+    } else {
+      const { error } = await supabaseAdmin
+        .from("user_roles")
+        .delete()
+        .eq("user_id", data.userId)
+        .eq("role", data.role);
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  });
