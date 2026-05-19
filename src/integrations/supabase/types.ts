@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      installment_applications: {
+        Row: {
+          admin_note: string | null
+          client_comment: string | null
+          client_full_name: string | null
+          client_id: string
+          client_phone: string | null
+          client_telegram: string | null
+          contract_id: string | null
+          created_at: string
+          down_payment: number
+          first_payment_date: string | null
+          id: string
+          product_description: string | null
+          product_image_url: string | null
+          product_name: string
+          product_price: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          term_months: number
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          client_comment?: string | null
+          client_full_name?: string | null
+          client_id: string
+          client_phone?: string | null
+          client_telegram?: string | null
+          contract_id?: string | null
+          created_at?: string
+          down_payment?: number
+          first_payment_date?: string | null
+          id?: string
+          product_description?: string | null
+          product_image_url?: string | null
+          product_name: string
+          product_price: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          term_months: number
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          client_comment?: string | null
+          client_full_name?: string | null
+          client_id?: string
+          client_phone?: string | null
+          client_telegram?: string | null
+          contract_id?: string | null
+          created_at?: string
+          down_payment?: number
+          first_payment_date?: string | null
+          id?: string
+          product_description?: string | null
+          product_image_url?: string | null
+          product_name?: string
+          product_price?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          term_months?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       installment_contracts: {
         Row: {
           client_comment: string | null
@@ -190,6 +259,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_phones: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          phone: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          phone: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          phone?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -227,6 +320,7 @@ export type Database = {
     }
     Enums: {
       app_role: "client" | "manager" | "admin" | "owner"
+      application_status: "pending" | "approved" | "rejected"
       contract_status: "pending" | "active" | "closed" | "overdue"
       payment_status: "pending" | "paid" | "overdue"
     }
@@ -357,6 +451,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["client", "manager", "admin", "owner"],
+      application_status: ["pending", "approved", "rejected"],
       contract_status: ["pending", "active", "closed", "overdue"],
       payment_status: ["pending", "paid", "overdue"],
     },
