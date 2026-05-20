@@ -67,6 +67,15 @@ function ClientProfilePage() {
   const [dlIssuedAt, setDlIssuedAt] = useState("");
 
   const uploadFn = useServerFn(adminUploadClientDocument);
+  const listDocsFn = useServerFn(adminListClientDocuments);
+  const deleteDocFn = useServerFn(adminDeleteClientDocument);
+
+  const documentsQuery = useQuery({
+    queryKey: ["admin-client-documents", id],
+    queryFn: () => listDocsFn({ data: { userId: id } }),
+  });
+  const passportDocs = (documentsQuery.data ?? []).filter((d) => d.kind === "passport");
+  const driverDocs = (documentsQuery.data ?? []).filter((d) => d.kind === "driver_license");
 
   useEffect(() => {
     if (data?.profile) {
@@ -124,8 +133,20 @@ function ClientProfilePage() {
       });
       toast.success("Файл загружен");
       qc.invalidateQueries({ queryKey: ["admin-client", id] });
+      qc.invalidateQueries({ queryKey: ["admin-client-documents", id] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка загрузки");
+    }
+  };
+
+  const handleDeleteDoc = async (docId: string) => {
+    try {
+      await deleteDocFn({ data: { id: docId } });
+      toast.success("Фото удалено");
+      qc.invalidateQueries({ queryKey: ["admin-client", id] });
+      qc.invalidateQueries({ queryKey: ["admin-client-documents", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
     }
   };
 
@@ -262,8 +283,9 @@ function ClientProfilePage() {
         <DocumentCard
           title="Паспорт"
           icon={<IdCard className="size-4 text-primary" />}
-          photoUrl={(data.profile as Record<string, string | null>).passport_photo_url}
+          photos={passportDocs}
           onUpload={(f) => handleUpload("passport", f)}
+          onDeletePhoto={handleDeleteDoc}
         >
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -288,8 +310,9 @@ function ClientProfilePage() {
         <DocumentCard
           title="Водительское удостоверение"
           icon={<Car className="size-4 text-primary" />}
-          photoUrl={(data.profile as Record<string, string | null>).driver_license_photo_url}
+          photos={driverDocs}
           onUpload={(f) => handleUpload("driver_license", f)}
+          onDeletePhoto={handleDeleteDoc}
         >
           <div className="space-y-1.5">
             <Label className="text-xs">Номер</Label>
