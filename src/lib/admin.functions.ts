@@ -402,7 +402,7 @@ export const adminUpdateClientPhone = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
-    const patch: Record<string, unknown> = {};
+    const patch: { phone?: string; label?: string | null; channels?: string[] } = {};
     if (data.phone !== undefined) patch.phone = data.phone;
     if (data.label !== undefined) patch.label = data.label;
     if (data.channels !== undefined) patch.channels = data.channels;
