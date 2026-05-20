@@ -94,7 +94,9 @@ function Index() {
               </h1>
               <p className="text-lg text-muted-foreground max-w-[40ch] mb-8">
                 Прозрачная наценка, фиксированные платежи и полное соответствие
-                нормам Шариата. Покупайте сегодня — платите потом.
+                нормам Шариата.
+                <br />
+                <span className="block mt-3">Покупайте сегодня — платите потом.</span>
               </p>
               <div className="flex flex-wrap items-center gap-4 text-xs font-mono uppercase tracking-widest text-muted-foreground">
                 <span className="flex items-center gap-1.5">
