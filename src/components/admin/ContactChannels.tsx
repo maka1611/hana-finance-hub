@@ -1,4 +1,5 @@
 import { Phone } from "lucide-react";
+import type { ReactElement } from "react";
 import { cn } from "@/lib/utils";
 
 export type ContactChannel = "phone" | "whatsapp" | "telegram";
@@ -19,7 +20,7 @@ function TelegramIcon({ className }: { className?: string }) {
   );
 }
 
-const CHANNELS: { key: ContactChannel; Icon: (p: { className?: string }) => JSX.Element; label: string; activeCls: string }[] = [
+const CHANNELS: { key: ContactChannel; Icon: (p: { className?: string }) => ReactElement; label: string; activeCls: string }[] = [
   { key: "phone", Icon: (p) => <Phone className={p.className} />, label: "Звонок", activeCls: "bg-sky-500/15 text-sky-600 ring-sky-500/40" },
   { key: "whatsapp", Icon: WhatsAppIcon, label: "WhatsApp", activeCls: "bg-emerald-500/15 text-emerald-600 ring-emerald-500/40" },
   { key: "telegram", Icon: TelegramIcon, label: "Telegram", activeCls: "bg-sky-400/15 text-sky-500 ring-sky-400/40" },
