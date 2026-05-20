@@ -185,7 +185,8 @@ function AuditPage() {
           <ul className="divide-y divide-border">
             {filtered.map((row) => {
               const meta = ACTION_LABELS[row.action] ?? { label: row.action, cls: "bg-muted text-muted-foreground" };
-              const hasSnapshot = row.action === "contract.delete" && (row as any).details?.snapshot;
+              const isContractDelete = row.action === "contract.delete";
+              const hasSnapshot = isContractDelete && (row as any).details?.snapshot;
               return (
                 <li key={row.id} className="p-4 flex items-start gap-4">
                   <div className="flex-1 min-w-0">
@@ -201,7 +202,7 @@ function AuditPage() {
                       {row.entity_id && <> · <span className="font-mono">{row.entity_type}:{row.entity_id.slice(0, 8)}</span></>}
                     </div>
                   </div>
-                  {hasSnapshot && (
+                  {isContractDelete && (
                     <Button size="sm" variant="outline" onClick={() => setViewRow(row)} className="shrink-0">
                       <Eye className="size-4 mr-1.5" /> Посмотреть
                     </Button>
