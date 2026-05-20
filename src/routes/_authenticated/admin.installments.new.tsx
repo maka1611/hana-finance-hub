@@ -73,8 +73,8 @@ function AdminNewInstallment() {
   const [driverLicenseCategories, setDriverLicenseCategories] = useState("");
   const [driverLicenseIssuedAt, setDriverLicenseIssuedAt] = useState("");
   type PhotoFile = { fileName: string; contentType: string; dataBase64: string; previewUrl: string };
-  const [passportPhoto, setPassportPhoto] = useState<PhotoFile | null>(null);
-  const [driverLicensePhoto, setDriverLicensePhoto] = useState<PhotoFile | null>(null);
+  const [passportPhotos, setPassportPhotos] = useState<PhotoFile[]>([]);
+  const [driverLicensePhotos, setDriverLicensePhotos] = useState<PhotoFile[]>([]);
 
   const readFile = (file: File): Promise<PhotoFile> =>
     new Promise((resolve, reject) => {
