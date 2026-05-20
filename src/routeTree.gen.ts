@@ -26,6 +26,7 @@ import { Route as AuthenticatedAdminClientsRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminAnalyticsRouteImport } from './routes/_authenticated/admin.analytics'
 import { Route as AuthenticatedAppInstallmentsIndexRouteImport } from './routes/_authenticated/app.installments.index'
 import { Route as AuthenticatedAdminContractsIndexRouteImport } from './routes/_authenticated/admin.contracts.index'
+import { Route as AuthenticatedAdminClientsIndexRouteImport } from './routes/_authenticated/admin.clients.index'
 import { Route as AuthenticatedAdminApplicationsIndexRouteImport } from './routes/_authenticated/admin.applications.index'
 import { Route as AuthenticatedAppInstallmentsIdRouteImport } from './routes/_authenticated/app.installments.$id'
 import { Route as AuthenticatedAdminInstallmentsNewRouteImport } from './routes/_authenticated/admin.installments.new'
@@ -122,6 +123,12 @@ const AuthenticatedAdminContractsIndexRoute =
     path: '/contracts/',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminClientsIndexRoute =
+  AuthenticatedAdminClientsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminClientsRoute,
+  } as any)
 const AuthenticatedAdminApplicationsIndexRoute =
   AuthenticatedAdminApplicationsIndexRouteImport.update({
     id: '/applications/',
@@ -180,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/admin/installments/new': typeof AuthenticatedAdminInstallmentsNewRoute
   '/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
   '/admin/applications/': typeof AuthenticatedAdminApplicationsIndexRoute
+  '/admin/clients/': typeof AuthenticatedAdminClientsIndexRoute
   '/admin/contracts/': typeof AuthenticatedAdminContractsIndexRoute
   '/app/installments/': typeof AuthenticatedAppInstallmentsIndexRoute
 }
@@ -189,7 +197,6 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
-  '/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/app/new': typeof AuthenticatedAppNewRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByTo {
   '/admin/installments/new': typeof AuthenticatedAdminInstallmentsNewRoute
   '/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
   '/admin/applications': typeof AuthenticatedAdminApplicationsIndexRoute
+  '/admin/clients': typeof AuthenticatedAdminClientsIndexRoute
   '/admin/contracts': typeof AuthenticatedAdminContractsIndexRoute
   '/app/installments': typeof AuthenticatedAppInstallmentsIndexRoute
 }
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/installments/new': typeof AuthenticatedAdminInstallmentsNewRoute
   '/_authenticated/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
   '/_authenticated/admin/applications/': typeof AuthenticatedAdminApplicationsIndexRoute
+  '/_authenticated/admin/clients/': typeof AuthenticatedAdminClientsIndexRoute
   '/_authenticated/admin/contracts/': typeof AuthenticatedAdminContractsIndexRoute
   '/_authenticated/app/installments/': typeof AuthenticatedAppInstallmentsIndexRoute
 }
@@ -254,6 +263,7 @@ export interface FileRouteTypes {
     | '/admin/installments/new'
     | '/app/installments/$id'
     | '/admin/applications/'
+    | '/admin/clients/'
     | '/admin/contracts/'
     | '/app/installments/'
   fileRoutesByTo: FileRoutesByTo
@@ -263,7 +273,6 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/admin/analytics'
-    | '/admin/clients'
     | '/admin/payments'
     | '/admin/users'
     | '/app/new'
@@ -276,6 +285,7 @@ export interface FileRouteTypes {
     | '/admin/installments/new'
     | '/app/installments/$id'
     | '/admin/applications'
+    | '/admin/clients'
     | '/admin/contracts'
     | '/app/installments'
   id:
@@ -301,6 +311,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/installments/new'
     | '/_authenticated/app/installments/$id'
     | '/_authenticated/admin/applications/'
+    | '/_authenticated/admin/clients/'
     | '/_authenticated/admin/contracts/'
     | '/_authenticated/app/installments/'
   fileRoutesById: FileRoutesById
@@ -434,6 +445,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminContractsIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/clients/': {
+      id: '/_authenticated/admin/clients/'
+      path: '/'
+      fullPath: '/admin/clients/'
+      preLoaderRoute: typeof AuthenticatedAdminClientsIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminClientsRoute
+    }
     '/_authenticated/admin/applications/': {
       id: '/_authenticated/admin/applications/'
       path: '/applications'
@@ -481,11 +499,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminClientsRouteChildren {
   AuthenticatedAdminClientsIdRoute: typeof AuthenticatedAdminClientsIdRoute
+  AuthenticatedAdminClientsIndexRoute: typeof AuthenticatedAdminClientsIndexRoute
 }
 
 const AuthenticatedAdminClientsRouteChildren: AuthenticatedAdminClientsRouteChildren =
   {
     AuthenticatedAdminClientsIdRoute: AuthenticatedAdminClientsIdRoute,
+    AuthenticatedAdminClientsIndexRoute: AuthenticatedAdminClientsIndexRoute,
   }
 
 const AuthenticatedAdminClientsRouteWithChildren =
@@ -568,3 +588,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

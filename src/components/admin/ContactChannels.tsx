@@ -1,12 +1,29 @@
-import { Phone, MessageCircle, Send } from "lucide-react";
+import { Phone } from "lucide-react";
+import type { ReactElement } from "react";
 import { cn } from "@/lib/utils";
 
 export type ContactChannel = "phone" | "whatsapp" | "telegram";
 
-const CHANNELS: { key: ContactChannel; Icon: typeof Phone; label: string; activeCls: string }[] = [
-  { key: "phone", Icon: Phone, label: "Звонок", activeCls: "bg-sky-500/15 text-sky-600 ring-sky-500/40" },
-  { key: "whatsapp", Icon: MessageCircle, label: "WhatsApp", activeCls: "bg-emerald-500/15 text-emerald-600 ring-emerald-500/40" },
-  { key: "telegram", Icon: Send, label: "Telegram", activeCls: "bg-blue-500/15 text-blue-600 ring-blue-500/40" },
+function WhatsAppIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
+      <path d="M17.5 14.4c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6 0-.3-.2-1.3-.5-2.5-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5 0-.1-.7-1.7-1-2.3-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.2.2 2.1 3.3 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.5.2-.7.2-1.4.2-1.5-.1-.2-.3-.3-.6-.4Zm-5.5 7.5h0a9.9 9.9 0 0 1-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4a9.9 9.9 0 1 1 8.3 4.6Zm8.4-18.3A11.8 11.8 0 0 0 2.1 17.3L.5 23.5l6.3-1.7a11.8 11.8 0 0 0 17.7-10.2c0-3.2-1.2-6.1-3.5-8.3Z" />
+    </svg>
+  );
+}
+
+function TelegramIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
+      <path d="M21.7 3.3 2.5 10.7c-1.3.5-1.3 1.2-.2 1.6l4.9 1.5 11.4-7.2c.5-.3 1-.1.6.2L9.9 15l-.3 4.9c.5 0 .7-.2 1-.4l2.3-2.2 4.9 3.6c.9.5 1.5.2 1.8-.8l3.2-15.1c.4-1.3-.4-1.9-1.1-1.7Z" />
+    </svg>
+  );
+}
+
+const CHANNELS: { key: ContactChannel; Icon: (p: { className?: string }) => ReactElement; label: string; activeCls: string }[] = [
+  { key: "phone", Icon: (p) => <Phone className={p.className} />, label: "Звонок", activeCls: "bg-sky-500/15 text-sky-600 ring-sky-500/40" },
+  { key: "whatsapp", Icon: WhatsAppIcon, label: "WhatsApp", activeCls: "bg-emerald-500/15 text-emerald-600 ring-emerald-500/40" },
+  { key: "telegram", Icon: TelegramIcon, label: "Telegram", activeCls: "bg-sky-400/15 text-sky-500 ring-sky-400/40" },
 ];
 
 export function ContactChannelToggles({

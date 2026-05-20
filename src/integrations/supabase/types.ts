@@ -235,25 +235,52 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          driver_license_categories: string | null
+          driver_license_issued_at: string | null
+          driver_license_number: string | null
+          driver_license_photo_url: string | null
           email: string | null
           full_name: string | null
           id: string
+          passport_issued_at: string | null
+          passport_issued_by: string | null
+          passport_number: string | null
+          passport_photo_url: string | null
+          passport_series: string | null
           phone: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          driver_license_categories?: string | null
+          driver_license_issued_at?: string | null
+          driver_license_number?: string | null
+          driver_license_photo_url?: string | null
           email?: string | null
           full_name?: string | null
           id: string
+          passport_issued_at?: string | null
+          passport_issued_by?: string | null
+          passport_number?: string | null
+          passport_photo_url?: string | null
+          passport_series?: string | null
           phone?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          driver_license_categories?: string | null
+          driver_license_issued_at?: string | null
+          driver_license_number?: string | null
+          driver_license_photo_url?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
+          passport_issued_at?: string | null
+          passport_issued_by?: string | null
+          passport_number?: string | null
+          passport_photo_url?: string | null
+          passport_series?: string | null
           phone?: string | null
           updated_at?: string
         }

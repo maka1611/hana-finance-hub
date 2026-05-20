@@ -8,6 +8,7 @@ import {
   adminAddClientPhone,
   adminDeleteClientPhone,
   adminUpdateClientPhone,
+  adminUploadClientDocument,
 } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,7 @@ import { formatMoney, formatDate } from "@/lib/installment";
 import { toast } from "sonner";
 import {
   ArrowLeft, Mail, Phone, Plus, Trash2, Star, Award,
-  CheckCircle2, AlertTriangle, Clock, Save,
+  CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink,
 } from "lucide-react";
 import { ContactChannelToggles, type ContactChannel } from "@/components/admin/ContactChannels";
 
@@ -55,16 +56,44 @@ function ClientProfilePage() {
   const [newPhoneLabel, setNewPhoneLabel] = useState("");
   const [newPhoneChannels, setNewPhoneChannels] = useState<ContactChannel[]>(["phone"]);
 
+  const [passportSeries, setPassportSeries] = useState("");
+  const [passportNumber, setPassportNumber] = useState("");
+  const [passportIssuedBy, setPassportIssuedBy] = useState("");
+  const [passportIssuedAt, setPassportIssuedAt] = useState("");
+  const [dlNumber, setDlNumber] = useState("");
+  const [dlCategories, setDlCategories] = useState("");
+  const [dlIssuedAt, setDlIssuedAt] = useState("");
+
+  const uploadFn = useServerFn(adminUploadClientDocument);
+
   useEffect(() => {
     if (data?.profile) {
-      setFullName(data.profile.full_name ?? "");
-      setEmail(data.profile.email ?? "");
-      setPhone(data.profile.phone ?? "");
+      const p = data.profile as Record<string, string | null>;
+      setFullName(p.full_name ?? "");
+      setEmail(p.email ?? "");
+      setPhone(p.phone ?? "");
+      setPassportSeries(p.passport_series ?? "");
+      setPassportNumber(p.passport_number ?? "");
+      setPassportIssuedBy(p.passport_issued_by ?? "");
+      setPassportIssuedAt(p.passport_issued_at ?? "");
+      setDlNumber(p.driver_license_number ?? "");
+      setDlCategories(p.driver_license_categories ?? "");
+      setDlIssuedAt(p.driver_license_issued_at ?? "");
     }
   }, [data?.profile]);
 
   const save = useMutation({
-    mutationFn: () => updateFn({ data: { id, fullName, email, phone } }),
+    mutationFn: () =>
+      updateFn({
+        data: {
+          id, fullName, email, phone,
+          passportSeries, passportNumber, passportIssuedBy,
+          passportIssuedAt: passportIssuedAt || null,
+          driverLicenseNumber: dlNumber,
+          driverLicenseCategories: dlCategories,
+          driverLicenseIssuedAt: dlIssuedAt || null,
+        },
+      }),
     onSuccess: () => {
       toast.success("Профиль обновлён");
       qc.invalidateQueries({ queryKey: ["admin-client", id] });
@@ -72,6 +101,31 @@ function ClientProfilePage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
   });
+
+  const handleUpload = async (kind: "passport" | "driver_license", file: File) => {
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Файл слишком большой (макс 8 МБ)");
+      return;
+    }
+    const buf = await file.arrayBuffer();
+    let bin = "";
+    const u8 = new Uint8Array(buf);
+    for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+    const b64 = btoa(bin);
+    try {
+      await uploadFn({
+        data: {
+          userId: id, kind, fileName: file.name,
+          contentType: file.type || "application/octet-stream",
+          dataBase64: b64,
+        },
+      });
+      toast.success("Файл загружен");
+      qc.invalidateQueries({ queryKey: ["admin-client", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка загрузки");
+    }
+  };
 
   const addPhone = useMutation({
     mutationFn: () =>
@@ -199,6 +253,62 @@ function ClientProfilePage() {
         <StatBox icon={<CheckCircle2 className="size-4 text-emerald-600" />} label="Оплачено" value={`${r.paidCount}`} sub={formatMoney(r.paidAmount)} />
         <StatBox icon={<AlertTriangle className="size-4 text-destructive" />} label="Просрочено" value={`${r.overdueCount}`} sub={formatMoney(r.overdueAmount)} danger={r.overdueCount > 0} />
         <StatBox icon={<Clock className="size-4 text-muted-foreground" />} label="Предстоящие" value={`${r.pendingCount}`} sub={formatMoney(r.pendingAmount)} />
+      </div>
+
+      {/* Документы клиента */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <DocumentCard
+          title="Паспорт"
+          icon={<IdCard className="size-4 text-primary" />}
+          photoUrl={(data.profile as Record<string, string | null>).passport_photo_url}
+          onUpload={(f) => handleUpload("passport", f)}
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Серия</Label>
+              <Input value={passportSeries} onChange={(e) => setPassportSeries(e.target.value)} maxLength={20} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Номер</Label>
+              <Input value={passportNumber} onChange={(e) => setPassportNumber(e.target.value)} maxLength={20} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Кем выдан</Label>
+            <Input value={passportIssuedBy} onChange={(e) => setPassportIssuedBy(e.target.value)} maxLength={300} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Дата выдачи</Label>
+            <Input type="date" value={passportIssuedAt} onChange={(e) => setPassportIssuedAt(e.target.value)} />
+          </div>
+        </DocumentCard>
+
+        <DocumentCard
+          title="Водительское удостоверение"
+          icon={<Car className="size-4 text-primary" />}
+          photoUrl={(data.profile as Record<string, string | null>).driver_license_photo_url}
+          onUpload={(f) => handleUpload("driver_license", f)}
+        >
+          <div className="space-y-1.5">
+            <Label className="text-xs">Номер</Label>
+            <Input value={dlNumber} onChange={(e) => setDlNumber(e.target.value)} maxLength={50} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Категории</Label>
+              <Input value={dlCategories} onChange={(e) => setDlCategories(e.target.value)} maxLength={50} placeholder="B, C" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Дата выдачи</Label>
+              <Input type="date" value={dlIssuedAt} onChange={(e) => setDlIssuedAt(e.target.value)} />
+            </div>
+          </div>
+        </DocumentCard>
+        <div className="md:col-span-2">
+          <Button onClick={() => save.mutate()} disabled={save.isPending} variant="secondary">
+            <Save className="size-4" /> Сохранить документы и профиль
+          </Button>
+        </div>
       </div>
 
       {/* Доп. телефоны */}

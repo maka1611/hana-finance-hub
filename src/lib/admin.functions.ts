@@ -342,18 +342,65 @@ export const adminUpdateClient = createServerFn({ method: "POST" })
       fullName: z.string().trim().max(200).optional().nullable(),
       email: z.string().trim().email().max(200).optional().nullable(),
       phone: z.string().trim().max(50).optional().nullable(),
+      passportSeries: z.string().trim().max(20).optional().nullable(),
+      passportNumber: z.string().trim().max(20).optional().nullable(),
+      passportIssuedBy: z.string().trim().max(300).optional().nullable(),
+      passportIssuedAt: z.string().trim().max(20).optional().nullable(),
+      driverLicenseNumber: z.string().trim().max(50).optional().nullable(),
+      driverLicenseCategories: z.string().trim().max(50).optional().nullable(),
+      driverLicenseIssuedAt: z.string().trim().max(20).optional().nullable(),
     }).parse(input),
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
-    const patch: { full_name?: string | null; email?: string | null; phone?: string | null } = {};
+    const patch: Record<string, string | null> = {};
     if (data.fullName !== undefined) patch.full_name = data.fullName || null;
     if (data.email !== undefined) patch.email = data.email || null;
     if (data.phone !== undefined) patch.phone = data.phone || null;
+    if (data.passportSeries !== undefined) patch.passport_series = data.passportSeries || null;
+    if (data.passportNumber !== undefined) patch.passport_number = data.passportNumber || null;
+    if (data.passportIssuedBy !== undefined) patch.passport_issued_by = data.passportIssuedBy || null;
+    if (data.passportIssuedAt !== undefined) patch.passport_issued_at = data.passportIssuedAt || null;
+    if (data.driverLicenseNumber !== undefined) patch.driver_license_number = data.driverLicenseNumber || null;
+    if (data.driverLicenseCategories !== undefined) patch.driver_license_categories = data.driverLicenseCategories || null;
+    if (data.driverLicenseIssuedAt !== undefined) patch.driver_license_issued_at = data.driverLicenseIssuedAt || null;
     if (Object.keys(patch).length === 0) return { ok: true };
-    const { error } = await supabaseAdmin.from("profiles").update(patch).eq("id", data.id);
+    const { error } = await supabaseAdmin.from("profiles").update(patch as never).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const adminUploadClientDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      userId: z.string().uuid(),
+      kind: z.enum(["passport", "driver_license"]),
+      fileName: z.string().trim().min(1).max(200),
+      contentType: z.string().trim().min(1).max(100),
+      dataBase64: z.string().min(1).max(15_000_000),
+    }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const ext = (data.fileName.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const path = `${data.userId}/${data.kind}-${Date.now()}.${ext}`;
+    const bytes = Uint8Array.from(atob(data.dataBase64), (c) => c.charCodeAt(0));
+    const { error: upErr } = await supabaseAdmin.storage
+      .from("client-documents")
+      .upload(path, bytes, { contentType: data.contentType, upsert: true });
+    if (upErr) throw new Error(upErr.message);
+    const { data: signed, error: signErr } = await supabaseAdmin.storage
+      .from("client-documents")
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+    if (signErr) throw new Error(signErr.message);
+    const col = data.kind === "passport" ? "passport_photo_url" : "driver_license_photo_url";
+    const { error: updErr } = await supabaseAdmin
+      .from("profiles")
+      .update({ [col]: signed.signedUrl } as never)
+      .eq("id", data.userId);
+    if (updErr) throw new Error(updErr.message);
+    return { url: signed.signedUrl };
   });
 
 export const adminAddClientPhone = createServerFn({ method: "POST" })
