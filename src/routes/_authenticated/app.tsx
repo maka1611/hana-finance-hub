@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, Home, FileCheck2, List, ShieldCheck, User } from "lucide-react";
@@ -6,7 +6,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getMyRoles } from "@/lib/admin.functions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
 export const Route = createFileRoute("/_authenticated/app")({
   component: AppLayout,
@@ -14,10 +15,30 @@ export const Route = createFileRoute("/_authenticated/app")({
 
 function AppLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const rolesFn = useServerFn(getMyRoles);
   const { data: roles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
   const isStaff = (roles ?? []).some((r) => r === "manager" || r === "admin" || r === "owner");
   const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(null);
+
+  // Track navigation depth to decide slide direction
+  const ROUTE_DEPTH: Record<string, number> = {
+    "/app": 0,
+    "/app/installments": 1,
+    "/app/new": 1,
+    "/app/profile": 1,
+  };
+  const prevDepthRef = useRef<number>(ROUTE_DEPTH[location.pathname] ?? 1);
+  const currentDepth = (() => {
+    if (ROUTE_DEPTH[location.pathname] !== undefined) return ROUTE_DEPTH[location.pathname];
+    // Deeper detail routes like /app/installments/:id
+    return location.pathname.split("/").filter(Boolean).length - 1;
+  })();
+  const direction = currentDepth >= prevDepthRef.current ? 1 : -1;
+  useEffect(() => {
+    prevDepthRef.current = currentDepth;
+  }, [currentDepth]);
+
   useEffect(() => {
     (async () => {
       const { data: userData } = await supabase.auth.getUser();
@@ -50,9 +71,9 @@ function AppLayout() {
     navigate({ to: "/" });
   };
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-background pb-safe">
+      <nav className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-40 pt-safe">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between px-safe">
           <div className="flex items-center gap-8">
             <Link to="/" className="font-extrabold text-xl tracking-tighter uppercase">
               Noor<span className="text-primary">Pay</span>
@@ -119,8 +140,20 @@ function AppLayout() {
           </div>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        <Outlet />
+      <main className="max-w-7xl mx-auto px-6 py-10 px-safe overflow-x-hidden">
+        <AnimatePresence mode="wait" initial={false} custom={direction}>
+          <motion.div
+            key={location.pathname}
+            custom={direction}
+            initial={{ opacity: 0, x: direction * 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: direction * -24 }}
+            transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+            className="page-transition"
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );
