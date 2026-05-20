@@ -570,10 +570,25 @@ export const adminDeleteContract = createServerFn({ method: "POST" })
     await assertAdmin(context.userId);
     const { data: contract, error: gErr } = await supabaseAdmin
       .from("installment_contracts")
-      .select("id,client_id,product_name,total_sale_price")
+      .select("*")
       .eq("id", data.id)
       .single();
     if (gErr) throw new Error(gErr.message);
+    const { data: schedulesSnap } = await supabaseAdmin
+      .from("payment_schedules")
+      .select("*")
+      .eq("contract_id", data.id)
+      .order("seq", { ascending: true });
+    const { data: paymentsSnap } = await supabaseAdmin
+      .from("payments")
+      .select("*")
+      .eq("contract_id", data.id)
+      .order("paid_at", { ascending: true });
+    const { data: clientSnap } = await supabaseAdmin
+      .from("profiles")
+      .select("id,full_name,email,phone")
+      .eq("id", contract.client_id)
+      .maybeSingle();
     await supabaseAdmin.from("payments").delete().eq("contract_id", data.id);
     await supabaseAdmin.from("payment_schedules").delete().eq("contract_id", data.id);
     await supabaseAdmin
@@ -594,6 +609,12 @@ export const adminDeleteContract = createServerFn({ method: "POST" })
       details: {
         clientId: contract.client_id,
         totalSalePrice: contract.total_sale_price,
+        snapshot: {
+          contract,
+          schedules: schedulesSnap ?? [],
+          payments: paymentsSnap ?? [],
+          client: clientSnap ?? null,
+        },
       },
     });
     return { ok: true };
