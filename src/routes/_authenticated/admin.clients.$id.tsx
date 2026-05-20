@@ -118,12 +118,19 @@ function ClientProfilePage() {
       toast.error("Файл слишком большой (макс 8 МБ)");
       return;
     }
-    const buf = await file.arrayBuffer();
-    let bin = "";
-    const u8 = new Uint8Array(buf);
-    for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
-    const b64 = btoa(bin);
+    const toBase64 = (f: File) =>
+      new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => {
+          const result = String(r.result || "");
+          const comma = result.indexOf(",");
+          resolve(comma >= 0 ? result.slice(comma + 1) : result);
+        };
+        r.onerror = () => reject(r.error ?? new Error("Не удалось прочитать файл"));
+        r.readAsDataURL(f);
+      });
     try {
+      const b64 = await toBase64(file);
       await uploadFn({
         data: {
           userId: id, kind, fileName: file.name,
