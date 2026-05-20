@@ -604,3 +604,68 @@ function Row({ k, v, bold }: { k: string; v: string; bold?: boolean }) {
     </div>
   );
 }
+
+function PhotoPicker({
+  label,
+  photo,
+  onChange,
+  readFile,
+}: {
+  label: string;
+  photo: { fileName: string; contentType: string; dataBase64: string; previewUrl: string } | null;
+  onChange: (
+    p: { fileName: string; contentType: string; dataBase64: string; previewUrl: string } | null,
+  ) => void;
+  readFile: (
+    file: File,
+  ) => Promise<{ fileName: string; contentType: string; dataBase64: string; previewUrl: string }>;
+}) {
+  const inputId = `photo-${label.replace(/\s+/g, "-")}`;
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs">{label}</Label>
+      {photo ? (
+        <div className="relative inline-block">
+          <img
+            src={photo.previewUrl}
+            alt={label}
+            className="h-32 w-auto rounded-lg ring-1 ring-border object-cover"
+          />
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="absolute -top-2 -right-2 bg-background ring-1 ring-border rounded-full p-1 hover:bg-destructive hover:text-destructive-foreground"
+            aria-label="Удалить"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ) : (
+        <label
+          htmlFor={inputId}
+          className="flex items-center justify-center gap-2 h-24 rounded-lg border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-primary cursor-pointer transition-colors"
+        >
+          <Upload className="size-4" /> Загрузить фото
+        </label>
+      )}
+      <input
+        id={inputId}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          try {
+            const p = await readFile(file);
+            onChange(p);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Ошибка загрузки");
+          } finally {
+            e.target.value = "";
+          }
+        }}
+      />
+    </div>
+  );
+}
