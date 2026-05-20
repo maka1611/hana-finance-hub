@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { adminListUsers, adminSetUserRole, getMyRoles } from "@/lib/admin.functions";
+import { roleLabelRu } from "@/components/admin/ContactChannels";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,9 +109,9 @@ function UsersPage() {
                   <TableCell className="text-muted-foreground text-sm">{u.email ?? "—"}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {u.roles.length === 0 && <span className="text-xs text-muted-foreground">client</span>}
+                      {u.roles.length === 0 && <span className="text-xs text-muted-foreground">Клиент</span>}
                       {u.roles.map((r) => (
-                        <Badge key={r} variant={r === "owner" ? "default" : "secondary"}>{r}</Badge>
+                        <Badge key={r} variant={r === "owner" ? "default" : "secondary"}>{roleLabelRu(r)}</Badge>
                       ))}
                     </div>
                   </TableCell>

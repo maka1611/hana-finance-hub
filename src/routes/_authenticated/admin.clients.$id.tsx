@@ -20,7 +20,7 @@ import {
   ArrowLeft, Mail, Phone, Plus, Trash2, Star, Award,
   CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink,
 } from "lucide-react";
-import { ContactChannelToggles, type ContactChannel } from "@/components/admin/ContactChannels";
+import { ContactChannelToggles, roleLabelRu, type ContactChannel } from "@/components/admin/ContactChannels";
 
 export const Route = createFileRoute("/_authenticated/admin/clients/$id")({
   head: () => ({ meta: [{ title: "Профиль клиента — Админка" }] }),
@@ -181,10 +181,10 @@ function ClientProfilePage() {
         <h1 className="text-3xl font-extrabold tracking-tight">{data.profile.full_name || "Без имени"}</h1>
         <div className="flex flex-wrap gap-2 mt-2">
           {data.roles.length === 0 ? (
-            <Badge variant="secondary">client</Badge>
+            <Badge variant="secondary">Клиент</Badge>
           ) : (
             data.roles.map((r) => (
-              <Badge key={r} variant={r === "owner" ? "default" : "secondary"}>{r}</Badge>
+              <Badge key={r} variant={r === "owner" ? "default" : "secondary"}>{roleLabelRu(r)}</Badge>
             ))
           )}
         </div>

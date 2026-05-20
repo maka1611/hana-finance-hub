@@ -10,7 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { FileCheck2 } from "lucide-react";
+import { FileCheck2, Plus, Trash2 } from "lucide-react";
+import {
+  ContactChannelToggles,
+  autoLabelFromChannels,
+  type ContactChannel,
+} from "@/components/admin/ContactChannels";
 
 type NewSearch = { price?: number; down?: number; term?: number };
 
@@ -35,8 +40,10 @@ function NewInstallment() {
   const [downPayment, setDownPayment] = useState<number>(search.down ?? 50000);
   const [termMonths, setTermMonths] = useState<number>(search.term ?? 12);
   const [clientFullName, setClientFullName] = useState("");
-  const [clientTelegram, setClientTelegram] = useState("");
-  const [clientPhone, setClientPhone] = useState("");
+  type PhoneRow = { phone: string; label: string; channels: ContactChannel[] };
+  const [phones, setPhones] = useState<PhoneRow[]>([
+    { phone: "", label: "", channels: [] },
+  ]);
   const [clientComment, setClientComment] = useState("");
   const [firstPaymentDate, setFirstPaymentDate] = useState<string>(() => {
     const d = new Date();
@@ -56,7 +63,13 @@ function NewInstallment() {
         .eq("id", user.id)
         .maybeSingle();
       if (data?.full_name) setClientFullName(data.full_name);
-      if (data?.phone) setClientPhone(data.phone);
+      if (data?.phone) {
+        setPhones((arr) => {
+          const next = [...arr];
+          next[0] = { ...next[0], phone: data.phone as string };
+          return next;
+        });
+      }
     })();
   }, []);
 
@@ -69,9 +82,18 @@ function NewInstallment() {
     e.preventDefault();
     if (!productName.trim()) return toast.error("Укажите название товара");
     if (!clientFullName.trim()) return toast.error("Укажите ФИО клиента");
-    if (!clientPhone.trim()) return toast.error("Укажите номер телефона");
+    if (!phones[0]?.phone.trim()) return toast.error("Укажите номер телефона");
     setLoading(true);
     try {
+      const primary = phones[0];
+      const extras = phones
+        .slice(1)
+        .filter((p) => p.phone.trim().length > 0)
+        .map((p) => ({
+          phone: p.phone.trim(),
+          label: p.label.trim() || autoLabelFromChannels(p.channels),
+          channels: p.channels,
+        }));
       await fn({
         data: {
           productName,
@@ -80,10 +102,10 @@ function NewInstallment() {
           downPayment,
           termMonths,
           clientFullName,
-          clientTelegram: clientTelegram || null,
-          clientPhone,
+          clientPhone: primary.phone.trim(),
           clientComment: clientComment || null,
           firstPaymentDate,
+          extraPhones: extras,
         },
       });
       toast.success("Заявка отправлена. Менеджер свяжется с вами");
@@ -122,25 +144,70 @@ function NewInstallment() {
               required
             />
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label>Telegram <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
-              <Input
-                value={clientTelegram}
-                onChange={(e) => setClientTelegram(e.target.value)}
-                placeholder="@username"
-              />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Телефоны для связи</Label>
+              <button
+                type="button"
+                onClick={() =>
+                  setPhones((arr) => [...arr, { phone: "", label: "", channels: [] }])
+                }
+                className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline"
+              >
+                <Plus className="size-3.5" /> Добавить номер
+              </button>
             </div>
-            <div className="space-y-2">
-              <Label>Телефон</Label>
-              <Input
-                value={clientPhone}
-                onChange={(e) => setClientPhone(e.target.value)}
-                placeholder="+7 ..."
-                required
-                inputMode="tel"
-              />
-            </div>
+            {phones.map((row, idx) => (
+              <div key={idx} className="bg-muted/30 rounded-xl p-3 space-y-2 ring-1 ring-border">
+                <div className="grid grid-cols-[1fr_180px] gap-2">
+                  <Input
+                    value={row.phone}
+                    onChange={(e) =>
+                      setPhones((arr) =>
+                        arr.map((p, i) => (i === idx ? { ...p, phone: e.target.value } : p)),
+                      )
+                    }
+                    placeholder={idx === 0 ? "+7 ... (основной)" : "+7 ..."}
+                    required={idx === 0}
+                    inputMode="tel"
+                  />
+                  <Input
+                    value={row.label}
+                    onChange={(e) =>
+                      setPhones((arr) =>
+                        arr.map((p, i) => (i === idx ? { ...p, label: e.target.value } : p)),
+                      )
+                    }
+                    placeholder={autoLabelFromChannels(row.channels)}
+                    maxLength={50}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <ContactChannelToggles
+                    value={row.channels}
+                    onChange={(v) =>
+                      setPhones((arr) =>
+                        arr.map((p, i) => (i === idx ? { ...p, channels: v } : p)),
+                      )
+                    }
+                    size="sm"
+                  />
+                  {idx > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPhones((arr) => arr.filter((_, i) => i !== idx))}
+                      className="text-xs text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
+                    >
+                      <Trash2 className="size-3.5" /> Удалить
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <p className="text-[11px] text-muted-foreground">
+              Подсветите иконки для предпочтительных способов связи: звонок, WhatsApp, Telegram.
+              Название номера подставится автоматически — его можно изменить.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Комментарий менеджеру <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
