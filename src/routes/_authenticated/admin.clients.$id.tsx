@@ -8,6 +8,7 @@ import {
   adminAddClientPhone,
   adminDeleteClientPhone,
   adminUpdateClientPhone,
+  adminUploadClientDocument,
 } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,7 @@ import { formatMoney, formatDate } from "@/lib/installment";
 import { toast } from "sonner";
 import {
   ArrowLeft, Mail, Phone, Plus, Trash2, Star, Award,
-  CheckCircle2, AlertTriangle, Clock, Save,
+  CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink,
 } from "lucide-react";
 import { ContactChannelToggles, type ContactChannel } from "@/components/admin/ContactChannels";
 
@@ -55,16 +56,44 @@ function ClientProfilePage() {
   const [newPhoneLabel, setNewPhoneLabel] = useState("");
   const [newPhoneChannels, setNewPhoneChannels] = useState<ContactChannel[]>(["phone"]);
 
+  const [passportSeries, setPassportSeries] = useState("");
+  const [passportNumber, setPassportNumber] = useState("");
+  const [passportIssuedBy, setPassportIssuedBy] = useState("");
+  const [passportIssuedAt, setPassportIssuedAt] = useState("");
+  const [dlNumber, setDlNumber] = useState("");
+  const [dlCategories, setDlCategories] = useState("");
+  const [dlIssuedAt, setDlIssuedAt] = useState("");
+
+  const uploadFn = useServerFn(adminUploadClientDocument);
+
   useEffect(() => {
     if (data?.profile) {
-      setFullName(data.profile.full_name ?? "");
-      setEmail(data.profile.email ?? "");
-      setPhone(data.profile.phone ?? "");
+      const p = data.profile as Record<string, string | null>;
+      setFullName(p.full_name ?? "");
+      setEmail(p.email ?? "");
+      setPhone(p.phone ?? "");
+      setPassportSeries(p.passport_series ?? "");
+      setPassportNumber(p.passport_number ?? "");
+      setPassportIssuedBy(p.passport_issued_by ?? "");
+      setPassportIssuedAt(p.passport_issued_at ?? "");
+      setDlNumber(p.driver_license_number ?? "");
+      setDlCategories(p.driver_license_categories ?? "");
+      setDlIssuedAt(p.driver_license_issued_at ?? "");
     }
   }, [data?.profile]);
 
   const save = useMutation({
-    mutationFn: () => updateFn({ data: { id, fullName, email, phone } }),
+    mutationFn: () =>
+      updateFn({
+        data: {
+          id, fullName, email, phone,
+          passportSeries, passportNumber, passportIssuedBy,
+          passportIssuedAt: passportIssuedAt || null,
+          driverLicenseNumber: dlNumber,
+          driverLicenseCategories: dlCategories,
+          driverLicenseIssuedAt: dlIssuedAt || null,
+        },
+      }),
     onSuccess: () => {
       toast.success("Профиль обновлён");
       qc.invalidateQueries({ queryKey: ["admin-client", id] });
@@ -72,6 +101,31 @@ function ClientProfilePage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
   });
+
+  const handleUpload = async (kind: "passport" | "driver_license", file: File) => {
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Файл слишком большой (макс 8 МБ)");
+      return;
+    }
+    const buf = await file.arrayBuffer();
+    let bin = "";
+    const u8 = new Uint8Array(buf);
+    for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+    const b64 = btoa(bin);
+    try {
+      await uploadFn({
+        data: {
+          userId: id, kind, fileName: file.name,
+          contentType: file.type || "application/octet-stream",
+          dataBase64: b64,
+        },
+      });
+      toast.success("Файл загружен");
+      qc.invalidateQueries({ queryKey: ["admin-client", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка загрузки");
+    }
+  };
 
   const addPhone = useMutation({
     mutationFn: () =>
