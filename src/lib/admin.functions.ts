@@ -803,6 +803,16 @@ const AdminCreateInstallmentSchema = z.object({
   firstPaymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   clientComment: z.string().trim().max(2000).optional().nullable(),
   markupRate: z.number().min(0).max(1).optional(),
+  extraPhones: z
+    .array(
+      z.object({
+        phone: z.string().trim().min(3).max(50).regex(/^[+\d\s()\-]+$/),
+        label: z.string().trim().max(50).optional().nullable(),
+        channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
+      }),
+    )
+    .max(10)
+    .optional(),
 });
 
 export const adminCreateInstallment = createServerFn({ method: "POST" })
