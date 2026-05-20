@@ -44,8 +44,12 @@ function Index() {
               Noor<span className="text-primary">Pay</span>
             </Link>
             <div className="hidden md:flex gap-6 text-sm font-medium text-muted-foreground">
-              <a href="#calc" className="hover:text-primary transition-colors">Калькулятор</a>
-              <a href="#principles" className="hover:text-primary transition-colors">Принципы</a>
+              <a href="#calc" className="hover:text-primary transition-colors">
+                Калькулятор
+              </a>
+              <a href="#principles" className="hover:text-primary transition-colors">
+                Принципы
+              </a>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -93,8 +97,7 @@ function Index() {
                 без процентов.
               </h1>
               <p className="text-lg text-muted-foreground max-w-[40ch] mb-8">
-                Прозрачная наценка, фиксированные платежи и полное соответствие
-                нормам Шариата.
+                Прозрачная наценка, фиксированные платежи и полное соответствие нормам Шариата.
                 <br />
                 <span className="block mt-3">Покупайте сегодня — платите потом.</span>
               </p>

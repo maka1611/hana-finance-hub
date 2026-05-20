@@ -19,7 +19,9 @@ async function assertStaff(userId: string) {
 const MAX_DOCS_PER_KIND = 5;
 const DOC_SIGNED_TTL = 60 * 60 * 24 * 365 * 5;
 
-async function getActorInfo(userId: string): Promise<{ email: string | null; name: string | null }> {
+async function getActorInfo(
+  userId: string,
+): Promise<{ email: string | null; name: string | null }> {
   const { data } = await supabaseAdmin
     .from("profiles")
     .select("email,full_name")
@@ -68,7 +70,9 @@ export const adminStats = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertStaff(context.userId);
     const [contracts, schedules, payments, clients] = await Promise.all([
-      supabaseAdmin.from("installment_contracts").select("status,total_sale_price,principal,markup_amount"),
+      supabaseAdmin
+        .from("installment_contracts")
+        .select("status,total_sale_price,principal,markup_amount"),
       supabaseAdmin.from("payment_schedules").select("status,amount,due_date"),
       supabaseAdmin.from("payments").select("amount,paid_at"),
       supabaseAdmin.from("profiles").select("id"),
@@ -89,16 +93,30 @@ export const adminStats = createServerFn({ method: "GET" })
       totalMarkup: cs.reduce((s, c) => s + Number(c.markup_amount), 0),
       paymentsCollected: (payments.data ?? []).reduce((s, p) => s + Number(p.amount), 0),
       clientsCount: (clients.data ?? []).length,
-      duesToday: ss.filter((s) => s.status === "pending" && s.due_date === today).reduce((s, x) => s + Number(x.amount), 0),
-      duesWeek: ss.filter((s) => s.status === "pending" && s.due_date >= today && s.due_date <= weekStr).reduce((s, x) => s + Number(x.amount), 0),
-      overdueAmount: ss.filter((s) => s.status === "overdue" || (s.status === "pending" && s.due_date < today)).reduce((s, x) => s + Number(x.amount), 0),
+      duesToday: ss
+        .filter((s) => s.status === "pending" && s.due_date === today)
+        .reduce((s, x) => s + Number(x.amount), 0),
+      duesWeek: ss
+        .filter((s) => s.status === "pending" && s.due_date >= today && s.due_date <= weekStr)
+        .reduce((s, x) => s + Number(x.amount), 0),
+      overdueAmount: ss
+        .filter((s) => s.status === "overdue" || (s.status === "pending" && s.due_date < today))
+        .reduce((s, x) => s + Number(x.amount), 0),
     };
   });
 
 const analyticsSeriesInput = z.object({
   period: z.enum(["all", "year", "quarter", "month", "week", "today", "custom"]).default("month"),
-  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
-  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .nullable(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .nullable(),
 });
 
 type AnalyticsRow = {
@@ -112,7 +130,10 @@ type AnalyticsRow = {
 };
 
 async function fetchAllRows<T>(
-  buildQuery: (from: number, to: number) => Promise<{ data: T[] | null; error: { message: string } | null }>,
+  buildQuery: (
+    from: number,
+    to: number,
+  ) => Promise<{ data: T[] | null; error: { message: string } | null }>,
 ) {
   const rows: T[] = [];
   for (let from = 0; ; from += 1000) {
@@ -131,14 +152,20 @@ const monthKey = (date: Date) => date.toISOString().slice(0, 7);
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * dayMs);
 
-function resolveAnalyticsPeriod(period: z.infer<typeof analyticsSeriesInput>["period"], from?: string | null, to?: string | null) {
+function resolveAnalyticsPeriod(
+  period: z.infer<typeof analyticsSeriesInput>["period"],
+  from?: string | null,
+  to?: string | null,
+) {
   const now = new Date();
   const today = startOfDay(now);
   let start: Date | null = null;
   let end = today;
 
-  if (period === "year") start = startOfDay(new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()));
-  if (period === "quarter") start = startOfDay(new Date(now.getFullYear(), now.getMonth() - 3, now.getDate()));
+  if (period === "year")
+    start = startOfDay(new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()));
+  if (period === "quarter")
+    start = startOfDay(new Date(now.getFullYear(), now.getMonth() - 3, now.getDate()));
   if (period === "month") start = new Date(now.getFullYear(), now.getMonth(), 1);
   if (period === "week") start = addDays(today, -6);
   if (period === "today") start = today;
@@ -164,20 +191,33 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
     const endDate = dateKey(end);
 
     const [contracts, payments, schedules] = await Promise.all([
-      fetchAllRows<{ created_at: string; total_sale_price: number | string; markup_amount: number | string }>((from, to) => {
-        let q: any = supabaseAdmin.from("installment_contracts").select("created_at,total_sale_price,markup_amount").order("created_at", { ascending: true });
+      fetchAllRows<{
+        created_at: string;
+        total_sale_price: number | string;
+        markup_amount: number | string;
+      }>((from, to) => {
+        let q: any = supabaseAdmin
+          .from("installment_contracts")
+          .select("created_at,total_sale_price,markup_amount")
+          .order("created_at", { ascending: true });
         if (startIso) q = q.gte("created_at", startIso);
         q = q.lt("created_at", endExclusiveIso);
         return q.range(from, to);
       }),
       fetchAllRows<{ paid_at: string; amount: number | string }>((from, to) => {
-        let q: any = supabaseAdmin.from("payments").select("paid_at,amount").order("paid_at", { ascending: true });
+        let q: any = supabaseAdmin
+          .from("payments")
+          .select("paid_at,amount")
+          .order("paid_at", { ascending: true });
         if (startIso) q = q.gte("paid_at", startIso);
         q = q.lt("paid_at", endExclusiveIso);
         return q.range(from, to);
       }),
       fetchAllRows<{ due_date: string; amount: number | string }>((from, to) => {
-        let q: any = supabaseAdmin.from("payment_schedules").select("due_date,amount").order("due_date", { ascending: true });
+        let q: any = supabaseAdmin
+          .from("payment_schedules")
+          .select("due_date,amount")
+          .order("due_date", { ascending: true });
         if (startDate) q = q.gte("due_date", startDate);
         q = q.lte("due_date", endDate);
         return q.range(from, to);
@@ -189,21 +229,45 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
       ...payments.map((row) => new Date(row.paid_at)),
       ...schedules.map((row) => new Date(`${row.due_date}T00:00:00`)),
     ].filter((date) => !Number.isNaN(date.getTime()));
-    const rangeStart = start ?? (allDates.length ? startOfDay(new Date(Math.min(...allDates.map((date) => date.getTime())))) : today);
+    const rangeStart =
+      start ??
+      (allDates.length
+        ? startOfDay(new Date(Math.min(...allDates.map((date) => date.getTime()))))
+        : today);
     const rangeEnd = end;
     const days = Math.max(1, Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / dayMs) + 1);
     const granularity: "day" | "month" = data.period === "all" || days > 120 ? "month" : "day";
     const rows = new Map<string, AnalyticsRow>();
 
     if (granularity === "month") {
-      for (let cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1); cursor <= rangeEnd; cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)) {
+      for (
+        let cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+        cursor <= rangeEnd;
+        cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+      ) {
         const key = monthKey(cursor);
-        rows.set(key, { key, label: cursor.toLocaleDateString("ru-RU", { month: "short", year: "2-digit" }), sales: 0, payments: 0, markup: 0, due: 0, contracts: 0 });
+        rows.set(key, {
+          key,
+          label: cursor.toLocaleDateString("ru-RU", { month: "short", year: "2-digit" }),
+          sales: 0,
+          payments: 0,
+          markup: 0,
+          due: 0,
+          contracts: 0,
+        });
       }
     } else {
       for (let cursor = rangeStart; cursor <= rangeEnd; cursor = addDays(cursor, 1)) {
         const key = dateKey(cursor);
-        rows.set(key, { key, label: cursor.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" }), sales: 0, payments: 0, markup: 0, due: 0, contracts: 0 });
+        rows.set(key, {
+          key,
+          label: cursor.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" }),
+          sales: 0,
+          payments: 0,
+          markup: 0,
+          due: 0,
+          contracts: 0,
+        });
       }
     }
 
@@ -271,18 +335,20 @@ export const adminListClients = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("payments")
         .select("amount,installment_contracts!inner(client_id)") as unknown as Promise<{
-          data: Array<{ amount: number; installment_contracts: { client_id: string } | null }> | null;
-        }>,
+        data: Array<{ amount: number; installment_contracts: { client_id: string } | null }> | null;
+      }>,
       supabaseAdmin
         .from("payment_schedules")
-        .select("status,amount,due_date,installment_contracts!inner(client_id)") as unknown as Promise<{
-          data: Array<{
-            status: string;
-            amount: number;
-            due_date: string;
-            installment_contracts: { client_id: string } | null;
-          }> | null;
-        }>,
+        .select(
+          "status,amount,due_date,installment_contracts!inner(client_id)",
+        ) as unknown as Promise<{
+        data: Array<{
+          status: string;
+          amount: number;
+          due_date: string;
+          installment_contracts: { client_id: string } | null;
+        }> | null;
+      }>,
     ]);
     const paidByClient: Record<string, number> = {};
     for (const p of payments ?? []) {
@@ -322,7 +388,9 @@ export const adminListClients = createServerFn({ method: "GET" })
 export const adminListContracts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ status: z.enum(["all", "active", "overdue", "closed", "pending"]).default("all") }).parse(input ?? {}),
+    z
+      .object({ status: z.enum(["all", "active", "overdue", "closed", "pending"]).default("all") })
+      .parse(input ?? {}),
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
@@ -335,15 +403,28 @@ export const adminListContracts = createServerFn({ method: "POST" })
     if (error) {
       // fallback without join if FK isn't named as expected
       const { data: rows2, error: e2 } = await (data.status === "all"
-        ? supabaseAdmin.from("installment_contracts").select("*").order("created_at", { ascending: false })
-        : supabaseAdmin.from("installment_contracts").select("*").eq("status", data.status).order("created_at", { ascending: false }));
+        ? supabaseAdmin
+            .from("installment_contracts")
+            .select("*")
+            .order("created_at", { ascending: false })
+        : supabaseAdmin
+            .from("installment_contracts")
+            .select("*")
+            .eq("status", data.status)
+            .order("created_at", { ascending: false }));
       if (e2) throw new Error(e2.message);
       const ids = [...new Set((rows2 ?? []).map((r) => r.client_id))];
-      const { data: profs } = await supabaseAdmin.from("profiles").select("id,full_name,email").in("id", ids);
+      const { data: profs } = await supabaseAdmin
+        .from("profiles")
+        .select("id,full_name,email")
+        .in("id", ids);
       const map = new Map((profs ?? []).map((p) => [p.id, p]));
       return (rows2 ?? []).map((r) => ({ ...r, profile: map.get(r.client_id) ?? null }));
     }
-    return (rows ?? []).map((r) => ({ ...r, profile: (r as { profiles?: unknown }).profiles ?? null }));
+    return (rows ?? []).map((r) => ({
+      ...r,
+      profile: (r as { profiles?: unknown }).profiles ?? null,
+    }));
   });
 
 export const adminGetContract = createServerFn({ method: "POST" })
@@ -354,7 +435,11 @@ export const adminGetContract = createServerFn({ method: "POST" })
     const [c, s, p] = await Promise.all([
       supabaseAdmin.from("installment_contracts").select("*").eq("id", data.id).single(),
       supabaseAdmin.from("payment_schedules").select("*").eq("contract_id", data.id).order("seq"),
-      supabaseAdmin.from("payments").select("*").eq("contract_id", data.id).order("paid_at", { ascending: false }),
+      supabaseAdmin
+        .from("payments")
+        .select("*")
+        .eq("contract_id", data.id)
+        .order("paid_at", { ascending: false }),
     ]);
     if (c.error) throw new Error(c.error.message);
     const { data: prof } = await supabaseAdmin
@@ -368,11 +453,13 @@ export const adminGetContract = createServerFn({ method: "POST" })
 export const adminRecordPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      scheduleId: z.string().uuid(),
-      amount: z.number().positive(),
-      method: z.string().min(1).max(50).default("cash"),
-    }).parse(input),
+    z
+      .object({
+        scheduleId: z.string().uuid(),
+        amount: z.number().positive(),
+        method: z.string().min(1).max(50).default("cash"),
+      })
+      .parse(input),
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
@@ -418,10 +505,12 @@ export const adminRecordPayment = createServerFn({ method: "POST" })
 export const adminUpdateContractStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      id: z.string().uuid(),
-      status: z.enum(["pending", "active", "closed", "overdue"]),
-    }).parse(input),
+    z
+      .object({
+        id: z.string().uuid(),
+        status: z.enum(["pending", "active", "closed", "overdue"]),
+      })
+      .parse(input),
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
@@ -484,7 +573,9 @@ export const adminGetClient = createServerFn({ method: "POST" })
           .order("created_at", { ascending: false }),
         supabaseAdmin
           .from("payment_schedules")
-          .select("id,contract_id,status,amount,due_date,seq,installment_contracts!inner(client_id)")
+          .select(
+            "id,contract_id,status,amount,due_date,seq,installment_contracts!inner(client_id)",
+          )
           .eq("installment_contracts.client_id", data.id),
         supabaseAdmin
           .from("payments")
@@ -496,17 +587,29 @@ export const adminGetClient = createServerFn({ method: "POST" })
     if (!profileR.data) throw new Error("Клиент не найден");
 
     const schedules = (schedulesR.data ?? []) as Array<{
-      status: string; amount: number; due_date: string;
+      status: string;
+      amount: number;
+      due_date: string;
     }>;
     const today = new Date().toISOString().slice(0, 10);
-    let paid = 0, overdue = 0, pending = 0;
-    let paidAmount = 0, overdueAmount = 0, pendingAmount = 0;
+    let paid = 0,
+      overdue = 0,
+      pending = 0;
+    let paidAmount = 0,
+      overdueAmount = 0,
+      pendingAmount = 0;
     for (const s of schedules) {
       const amt = Number(s.amount);
-      if (s.status === "paid") { paid++; paidAmount += amt; }
-      else if (s.status === "overdue" || (s.status === "pending" && s.due_date < today)) {
-        overdue++; overdueAmount += amt;
-      } else { pending++; pendingAmount += amt; }
+      if (s.status === "paid") {
+        paid++;
+        paidAmount += amt;
+      } else if (s.status === "overdue" || (s.status === "pending" && s.due_date < today)) {
+        overdue++;
+        overdueAmount += amt;
+      } else {
+        pending++;
+        pendingAmount += amt;
+      }
     }
     const ratingBase = paid + overdue;
     const ratingScore = ratingBase === 0 ? 100 : Math.round((paid / ratingBase) * 100);
@@ -542,19 +645,21 @@ export const adminGetClient = createServerFn({ method: "POST" })
 export const adminUpdateClient = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      id: z.string().uuid(),
-      fullName: z.string().trim().max(200).optional().nullable(),
-      email: z.string().trim().email().max(200).optional().nullable(),
-      phone: z.string().trim().max(50).optional().nullable(),
-      passportSeries: z.string().trim().max(20).optional().nullable(),
-      passportNumber: z.string().trim().max(20).optional().nullable(),
-      passportIssuedBy: z.string().trim().max(300).optional().nullable(),
-      passportIssuedAt: z.string().trim().max(20).optional().nullable(),
-      driverLicenseNumber: z.string().trim().max(50).optional().nullable(),
-      driverLicenseCategories: z.string().trim().max(50).optional().nullable(),
-      driverLicenseIssuedAt: z.string().trim().max(20).optional().nullable(),
-    }).parse(input),
+    z
+      .object({
+        id: z.string().uuid(),
+        fullName: z.string().trim().max(200).optional().nullable(),
+        email: z.string().trim().email().max(200).optional().nullable(),
+        phone: z.string().trim().max(50).optional().nullable(),
+        passportSeries: z.string().trim().max(20).optional().nullable(),
+        passportNumber: z.string().trim().max(20).optional().nullable(),
+        passportIssuedBy: z.string().trim().max(300).optional().nullable(),
+        passportIssuedAt: z.string().trim().max(20).optional().nullable(),
+        driverLicenseNumber: z.string().trim().max(50).optional().nullable(),
+        driverLicenseCategories: z.string().trim().max(50).optional().nullable(),
+        driverLicenseIssuedAt: z.string().trim().max(20).optional().nullable(),
+      })
+      .parse(input),
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
@@ -564,13 +669,21 @@ export const adminUpdateClient = createServerFn({ method: "POST" })
     if (data.phone !== undefined) patch.phone = data.phone || null;
     if (data.passportSeries !== undefined) patch.passport_series = data.passportSeries || null;
     if (data.passportNumber !== undefined) patch.passport_number = data.passportNumber || null;
-    if (data.passportIssuedBy !== undefined) patch.passport_issued_by = data.passportIssuedBy || null;
-    if (data.passportIssuedAt !== undefined) patch.passport_issued_at = data.passportIssuedAt || null;
-    if (data.driverLicenseNumber !== undefined) patch.driver_license_number = data.driverLicenseNumber || null;
-    if (data.driverLicenseCategories !== undefined) patch.driver_license_categories = data.driverLicenseCategories || null;
-    if (data.driverLicenseIssuedAt !== undefined) patch.driver_license_issued_at = data.driverLicenseIssuedAt || null;
+    if (data.passportIssuedBy !== undefined)
+      patch.passport_issued_by = data.passportIssuedBy || null;
+    if (data.passportIssuedAt !== undefined)
+      patch.passport_issued_at = data.passportIssuedAt || null;
+    if (data.driverLicenseNumber !== undefined)
+      patch.driver_license_number = data.driverLicenseNumber || null;
+    if (data.driverLicenseCategories !== undefined)
+      patch.driver_license_categories = data.driverLicenseCategories || null;
+    if (data.driverLicenseIssuedAt !== undefined)
+      patch.driver_license_issued_at = data.driverLicenseIssuedAt || null;
     if (Object.keys(patch).length === 0) return { ok: true };
-    const { error } = await supabaseAdmin.from("profiles").update(patch as never).eq("id", data.id);
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update(patch as never)
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -578,13 +691,15 @@ export const adminUpdateClient = createServerFn({ method: "POST" })
 export const adminUploadClientDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      userId: z.string().uuid(),
-      kind: z.enum(["passport", "driver_license"]),
-      fileName: z.string().trim().min(1).max(200),
-      contentType: z.string().trim().min(1).max(100),
-      dataBase64: z.string().min(1).max(15_000_000),
-    }).parse(input),
+    z
+      .object({
+        userId: z.string().uuid(),
+        kind: z.enum(["passport", "driver_license"]),
+        fileName: z.string().trim().min(1).max(200),
+        contentType: z.string().trim().min(1).max(100),
+        dataBase64: z.string().min(1).max(15_000_000),
+      })
+      .parse(input),
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
@@ -667,10 +782,7 @@ export const adminDeleteClientDocument = createServerFn({ method: "POST" })
       .single();
     if (gErr) throw new Error(gErr.message);
     await supabaseAdmin.storage.from("client-documents").remove([doc.file_path]);
-    const { error: dErr } = await supabaseAdmin
-      .from("client_documents")
-      .delete()
-      .eq("id", data.id);
+    const { error: dErr } = await supabaseAdmin.from("client_documents").delete().eq("id", data.id);
     if (dErr) throw new Error(dErr.message);
     // Если удалили последнее фото — почистим legacy-колонку
     const { count } = await supabaseAdmin
@@ -777,12 +889,14 @@ export const adminDeleteContract = createServerFn({ method: "POST" })
 export const adminListAuditLog = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      limit: z.number().int().min(1).max(500).default(200),
-      actorId: z.string().uuid().optional(),
-      action: z.string().max(80).optional(),
-      search: z.string().max(200).optional(),
-    }).parse(input ?? {}),
+    z
+      .object({
+        limit: z.number().int().min(1).max(500).default(200),
+        actorId: z.string().uuid().optional(),
+        action: z.string().max(80).optional(),
+        search: z.string().max(200).optional(),
+      })
+      .parse(input ?? {}),
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
@@ -805,30 +919,35 @@ export const adminListAuditLog = createServerFn({ method: "POST" })
             (r.action ?? "").toLowerCase().includes(s)
           );
         })
-      : rows ?? [];
+      : (rows ?? []);
     return filtered;
   });
 
 export const adminAddClientPhone = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      userId: z.string().uuid(),
-      phone: z.string().trim().min(3).max(50).regex(/^[+\d\s()\-]+$/, "Неверный формат"),
-      label: z.string().trim().max(50).optional().nullable(),
-      channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
-    }).parse(input),
+    z
+      .object({
+        userId: z.string().uuid(),
+        phone: z
+          .string()
+          .trim()
+          .min(3)
+          .max(50)
+          .regex(/^[+\d\s()\-]+$/, "Неверный формат"),
+        label: z.string().trim().max(50).optional().nullable(),
+        channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
-    const { error } = await supabaseAdmin
-      .from("user_phones")
-      .insert({
-        user_id: data.userId,
-        phone: data.phone,
-        label: data.label ?? null,
-        channels: data.channels ?? [],
-      });
+    const { error } = await supabaseAdmin.from("user_phones").insert({
+      user_id: data.userId,
+      phone: data.phone,
+      label: data.label ?? null,
+      channels: data.channels ?? [],
+    });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -846,12 +965,20 @@ export const adminDeleteClientPhone = createServerFn({ method: "POST" })
 export const adminUpdateClientPhone = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      id: z.string().uuid(),
-      phone: z.string().trim().min(3).max(50).regex(/^[+\d\s()\-]+$/).optional(),
-      label: z.string().trim().max(50).optional().nullable(),
-      channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
-    }).parse(input),
+    z
+      .object({
+        id: z.string().uuid(),
+        phone: z
+          .string()
+          .trim()
+          .min(3)
+          .max(50)
+          .regex(/^[+\d\s()\-]+$/)
+          .optional(),
+        label: z.string().trim().max(50).optional().nullable(),
+        channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
@@ -886,9 +1013,7 @@ export const adminListUsers = createServerFn({ method: "GET" })
       .select("id,email,full_name,phone,created_at")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    const { data: rolesRows } = await supabaseAdmin
-      .from("user_roles")
-      .select("user_id,role");
+    const { data: rolesRows } = await supabaseAdmin.from("user_roles").select("user_id,role");
     const map: Record<string, RoleValue[]> = {};
     for (const r of rolesRows ?? []) {
       (map[r.user_id] ??= []).push(r.role as RoleValue);
@@ -899,11 +1024,13 @@ export const adminListUsers = createServerFn({ method: "GET" })
 export const adminSetUserRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      userId: z.string().uuid(),
-      role: z.enum(ROLE_VALUES),
-      grant: z.boolean(),
-    }).parse(input),
+    z
+      .object({
+        userId: z.string().uuid(),
+        role: z.enum(ROLE_VALUES),
+        grant: z.boolean(),
+      })
+      .parse(input),
   )
   .handler(async ({ context, data }) => {
     const myRoles = await assertAdmin(context.userId);
@@ -915,11 +1042,7 @@ export const adminSetUserRole = createServerFn({ method: "POST" })
     }
 
     // Нельзя снимать с себя owner (защита от случайного блока)
-    if (
-      data.role === "owner" &&
-      !data.grant &&
-      data.userId === context.userId
-    ) {
+    if (data.role === "owner" && !data.grant && data.userId === context.userId) {
       throw new Error("Нельзя снять с себя роль владельца");
     }
 
@@ -955,12 +1078,20 @@ export const adminSetUserRole = createServerFn({ method: "POST" })
 export const adminListPayments = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      status: z.enum(["all", "pending", "paid", "overdue"]).default("all"),
-      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-      search: z.string().max(200).optional(),
-    }).parse(input ?? {}),
+    z
+      .object({
+        status: z.enum(["all", "pending", "paid", "overdue"]).default("all"),
+        from: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        to: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        search: z.string().max(200).optional(),
+      })
+      .parse(input ?? {}),
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
@@ -1034,7 +1165,9 @@ export const adminListPayments = createServerFn({ method: "POST" })
       dueThisMonth: allSched
         .filter((s) => s.status === "pending" && s.due_date >= monthStart && s.due_date <= monthEnd)
         .reduce((a, s) => a + Number(s.amount), 0),
-      overdueAmount: allSched.filter((s) => s.status === "overdue").reduce((a, s) => a + Number(s.amount), 0),
+      overdueAmount: allSched
+        .filter((s) => s.status === "overdue")
+        .reduce((a, s) => a + Number(s.amount), 0),
       overdueCount: allSched.filter((s) => s.status === "overdue").length,
       paidThisMonth: allSched
         .filter((s) => s.status === "paid" && s.due_date >= monthStart && s.due_date <= monthEnd)
@@ -1044,7 +1177,9 @@ export const adminListPayments = createServerFn({ method: "POST" })
     const aging = { d0_7: 0, d8_30: 0, d31_60: 0, d60p: 0 };
     for (const s of allSched) {
       if (s.status !== "overdue") continue;
-      const diff = Math.floor((new Date(today).getTime() - new Date(s.due_date).getTime()) / (1000 * 60 * 60 * 24));
+      const diff = Math.floor(
+        (new Date(today).getTime() - new Date(s.due_date).getTime()) / (1000 * 60 * 60 * 24),
+      );
       if (diff <= 7) aging.d0_7 += Number(s.amount);
       else if (diff <= 30) aging.d8_30 += Number(s.amount);
       else if (diff <= 60) aging.d31_60 += Number(s.amount);
@@ -1056,9 +1191,7 @@ export const adminListPayments = createServerFn({ method: "POST" })
 
 export const adminMarkSchedulePaid = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ scheduleId: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input: unknown) => z.object({ scheduleId: z.string().uuid() }).parse(input))
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
     const { data: sched, error } = await supabaseAdmin
@@ -1074,10 +1207,7 @@ export const adminMarkSchedulePaid = createServerFn({ method: "POST" })
       amount: sched.amount,
       method: "cash",
     });
-    await supabaseAdmin
-      .from("payment_schedules")
-      .update({ status: "paid" })
-      .eq("id", sched.id);
+    await supabaseAdmin.from("payment_schedules").update({ status: "paid" }).eq("id", sched.id);
     const { data: remaining } = await supabaseAdmin
       .from("payment_schedules")
       .select("status")
@@ -1102,9 +1232,16 @@ export const adminMarkSchedulePaid = createServerFn({ method: "POST" })
 // === Демо-данные ===
 
 const DEMO_NAMES = [
-  "Алиев Руслан", "Бекова Айгуль", "Сулейманов Тимур", "Закирова Динара",
-  "Махмудов Рамиль", "Юсупова Лейла", "Кадыров Алишер", "Нурлыбекова Сабина",
-  "Османов Карим", "Гаджиева Зарема",
+  "Алиев Руслан",
+  "Бекова Айгуль",
+  "Сулейманов Тимур",
+  "Закирова Динара",
+  "Махмудов Рамиль",
+  "Юсупова Лейла",
+  "Кадыров Алишер",
+  "Нурлыбекова Сабина",
+  "Османов Карим",
+  "Гаджиева Зарема",
 ];
 const DEMO_PRODUCTS = [
   { name: "iPhone 16 Pro 256GB", price: 130000 },
@@ -1119,8 +1256,12 @@ const DEMO_PRODUCTS = [
   { name: "Игровой ПК RTX 4070", price: 185000 },
 ];
 
-function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
-function rand(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+function rand(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 export const adminSeedDemoData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -1174,7 +1315,8 @@ export const adminSeedDemoData = createServerFn({ method: "POST" })
         id: contractId,
         client_id: profile.id,
         client_full_name: profile.full_name,
-        client_telegram: Math.random() > 0.5 ? "@" + profile.full_name.split(" ")[0].toLowerCase() : null,
+        client_telegram:
+          Math.random() > 0.5 ? "@" + profile.full_name.split(" ")[0].toLowerCase() : null,
         product_name: product.name,
         product_description: null,
         product_price: product.price,
@@ -1191,9 +1333,11 @@ export const adminSeedDemoData = createServerFn({ method: "POST" })
 
       // график платежей
       const monthsPaid =
-        status === "closed" ? term :
-        status === "overdue" ? Math.max(0, monthsAgo - 2) :
-        Math.min(monthsAgo, term);
+        status === "closed"
+          ? term
+          : status === "overdue"
+            ? Math.max(0, monthsAgo - 2)
+            : Math.min(monthsAgo, term);
 
       for (let j = 1; j <= term; j++) {
         const due = new Date(start);
@@ -1274,7 +1418,12 @@ const AdminCreateInstallmentSchema = z.object({
       kind: z.literal("new"),
       email: z.string().trim().email().max(200),
       fullName: z.string().trim().min(1).max(200),
-      phone: z.string().trim().min(5).max(50).regex(/^[+\d\s()\-]+$/),
+      phone: z
+        .string()
+        .trim()
+        .min(5)
+        .max(50)
+        .regex(/^[+\d\s()\-]+$/),
     }),
   ]),
   productName: z.string().trim().min(1).max(200),
@@ -1282,13 +1431,22 @@ const AdminCreateInstallmentSchema = z.object({
   productPrice: z.number().positive().max(1_000_000_000),
   downPayment: z.number().min(0).max(1_000_000_000),
   termMonths: z.number().int().min(1).max(MAX_TERM),
-  firstPaymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  firstPaymentDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .nullable(),
   clientComment: z.string().trim().max(2000).optional().nullable(),
   markupRate: z.number().min(0).max(1).optional(),
   extraPhones: z
     .array(
       z.object({
-        phone: z.string().trim().min(3).max(50).regex(/^[+\d\s()\-]+$/),
+        phone: z
+          .string()
+          .trim()
+          .min(3)
+          .max(50)
+          .regex(/^[+\d\s()\-]+$/),
         label: z.string().trim().max(50).optional().nullable(),
         channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
       }),
@@ -1352,7 +1510,9 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
     } else {
       // создаём пользователя через auth.admin — триггер handle_new_user создаст profile+role
       tempPassword =
-        Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6).toUpperCase() + "!";
+        Math.random().toString(36).slice(2, 10) +
+        Math.random().toString(36).slice(2, 6).toUpperCase() +
+        "!";
       const { data: created, error: cuErr } = await supabaseAdmin.auth.admin.createUser({
         email: data.client.email,
         password: tempPassword,
@@ -1365,14 +1525,12 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
       clientId = created.user.id;
       clientFullName = data.client.fullName;
       // На всякий случай — гарантируем профиль (если триггер не отработал)
-      await supabaseAdmin
-        .from("profiles")
-        .upsert({
-          id: clientId,
-          email: data.client.email,
-          full_name: data.client.fullName,
-          phone: data.client.phone,
-        });
+      await supabaseAdmin.from("profiles").upsert({
+        id: clientId,
+        email: data.client.email,
+        full_name: data.client.fullName,
+        phone: data.client.phone,
+      });
     }
 
     const calc = calcInstallment({
@@ -1383,7 +1541,11 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
     });
     const startDate = data.firstPaymentDate
       ? new Date(data.firstPaymentDate + "T00:00:00")
-      : (() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d; })();
+      : (() => {
+          const d = new Date();
+          d.setMonth(d.getMonth() + 1);
+          return d;
+        })();
 
     const { data: contract, error: cErr } = await supabaseAdmin
       .from("installment_contracts")
@@ -1410,13 +1572,15 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
 
     const scheduleStart = new Date(startDate);
     scheduleStart.setMonth(scheduleStart.getMonth() - 1);
-    const schedule = buildSchedule(scheduleStart, calc.termMonths, calc.monthlyPayment).map((s) => ({
-      contract_id: contract.id,
-      seq: s.seq,
-      due_date: s.dueDate.toISOString().slice(0, 10),
-      amount: s.amount,
-      status: "pending" as const,
-    }));
+    const schedule = buildSchedule(scheduleStart, calc.termMonths, calc.monthlyPayment).map(
+      (s) => ({
+        contract_id: contract.id,
+        seq: s.seq,
+        due_date: s.dueDate.toISOString().slice(0, 10),
+        amount: s.amount,
+        status: "pending" as const,
+      }),
+    );
     const { error: schedErr } = await supabaseAdmin.from("payment_schedules").insert(schedule);
     if (schedErr) throw new Error(schedErr.message);
 
@@ -1438,9 +1602,12 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
       if (d.passportNumber !== undefined) patch.passport_number = d.passportNumber || null;
       if (d.passportIssuedBy !== undefined) patch.passport_issued_by = d.passportIssuedBy || null;
       if (d.passportIssuedAt !== undefined) patch.passport_issued_at = d.passportIssuedAt || null;
-      if (d.driverLicenseNumber !== undefined) patch.driver_license_number = d.driverLicenseNumber || null;
-      if (d.driverLicenseCategories !== undefined) patch.driver_license_categories = d.driverLicenseCategories || null;
-      if (d.driverLicenseIssuedAt !== undefined) patch.driver_license_issued_at = d.driverLicenseIssuedAt || null;
+      if (d.driverLicenseNumber !== undefined)
+        patch.driver_license_number = d.driverLicenseNumber || null;
+      if (d.driverLicenseCategories !== undefined)
+        patch.driver_license_categories = d.driverLicenseCategories || null;
+      if (d.driverLicenseIssuedAt !== undefined)
+        patch.driver_license_issued_at = d.driverLicenseIssuedAt || null;
 
       for (const [kind, photos] of [
         ["passport", d.passportPhotos ?? []] as const,
@@ -1449,7 +1616,9 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
         let firstSignedUrl: string | null = null;
         for (let i = 0; i < photos.length; i++) {
           const photo = photos[i];
-          const ext = (photo.fileName.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
+          const ext = (photo.fileName.split(".").pop() || "bin")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
           const path = `${clientId}/${kind}-${Date.now()}-${i}.${ext}`;
           const bytes = Uint8Array.from(atob(photo.dataBase64), (c) => c.charCodeAt(0));
           const { error: upErr } = await supabaseAdmin.storage
@@ -1471,12 +1640,16 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
           if (i === 0) firstSignedUrl = signed.signedUrl;
         }
         if (firstSignedUrl) {
-          patch[kind === "passport" ? "passport_photo_url" : "driver_license_photo_url"] = firstSignedUrl;
+          patch[kind === "passport" ? "passport_photo_url" : "driver_license_photo_url"] =
+            firstSignedUrl;
         }
       }
 
       if (Object.keys(patch).length > 0) {
-        await supabaseAdmin.from("profiles").update(patch as never).eq("id", clientId);
+        await supabaseAdmin
+          .from("profiles")
+          .update(patch as never)
+          .eq("id", clientId);
       }
     }
 

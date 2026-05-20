@@ -6,7 +6,13 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { adminAnalyticsSeries, adminStats } from "@/lib/admin.functions";
 import { formatMoney } from "@/lib/installment";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/_authenticated/admin/analytics")({
@@ -48,7 +54,8 @@ function AnalyticsPage() {
   if (isLoading || !data) return <p className="text-sm text-muted-foreground">Загрузка...</p>;
 
   const recovery = data.totalSold > 0 ? (data.paymentsCollected / data.totalSold) * 100 : 0;
-  const overduePct = data.contractsTotal > 0 ? (data.contractsOverdue / data.contractsTotal) * 100 : 0;
+  const overduePct =
+    data.contractsTotal > 0 ? (data.contractsOverdue / data.contractsTotal) * 100 : 0;
   const margin = data.totalSold > 0 ? (data.totalMarkup / data.totalSold) * 100 : 0;
 
   return (
@@ -61,13 +68,28 @@ function AnalyticsPage() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        <KPI label="Сборы / Продажи" pct={recovery} sub={`${formatMoney(data.paymentsCollected)} из ${formatMoney(data.totalSold)}`} />
-        <KPI label="Доля просрочки" pct={overduePct} tone="danger" sub={`${data.contractsOverdue} из ${data.contractsTotal} контрактов`} />
-        <KPI label="Маржа (наценка)" pct={margin} sub={`${formatMoney(data.totalMarkup)} прибыли`} />
+        <KPI
+          label="Сборы / Продажи"
+          pct={recovery}
+          sub={`${formatMoney(data.paymentsCollected)} из ${formatMoney(data.totalSold)}`}
+        />
+        <KPI
+          label="Доля просрочки"
+          pct={overduePct}
+          tone="danger"
+          sub={`${data.contractsOverdue} из ${data.contractsTotal} контрактов`}
+        />
+        <KPI
+          label="Маржа (наценка)"
+          pct={margin}
+          sub={`${formatMoney(data.totalMarkup)} прибыли`}
+        />
       </div>
 
       <div className="bg-card rounded-2xl ring-1 ring-border p-6">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">Денежные потоки</h2>
+        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">
+          Денежные потоки
+        </h2>
         <div className="grid md:grid-cols-3 gap-6">
           <Flow label="К получению сегодня" value={data.duesToday} />
           <Flow label="К получению за 7 дней" value={data.duesWeek} />
@@ -76,11 +98,19 @@ function AnalyticsPage() {
       </div>
 
       <div className="bg-card rounded-2xl ring-1 ring-border p-6">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">Портфель</h2>
+        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">
+          Портфель
+        </h2>
         <div className="grid md:grid-cols-4 gap-4">
           <Flow label="Активные" value={data.contractsActive} prefix="" suffix=" контр." />
           <Flow label="Закрытые" value={data.contractsClosed} prefix="" suffix=" контр." />
-          <Flow label="Просроченные" value={data.contractsOverdue} prefix="" suffix=" контр." tone="danger" />
+          <Flow
+            label="Просроченные"
+            value={data.contractsOverdue}
+            prefix=""
+            suffix=" контр."
+            tone="danger"
+          />
           <Flow label="Всего клиентов" value={data.clientsCount} prefix="" suffix="" />
         </div>
       </div>
@@ -88,24 +118,40 @@ function AnalyticsPage() {
       <div className="bg-card rounded-2xl ring-1 ring-border p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-2">Динамика</h2>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-2">
+              Динамика
+            </h2>
             <p className="text-sm text-muted-foreground">
               {series ? `${series.from} — ${series.to}` : "Загрузка периода..."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Select value={period} onValueChange={(value) => setPeriod(value as Period)}>
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {(Object.keys(periodLabels) as Period[]).map((key) => (
-                  <SelectItem key={key} value={key}>{periodLabels[key]}</SelectItem>
+                  <SelectItem key={key} value={key}>
+                    {periodLabels[key]}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {period === "custom" && (
               <>
-                <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
-                <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
+                <Input
+                  type="date"
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                  className="w-40"
+                />
+                <Input
+                  type="date"
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                  className="w-40"
+                />
               </>
             )}
           </div>
@@ -135,11 +181,37 @@ function AnalyticsPage() {
               </defs>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
-              <YAxis tickLine={false} axisLine={false} width={74} tickFormatter={(value) => compactMoney(Number(value))} />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                width={74}
+                tickFormatter={(value) => compactMoney(Number(value))}
+              />
               <ChartTooltip content={<AnalyticsTooltip />} />
-              <Area type="monotone" dataKey="sales" stroke="var(--color-sales)" fill="url(#salesFill)" strokeWidth={2} name="Продажи" />
-              <Area type="monotone" dataKey="payments" stroke="var(--color-payments)" fill="url(#paymentsFill)" strokeWidth={2} name="Платежи" />
-              <Area type="monotone" dataKey="due" stroke="var(--color-due)" fill="transparent" strokeWidth={2} name="К получению" />
+              <Area
+                type="monotone"
+                dataKey="sales"
+                stroke="var(--color-sales)"
+                fill="url(#salesFill)"
+                strokeWidth={2}
+                name="Продажи"
+              />
+              <Area
+                type="monotone"
+                dataKey="payments"
+                stroke="var(--color-payments)"
+                fill="url(#paymentsFill)"
+                strokeWidth={2}
+                name="Платежи"
+              />
+              <Area
+                type="monotone"
+                dataKey="due"
+                stroke="var(--color-due)"
+                fill="transparent"
+                strokeWidth={2}
+                name="К получению"
+              />
             </AreaChart>
           </ChartContainer>
         )}
@@ -154,7 +226,13 @@ function compactMoney(value: number) {
   return value.toLocaleString("ru-RU");
 }
 
-function AnalyticsTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name?: string; value?: number; color?: string; payload?: { label?: string } }> }) {
+function AnalyticsTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number; color?: string; payload?: { label?: string } }>;
+}) {
   if (!active || !payload?.length) return null;
   return (
     <div className="min-w-44 rounded-xl border border-border bg-background px-3 py-2 text-xs shadow-xl">
@@ -174,28 +252,62 @@ function AnalyticsTooltip({ active, payload }: { active?: boolean; payload?: Arr
   );
 }
 
-function KPI({ label, pct, sub, tone }: { label: string; pct: number; sub: string; tone?: "danger" }) {
+function KPI({
+  label,
+  pct,
+  sub,
+  tone,
+}: {
+  label: string;
+  pct: number;
+  sub: string;
+  tone?: "danger";
+}) {
   const clamped = Math.max(0, Math.min(100, pct));
   return (
     <div className="bg-card rounded-2xl ring-1 ring-border p-6">
-      <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">{label}</div>
-      <div className={`text-4xl font-extrabold ${tone === "danger" ? "text-destructive" : ""}`}>{pct.toFixed(1)}%</div>
+      <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">
+        {label}
+      </div>
+      <div className={`text-4xl font-extrabold ${tone === "danger" ? "text-destructive" : ""}`}>
+        {pct.toFixed(1)}%
+      </div>
       <div className="h-2 bg-muted rounded-full mt-4 overflow-hidden">
-        <div className={`h-full transition-all ${tone === "danger" ? "bg-destructive" : "bg-primary"}`} style={{ width: `${clamped}%` }} />
+        <div
+          className={`h-full transition-all ${tone === "danger" ? "bg-destructive" : "bg-primary"}`}
+          style={{ width: `${clamped}%` }}
+        />
       </div>
       <div className="text-xs text-muted-foreground mt-3">{sub}</div>
     </div>
   );
 }
 
-function Flow({ label, value, tone, prefix, suffix }: { label: string; value: number; tone?: "danger"; prefix?: string; suffix?: string }) {
-  const display = prefix !== undefined || suffix !== undefined
-    ? `${prefix ?? ""}${value.toLocaleString("ru-RU")}${suffix ?? ""}`
-    : formatMoney(value);
+function Flow({
+  label,
+  value,
+  tone,
+  prefix,
+  suffix,
+}: {
+  label: string;
+  value: number;
+  tone?: "danger";
+  prefix?: string;
+  suffix?: string;
+}) {
+  const display =
+    prefix !== undefined || suffix !== undefined
+      ? `${prefix ?? ""}${value.toLocaleString("ru-RU")}${suffix ?? ""}`
+      : formatMoney(value);
   return (
     <div>
-      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">{label}</div>
-      <div className={`text-2xl font-extrabold ${tone === "danger" ? "text-destructive" : ""}`}>{display}</div>
+      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">
+        {label}
+      </div>
+      <div className={`text-2xl font-extrabold ${tone === "danger" ? "text-destructive" : ""}`}>
+        {display}
+      </div>
     </div>
   );
 }
