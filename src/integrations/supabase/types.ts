@@ -261,6 +261,7 @@ export type Database = {
       }
       user_phones: {
         Row: {
+          channels: string[]
           created_at: string
           id: string
           label: string | null
@@ -268,6 +269,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          channels?: string[]
           created_at?: string
           id?: string
           label?: string | null
@@ -275,6 +277,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          channels?: string[]
           created_at?: string
           id?: string
           label?: string | null
