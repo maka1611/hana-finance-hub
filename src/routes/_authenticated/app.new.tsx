@@ -69,6 +69,7 @@ function NewInstallment() {
     e.preventDefault();
     if (!productName.trim()) return toast.error("Укажите название товара");
     if (!clientFullName.trim()) return toast.error("Укажите ФИО клиента");
+    if (!clientPhone.trim()) return toast.error("Укажите номер телефона");
     setLoading(true);
     try {
       await fn({
@@ -80,7 +81,7 @@ function NewInstallment() {
           termMonths,
           clientFullName,
           clientTelegram: clientTelegram || null,
-          clientPhone: clientPhone || null,
+          clientPhone,
           clientComment: clientComment || null,
           firstPaymentDate,
         },
@@ -131,11 +132,13 @@ function NewInstallment() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Телефон <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
+              <Label>Телефон</Label>
               <Input
                 value={clientPhone}
                 onChange={(e) => setClientPhone(e.target.value)}
                 placeholder="+7 ..."
+                required
+                inputMode="tel"
               />
             </div>
           </div>

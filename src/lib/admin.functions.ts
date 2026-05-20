@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { DEFAULT_MARKUP_RATE } from "@/lib/installment";
+import { DEFAULT_MARKUP_RATE, calcInstallment, buildSchedule, MAX_TERM } from "@/lib/installment";
 
 async function assertStaff(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -77,12 +77,57 @@ export const adminListClients = createServerFn({ method: "GET" })
       if (c.status === "active") byClient[k].active++;
       byClient[k].debt += Number(c.principal) + Number(c.markup_amount);
     }
-    return (profiles ?? []).map((p) => ({
-      ...p,
-      contracts_count: byClient[p.id]?.count ?? 0,
-      active_count: byClient[p.id]?.active ?? 0,
-      total_debt: byClient[p.id]?.debt ?? 0,
-    }));
+    // Платежи и графики для расчёта рейтинга и оплаченной суммы
+    const [{ data: payments }, { data: schedules }] = await Promise.all([
+      supabaseAdmin
+        .from("payments")
+        .select("amount,installment_contracts!inner(client_id)") as unknown as Promise<{
+          data: Array<{ amount: number; installment_contracts: { client_id: string } | null }> | null;
+        }>,
+      supabaseAdmin
+        .from("payment_schedules")
+        .select("status,amount,due_date,installment_contracts!inner(client_id)") as unknown as Promise<{
+          data: Array<{
+            status: string;
+            amount: number;
+            due_date: string;
+            installment_contracts: { client_id: string } | null;
+          }> | null;
+        }>,
+    ]);
+    const paidByClient: Record<string, number> = {};
+    for (const p of payments ?? []) {
+      const cid = p.installment_contracts?.client_id;
+      if (!cid) continue;
+      paidByClient[cid] = (paidByClient[cid] ?? 0) + Number(p.amount);
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    const ratingByClient: Record<string, { paid: number; overdue: number }> = {};
+    for (const s of schedules ?? []) {
+      const cid = s.installment_contracts?.client_id;
+      if (!cid) continue;
+      ratingByClient[cid] ??= { paid: 0, overdue: 0 };
+      if (s.status === "paid") ratingByClient[cid].paid++;
+      else if (s.status === "overdue" || (s.status === "pending" && s.due_date < today)) {
+        ratingByClient[cid].overdue++;
+      }
+    }
+    return (profiles ?? []).map((p) => {
+      const r = ratingByClient[p.id];
+      const base = (r?.paid ?? 0) + (r?.overdue ?? 0);
+      const ratingScore = !r || base === 0 ? null : Math.round((r.paid / base) * 100);
+      const stars = ratingScore === null ? 0 : Math.max(1, Math.round(ratingScore / 20));
+      return {
+        ...p,
+        contracts_count: byClient[p.id]?.count ?? 0,
+        active_count: byClient[p.id]?.active ?? 0,
+        total_debt: byClient[p.id]?.debt ?? 0,
+        paid_amount: paidByClient[p.id] ?? 0,
+        overdue_count: r?.overdue ?? 0,
+        rating_score: ratingScore,
+        rating_stars: stars,
+      };
+    });
   });
 
 export const adminListContracts = createServerFn({ method: "POST" })
@@ -676,4 +721,148 @@ export const adminSeedDemoData = createServerFn({ method: "POST" })
     if (sErr) throw new Error("schedules: " + sErr.message);
 
     return { ok: true, profiles: profileRows.length, contracts: contracts.length };
+  });
+
+// === Удаление клиента ===
+
+export const adminDeleteClient = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.userId);
+    if (data.id === context.userId) throw new Error("Нельзя удалить самого себя");
+
+    // Получим контракты клиента, чтобы каскадно вычистить графики и платежи
+    const { data: contracts } = await supabaseAdmin
+      .from("installment_contracts")
+      .select("id")
+      .eq("client_id", data.id);
+    const contractIds = (contracts ?? []).map((c) => c.id);
+    if (contractIds.length > 0) {
+      await supabaseAdmin.from("payments").delete().in("contract_id", contractIds);
+      await supabaseAdmin.from("payment_schedules").delete().in("contract_id", contractIds);
+      await supabaseAdmin.from("installment_contracts").delete().in("id", contractIds);
+    }
+    await supabaseAdmin.from("installment_applications").delete().eq("client_id", data.id);
+    await supabaseAdmin.from("user_phones").delete().eq("user_id", data.id);
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.id);
+    await supabaseAdmin.from("profiles").delete().eq("id", data.id);
+    // Удалим самого пользователя из auth
+    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(data.id);
+    if (authErr && !authErr.message.toLowerCase().includes("not found")) {
+      throw new Error(authErr.message);
+    }
+    return { ok: true };
+  });
+
+// === Оформление рассрочки админом (минуя поток заявок) ===
+
+const AdminCreateInstallmentSchema = z.object({
+  client: z.union([
+    z.object({ kind: z.literal("existing"), id: z.string().uuid() }),
+    z.object({
+      kind: z.literal("new"),
+      email: z.string().trim().email().max(200),
+      fullName: z.string().trim().min(1).max(200),
+      phone: z.string().trim().min(5).max(50).regex(/^[+\d\s()\-]+$/),
+    }),
+  ]),
+  productName: z.string().trim().min(1).max(200),
+  productDescription: z.string().trim().max(2000).optional().nullable(),
+  productPrice: z.number().positive().max(1_000_000_000),
+  downPayment: z.number().min(0).max(1_000_000_000),
+  termMonths: z.number().int().min(1).max(MAX_TERM),
+  firstPaymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  clientComment: z.string().trim().max(2000).optional().nullable(),
+});
+
+export const adminCreateInstallment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => AdminCreateInstallmentSchema.parse(input))
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+
+    let clientId: string;
+    let clientFullName: string | null = null;
+    let tempPassword: string | null = null;
+
+    if (data.client.kind === "existing") {
+      clientId = data.client.id;
+      const { data: prof } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", clientId)
+        .maybeSingle();
+      clientFullName = prof?.full_name ?? null;
+    } else {
+      // создаём пользователя через auth.admin — триггер handle_new_user создаст profile+role
+      tempPassword =
+        Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6).toUpperCase() + "!";
+      const { data: created, error: cuErr } = await supabaseAdmin.auth.admin.createUser({
+        email: data.client.email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { full_name: data.client.fullName, phone: data.client.phone },
+      });
+      if (cuErr || !created.user) {
+        throw new Error(cuErr?.message ?? "Не удалось создать пользователя");
+      }
+      clientId = created.user.id;
+      clientFullName = data.client.fullName;
+      // На всякий случай — гарантируем профиль (если триггер не отработал)
+      await supabaseAdmin
+        .from("profiles")
+        .upsert({
+          id: clientId,
+          email: data.client.email,
+          full_name: data.client.fullName,
+          phone: data.client.phone,
+        });
+    }
+
+    const calc = calcInstallment({
+      productPrice: data.productPrice,
+      downPayment: data.downPayment,
+      termMonths: data.termMonths,
+    });
+    const startDate = data.firstPaymentDate
+      ? new Date(data.firstPaymentDate + "T00:00:00")
+      : (() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d; })();
+
+    const { data: contract, error: cErr } = await supabaseAdmin
+      .from("installment_contracts")
+      .insert({
+        client_id: clientId,
+        product_name: data.productName,
+        product_description: data.productDescription ?? null,
+        client_full_name: clientFullName,
+        client_comment: data.clientComment ?? null,
+        product_price: data.productPrice,
+        down_payment: data.downPayment,
+        principal: calc.principal,
+        markup_rate: DEFAULT_MARKUP_RATE,
+        markup_amount: calc.markupAmount,
+        total_sale_price: calc.totalSalePrice,
+        monthly_payment: calc.monthlyPayment,
+        term_months: calc.termMonths,
+        start_date: startDate.toISOString().slice(0, 10),
+        status: "active",
+      })
+      .select()
+      .single();
+    if (cErr) throw new Error(cErr.message);
+
+    const scheduleStart = new Date(startDate);
+    scheduleStart.setMonth(scheduleStart.getMonth() - 1);
+    const schedule = buildSchedule(scheduleStart, calc.termMonths, calc.monthlyPayment).map((s) => ({
+      contract_id: contract.id,
+      seq: s.seq,
+      due_date: s.dueDate.toISOString().slice(0, 10),
+      amount: s.amount,
+      status: "pending" as const,
+    }));
+    const { error: schedErr } = await supabaseAdmin.from("payment_schedules").insert(schedule);
+    if (schedErr) throw new Error(schedErr.message);
+
+    return { contractId: contract.id, clientId, tempPassword };
   });
