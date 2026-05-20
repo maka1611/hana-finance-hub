@@ -13,7 +13,12 @@ const ApplicationSchema = z.object({
   firstPaymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   clientFullName: z.string().trim().max(200).optional().nullable(),
   clientTelegram: z.string().trim().max(100).optional().nullable(),
-  clientPhone: z.string().trim().max(50).optional().nullable(),
+  clientPhone: z
+    .string()
+    .trim()
+    .min(5, "Укажите телефон")
+    .max(50)
+    .regex(/^[+\d\s()\-]+$/, "Неверный формат телефона"),
   clientComment: z.string().trim().max(2000).optional().nullable(),
 });
 
