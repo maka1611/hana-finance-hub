@@ -303,6 +303,34 @@ function AdminNewInstallment() {
           </div>
         </div>
 
+        <div className="space-y-3">
+          <div className="flex justify-between items-end">
+            <Label>Наценка в месяц</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                step="0.1"
+                min={0}
+                max={100}
+                value={markupPct}
+                onChange={(e) => setMarkupPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                className="w-24 text-right font-mono"
+              />
+              <span className="text-sm font-mono text-muted-foreground">% / мес</span>
+            </div>
+          </div>
+          <Slider
+            min={0}
+            max={15}
+            step={0.1}
+            value={[markupPct]}
+            onValueChange={(v) => setMarkupPct(+v[0].toFixed(2))}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            По умолчанию: {(DEFAULT_MARKUP_RATE * 100).toFixed(1)}%. Итоговая наценка = % × срок.
+          </p>
+        </div>
+
         <div className="space-y-2">
           <Label>Комментарий <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
           <Textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} />
