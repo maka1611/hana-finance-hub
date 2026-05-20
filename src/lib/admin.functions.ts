@@ -915,6 +915,14 @@ export const adminMarkSchedulePaid = createServerFn({ method: "POST" })
         .update({ status: "closed" })
         .eq("id", sched.contract_id);
     }
+    await logAction({
+      actorId: context.userId,
+      action: "payment.mark_paid",
+      entityType: "contract",
+      entityId: sched.contract_id,
+      summary: `Отмечен оплаченным платёж ${sched.amount} ₽`,
+      details: { scheduleId: data.scheduleId, amount: sched.amount },
+    });
     return { ok: true };
   });
 
