@@ -81,7 +81,7 @@ function NewInstallment() {
           termMonths,
           clientFullName,
           clientTelegram: clientTelegram || null,
-          clientPhone: clientPhone || null,
+          clientPhone,
           clientComment: clientComment || null,
           firstPaymentDate,
         },
