@@ -19,8 +19,8 @@ interface CalculatorProps {
 
 export function Calculator({ onSubmit, compact }: CalculatorProps) {
   const navigate = useNavigate();
-  const [productPrice, setProductPrice] = useState<number>(250000);
-  const [downPayment, setDownPayment] = useState<number>(50000);
+  const [productPrice, setProductPrice] = useState<number>(50000);
+  const [downPayment, setDownPayment] = useState<number>(20000);
   const [termMonths, setTermMonths] = useState<number>(12);
 
   const result = useMemo(
@@ -49,19 +49,18 @@ export function Calculator({ onSubmit, compact }: CalculatorProps) {
             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               Сумма товара
             </Label>
-            <div className="relative">
+            <div className="relative flex items-center border-b border-border focus-within:border-primary transition-colors">
               <Input
                 type="number"
                 min={0}
                 value={productPrice || ""}
                 onChange={(e) => setProductPrice(Number(e.target.value) || 0)}
-                className="text-3xl font-extrabold p-0 border-none focus-visible:ring-0 bg-transparent h-auto"
+                className="text-3xl font-extrabold p-0 pr-8 border-none focus-visible:ring-0 bg-transparent h-auto"
               />
-              <span className="absolute right-0 top-1 text-2xl font-medium opacity-20">
+              <span className="absolute right-0 text-2xl font-medium opacity-30 pointer-events-none">
                 ₽
               </span>
             </div>
-            <div className="h-1 bg-muted rounded-full" />
           </div>
 
           <div className="space-y-3">
