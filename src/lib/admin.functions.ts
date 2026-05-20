@@ -1131,20 +1131,26 @@ const AdminCreateInstallmentSchema = z.object({
       driverLicenseNumber: z.string().trim().max(50).optional().nullable(),
       driverLicenseCategories: z.string().trim().max(50).optional().nullable(),
       driverLicenseIssuedAt: z.string().trim().max(20).optional().nullable(),
-      passportPhoto: z
-        .object({
-          fileName: z.string().trim().min(1).max(200),
-          contentType: z.string().trim().min(1).max(100),
-          dataBase64: z.string().min(1).max(15_000_000),
-        })
+      passportPhotos: z
+        .array(
+          z.object({
+            fileName: z.string().trim().min(1).max(200),
+            contentType: z.string().trim().min(1).max(100),
+            dataBase64: z.string().min(1).max(15_000_000),
+          }),
+        )
+        .max(5)
         .optional()
         .nullable(),
-      driverLicensePhoto: z
-        .object({
-          fileName: z.string().trim().min(1).max(200),
-          contentType: z.string().trim().min(1).max(100),
-          dataBase64: z.string().min(1).max(15_000_000),
-        })
+      driverLicensePhotos: z
+        .array(
+          z.object({
+            fileName: z.string().trim().min(1).max(200),
+            contentType: z.string().trim().min(1).max(100),
+            dataBase64: z.string().min(1).max(15_000_000),
+          }),
+        )
+        .max(5)
         .optional()
         .nullable(),
     })
