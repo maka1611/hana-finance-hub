@@ -413,8 +413,8 @@ function AdminNewInstallment() {
                       </div>
                       <PhotoPicker
                         label="Фото паспорта"
-                        photo={passportPhoto}
-                        onChange={setPassportPhoto}
+                        photos={passportPhotos}
+                        onChange={setPassportPhotos}
                         readFile={readFile}
                       />
                     </div>
@@ -454,8 +454,8 @@ function AdminNewInstallment() {
                       </div>
                       <PhotoPicker
                         label="Фото водительских прав"
-                        photo={driverLicensePhoto}
-                        onChange={setDriverLicensePhoto}
+                        photos={driverLicensePhotos}
+                        onChange={setDriverLicensePhotos}
                         readFile={readFile}
                       />
                     </div>
