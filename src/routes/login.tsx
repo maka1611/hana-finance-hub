@@ -33,7 +33,7 @@ function LoginPage() {
     setGoogleLoading(true);
     try {
       const r = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: `${window.location.origin}/app`,
         extraParams: { prompt: "select_account" },
       });
       if (r.redirected) return;
