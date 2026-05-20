@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "sonner";
 import { Check, ChevronsUpDown, FilePlus2, UserPlus, Users, Plus, Trash2, FileText, ChevronDown, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ContactChannelToggles, type ContactChannel } from "@/components/admin/ContactChannels";
+import { ContactChannelToggles, autoLabelFromChannels, type ContactChannel } from "@/components/admin/ContactChannels";
 
 export const Route = createFileRoute("/_authenticated/admin/installments/new")({
   component: AdminNewInstallment,
@@ -46,7 +46,7 @@ function AdminNewInstallment() {
   const [newName, setNewName] = useState("");
   type PhoneRow = { phone: string; label: string; channels: ContactChannel[] };
   const [phones, setPhones] = useState<PhoneRow[]>([
-    { phone: "", label: "Основной", channels: ["phone"] },
+    { phone: "", label: "", channels: [] },
   ]);
 
   const [productName, setProductName] = useState("");
@@ -325,7 +325,7 @@ function AdminNewInstallment() {
                             arr.map((p, i) => (i === idx ? { ...p, label: e.target.value } : p)),
                           )
                         }
-                        placeholder="Комментарий"
+                        placeholder={autoLabelFromChannels(row.channels)}
                         maxLength={50}
                       />
                     </div>
