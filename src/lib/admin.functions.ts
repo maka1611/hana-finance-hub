@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { DEFAULT_MARKUP_RATE } from "@/lib/installment";
+import { DEFAULT_MARKUP_RATE, calcInstallment, buildSchedule, MAX_TERM } from "@/lib/installment";
 
 async function assertStaff(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -77,12 +77,57 @@ export const adminListClients = createServerFn({ method: "GET" })
       if (c.status === "active") byClient[k].active++;
       byClient[k].debt += Number(c.principal) + Number(c.markup_amount);
     }
-    return (profiles ?? []).map((p) => ({
-      ...p,
-      contracts_count: byClient[p.id]?.count ?? 0,
-      active_count: byClient[p.id]?.active ?? 0,
-      total_debt: byClient[p.id]?.debt ?? 0,
-    }));
+    // Платежи и графики для расчёта рейтинга и оплаченной суммы
+    const [{ data: payments }, { data: schedules }] = await Promise.all([
+      supabaseAdmin
+        .from("payments")
+        .select("amount,installment_contracts!inner(client_id)") as unknown as Promise<{
+          data: Array<{ amount: number; installment_contracts: { client_id: string } | null }> | null;
+        }>,
+      supabaseAdmin
+        .from("payment_schedules")
+        .select("status,amount,due_date,installment_contracts!inner(client_id)") as unknown as Promise<{
+          data: Array<{
+            status: string;
+            amount: number;
+            due_date: string;
+            installment_contracts: { client_id: string } | null;
+          }> | null;
+        }>,
+    ]);
+    const paidByClient: Record<string, number> = {};
+    for (const p of payments ?? []) {
+      const cid = p.installment_contracts?.client_id;
+      if (!cid) continue;
+      paidByClient[cid] = (paidByClient[cid] ?? 0) + Number(p.amount);
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    const ratingByClient: Record<string, { paid: number; overdue: number }> = {};
+    for (const s of schedules ?? []) {
+      const cid = s.installment_contracts?.client_id;
+      if (!cid) continue;
+      ratingByClient[cid] ??= { paid: 0, overdue: 0 };
+      if (s.status === "paid") ratingByClient[cid].paid++;
+      else if (s.status === "overdue" || (s.status === "pending" && s.due_date < today)) {
+        ratingByClient[cid].overdue++;
+      }
+    }
+    return (profiles ?? []).map((p) => {
+      const r = ratingByClient[p.id];
+      const base = (r?.paid ?? 0) + (r?.overdue ?? 0);
+      const ratingScore = !r || base === 0 ? null : Math.round((r.paid / base) * 100);
+      const stars = ratingScore === null ? 0 : Math.max(1, Math.round(ratingScore / 20));
+      return {
+        ...p,
+        contracts_count: byClient[p.id]?.count ?? 0,
+        active_count: byClient[p.id]?.active ?? 0,
+        total_debt: byClient[p.id]?.debt ?? 0,
+        paid_amount: paidByClient[p.id] ?? 0,
+        overdue_count: r?.overdue ?? 0,
+        rating_score: ratingScore,
+        rating_stars: stars,
+      };
+    });
   });
 
 export const adminListContracts = createServerFn({ method: "POST" })
