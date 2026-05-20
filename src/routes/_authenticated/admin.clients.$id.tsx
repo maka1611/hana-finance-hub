@@ -7,6 +7,7 @@ import {
   adminUpdateClient,
   adminAddClientPhone,
   adminDeleteClientPhone,
+  adminUpdateClientPhone,
 } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ import {
   ArrowLeft, Mail, Phone, Plus, Trash2, Star, Award,
   CheckCircle2, AlertTriangle, Clock, Save,
 } from "lucide-react";
+import { ContactChannelToggles, type ContactChannel } from "@/components/admin/ContactChannels";
 
 export const Route = createFileRoute("/_authenticated/admin/clients/$id")({
   head: () => ({ meta: [{ title: "Профиль клиента — Админка" }] }),
@@ -39,6 +41,7 @@ function ClientProfilePage() {
   const updateFn = useServerFn(adminUpdateClient);
   const addPhoneFn = useServerFn(adminAddClientPhone);
   const delPhoneFn = useServerFn(adminDeleteClientPhone);
+  const updPhoneFn = useServerFn(adminUpdateClientPhone);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-client", id],
@@ -50,6 +53,7 @@ function ClientProfilePage() {
   const [phone, setPhone] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newPhoneLabel, setNewPhoneLabel] = useState("");
+  const [newPhoneChannels, setNewPhoneChannels] = useState<ContactChannel[]>(["phone"]);
 
   useEffect(() => {
     if (data?.profile) {
@@ -70,12 +74,22 @@ function ClientProfilePage() {
   });
 
   const addPhone = useMutation({
-    mutationFn: () => addPhoneFn({ data: { userId: id, phone: newPhone, label: newPhoneLabel || null } }),
+    mutationFn: () =>
+      addPhoneFn({
+        data: { userId: id, phone: newPhone, label: newPhoneLabel || null, channels: newPhoneChannels },
+      }),
     onSuccess: () => {
       toast.success("Телефон добавлен");
-      setNewPhone(""); setNewPhoneLabel("");
+      setNewPhone(""); setNewPhoneLabel(""); setNewPhoneChannels(["phone"]);
       qc.invalidateQueries({ queryKey: ["admin-client", id] });
     },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
+  });
+
+  const setChannelsMutation = useMutation({
+    mutationFn: (v: { id: string; channels: ContactChannel[] }) =>
+      updPhoneFn({ data: { id: v.id, channels: v.channels } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-client", id] }),
     onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
   });
 
@@ -194,25 +208,40 @@ function ClientProfilePage() {
           <p className="text-sm text-muted-foreground">Не добавлены</p>
         ) : (
           <ul className="divide-y divide-border">
-            {data.phones.map((p) => (
-              <li key={p.id} className="py-3 flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-medium">{p.phone}</div>
-                  {p.label && <div className="text-xs text-muted-foreground">{p.label}</div>}
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => delPhone.mutate(p.id)} disabled={delPhone.isPending}>
-                  <Trash2 className="size-4" />
-                </Button>
-              </li>
-            ))}
+            {data.phones.map((p) => {
+              const channels = ((p as { channels?: string[] }).channels ?? []) as ContactChannel[];
+              return (
+                <li key={p.id} className="py-3 flex items-center justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="font-medium">{p.phone}</div>
+                    {p.label && <div className="text-xs text-muted-foreground">{p.label}</div>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <ContactChannelToggles
+                      value={channels}
+                      onChange={(v) => setChannelsMutation.mutate({ id: p.id, channels: v })}
+                      size="sm"
+                    />
+                    <Button variant="ghost" size="sm" onClick={() => delPhone.mutate(p.id)} disabled={delPhone.isPending}>
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
-        <div className="grid md:grid-cols-[1fr_180px_auto] gap-2 pt-2 border-t border-border">
-          <Input placeholder="+7 ..." value={newPhone} onChange={(e) => setNewPhone(e.target.value)} maxLength={50} />
-          <Input placeholder="Метка" value={newPhoneLabel} onChange={(e) => setNewPhoneLabel(e.target.value)} maxLength={50} />
-          <Button onClick={() => newPhone.trim() && addPhone.mutate()} disabled={addPhone.isPending || !newPhone.trim()}>
-            <Plus className="size-4" /> Добавить
-          </Button>
+        <div className="pt-3 border-t border-border space-y-2">
+          <div className="grid md:grid-cols-[1fr_200px] gap-2">
+            <Input placeholder="+7 ..." value={newPhone} onChange={(e) => setNewPhone(e.target.value)} maxLength={50} />
+            <Input placeholder="Комментарий" value={newPhoneLabel} onChange={(e) => setNewPhoneLabel(e.target.value)} maxLength={50} />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <ContactChannelToggles value={newPhoneChannels} onChange={setNewPhoneChannels} size="sm" />
+            <Button onClick={() => newPhone.trim() && addPhone.mutate()} disabled={addPhone.isPending || !newPhone.trim()}>
+              <Plus className="size-4" /> Добавить
+            </Button>
+          </div>
         </div>
       </div>
 
