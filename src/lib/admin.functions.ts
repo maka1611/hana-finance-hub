@@ -934,7 +934,7 @@ export const adminAddClientPhone = createServerFn({ method: "POST" })
           .trim()
           .min(3)
           .max(50)
-          .regex(/^[+\d\s()\-]+$/, "Неверный формат"),
+          .regex(/^[+\d\s()-]+$/, "Неверный формат"),
         label: z.string().trim().max(50).optional().nullable(),
         channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
       })
@@ -973,7 +973,7 @@ export const adminUpdateClientPhone = createServerFn({ method: "POST" })
           .trim()
           .min(3)
           .max(50)
-          .regex(/^[+\d\s()\-]+$/)
+          .regex(/^[+\d\s()-]+$/)
           .optional(),
         label: z.string().trim().max(50).optional().nullable(),
         channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
@@ -1423,7 +1423,7 @@ const AdminCreateInstallmentSchema = z.object({
         .trim()
         .min(5)
         .max(50)
-        .regex(/^[+\d\s()\-]+$/),
+        .regex(/^[+\d\s()-]+$/),
     }),
   ]),
   productName: z.string().trim().min(1).max(200),
@@ -1446,7 +1446,7 @@ const AdminCreateInstallmentSchema = z.object({
           .trim()
           .min(3)
           .max(50)
-          .regex(/^[+\d\s()\-]+$/),
+          .regex(/^[+\d\s()-]+$/),
         label: z.string().trim().max(50).optional().nullable(),
         channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
       }),
