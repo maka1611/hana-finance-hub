@@ -4,6 +4,32 @@ import { cn } from "@/lib/utils";
 
 export type ContactChannel = "phone" | "whatsapp" | "telegram";
 
+const ROLE_LABELS_RU: Record<string, string> = {
+  owner: "Владелец",
+  admin: "Админ",
+  manager: "Менеджер",
+  client: "Клиент",
+};
+
+export function roleLabelRu(role: string): string {
+  return ROLE_LABELS_RU[role] ?? role;
+}
+
+/**
+ * Default phone label based on selected contact channels.
+ * - phone + WhatsApp/Telegram (any combo of 2+): "Рабочий"
+ * - only WhatsApp: "WhatsApp"
+ * - only Telegram: "Telegram"
+ * - only phone or none: "Для связи"
+ */
+export function autoLabelFromChannels(channels: ContactChannel[]): string {
+  const set = new Set(channels);
+  if (set.size >= 2) return "Рабочий";
+  if (set.size === 1 && set.has("whatsapp")) return "WhatsApp";
+  if (set.size === 1 && set.has("telegram")) return "Telegram";
+  return "Для связи";
+}
+
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
