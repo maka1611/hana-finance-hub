@@ -255,6 +255,62 @@ function ClientProfilePage() {
         <StatBox icon={<Clock className="size-4 text-muted-foreground" />} label="Предстоящие" value={`${r.pendingCount}`} sub={formatMoney(r.pendingAmount)} />
       </div>
 
+      {/* Документы клиента */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <DocumentCard
+          title="Паспорт"
+          icon={<IdCard className="size-4 text-primary" />}
+          photoUrl={(data.profile as Record<string, string | null>).passport_photo_url}
+          onUpload={(f) => handleUpload("passport", f)}
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Серия</Label>
+              <Input value={passportSeries} onChange={(e) => setPassportSeries(e.target.value)} maxLength={20} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Номер</Label>
+              <Input value={passportNumber} onChange={(e) => setPassportNumber(e.target.value)} maxLength={20} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Кем выдан</Label>
+            <Input value={passportIssuedBy} onChange={(e) => setPassportIssuedBy(e.target.value)} maxLength={300} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Дата выдачи</Label>
+            <Input type="date" value={passportIssuedAt} onChange={(e) => setPassportIssuedAt(e.target.value)} />
+          </div>
+        </DocumentCard>
+
+        <DocumentCard
+          title="Водительское удостоверение"
+          icon={<Car className="size-4 text-primary" />}
+          photoUrl={(data.profile as Record<string, string | null>).driver_license_photo_url}
+          onUpload={(f) => handleUpload("driver_license", f)}
+        >
+          <div className="space-y-1.5">
+            <Label className="text-xs">Номер</Label>
+            <Input value={dlNumber} onChange={(e) => setDlNumber(e.target.value)} maxLength={50} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Категории</Label>
+              <Input value={dlCategories} onChange={(e) => setDlCategories(e.target.value)} maxLength={50} placeholder="B, C" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Дата выдачи</Label>
+              <Input type="date" value={dlIssuedAt} onChange={(e) => setDlIssuedAt(e.target.value)} />
+            </div>
+          </div>
+        </DocumentCard>
+        <div className="md:col-span-2">
+          <Button onClick={() => save.mutate()} disabled={save.isPending} variant="secondary">
+            <Save className="size-4" /> Сохранить документы и профиль
+          </Button>
+        </div>
+      </div>
+
       {/* Доп. телефоны */}
       <div className="bg-card rounded-2xl ring-1 ring-border p-6 space-y-4">
         <h2 className="font-bold">Дополнительные телефоны</h2>
