@@ -5,7 +5,9 @@ import { useState } from "react";
 import { adminListAuditLog } from "@/lib/admin.functions";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { History, Search } from "lucide-react";
+import { History, Search, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/admin/audit")({
   head: () => ({ meta: [{ title: "Журнал действий — Админка" }] }),
@@ -29,10 +31,99 @@ function fmt(d: string): string {
   return new Date(d).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
 }
 
+function money(n: number | string | null | undefined): string {
+  const v = Number(n ?? 0);
+  return v.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+}
+
+function ContractSnapshotView({ snapshot }: { snapshot: any }) {
+  const c = snapshot.contract ?? {};
+  const client = snapshot.client ?? null;
+  const schedules: any[] = snapshot.schedules ?? [];
+  const payments: any[] = snapshot.payments ?? [];
+  return (
+    <div className="space-y-5 text-sm">
+      <div className="rounded-xl bg-muted/40 p-4 space-y-1">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-mono">Товар</div>
+        <div className="font-semibold text-base">{c.product_name ?? "—"}</div>
+        {c.product_description && <div className="text-muted-foreground">{c.product_description}</div>}
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Field label="Цена" value={money(c.product_price)} />
+        <Field label="Первый взнос" value={money(c.down_payment)} />
+        <Field label="Сумма к рассрочке" value={money(c.principal)} />
+        <Field label="Наценка" value={`${money(c.markup_amount)} (${((Number(c.markup_rate ?? 0)) * 100).toFixed(1)}%)`} />
+        <Field label="Итого" value={money(c.total_sale_price)} />
+        <Field label="Ежемесячно" value={money(c.monthly_payment)} />
+        <Field label="Срок" value={`${c.term_months} мес.`} />
+        <Field label="Дата старта" value={c.start_date ?? "—"} />
+        <Field label="Статус" value={c.status ?? "—"} />
+      </div>
+      <div className="rounded-xl bg-muted/40 p-4 space-y-1">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-mono">Клиент</div>
+        <div className="font-semibold">{client?.full_name ?? c.client_full_name ?? "—"}</div>
+        <div className="text-muted-foreground text-xs">
+          {client?.email ?? "—"}{client?.phone ? ` · ${client.phone}` : ""}
+        </div>
+        {c.client_telegram && <div className="text-xs">TG: {c.client_telegram}</div>}
+        {c.client_comment && <div className="text-xs text-muted-foreground mt-1">«{c.client_comment}»</div>}
+      </div>
+
+      {schedules.length > 0 && (
+        <div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-mono mb-2">График платежей</div>
+          <div className="rounded-xl ring-1 ring-border overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/40">
+                <tr><th className="p-2 text-left">№</th><th className="p-2 text-left">Дата</th><th className="p-2 text-right">Сумма</th><th className="p-2 text-left">Статус</th></tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {schedules.map((s) => (
+                  <tr key={s.id}><td className="p-2">{s.seq}</td><td className="p-2">{s.due_date}</td><td className="p-2 text-right">{money(s.amount)}</td><td className="p-2">{s.status}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {payments.length > 0 && (
+        <div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-mono mb-2">Платежи</div>
+          <div className="rounded-xl ring-1 ring-border overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/40">
+                <tr><th className="p-2 text-left">Дата</th><th className="p-2 text-right">Сумма</th><th className="p-2 text-left">Метод</th></tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {payments.map((p) => (
+                  <tr key={p.id}><td className="p-2">{fmt(p.paid_at)}</td><td className="p-2 text-right">{money(p.amount)}</td><td className="p-2">{p.method ?? "—"}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="text-[11px] text-muted-foreground font-mono">ID: {c.id}</div>
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-lg bg-muted/30 p-2.5">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">{label}</div>
+      <div className="font-medium mt-0.5">{value}</div>
+    </div>
+  );
+}
+
 function AuditPage() {
   const fn = useServerFn(adminListAuditLog);
   const [search, setSearch] = useState("");
   const [action, setAction] = useState<string>("all");
+  const [viewRow, setViewRow] = useState<any | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-audit", action],
@@ -94,6 +185,7 @@ function AuditPage() {
           <ul className="divide-y divide-border">
             {filtered.map((row) => {
               const meta = ACTION_LABELS[row.action] ?? { label: row.action, cls: "bg-muted text-muted-foreground" };
+              const hasSnapshot = row.action === "contract.delete" && (row as any).details?.snapshot;
               return (
                 <li key={row.id} className="p-4 flex items-start gap-4">
                   <div className="flex-1 min-w-0">
@@ -109,12 +201,26 @@ function AuditPage() {
                       {row.entity_id && <> · <span className="font-mono">{row.entity_type}:{row.entity_id.slice(0, 8)}</span></>}
                     </div>
                   </div>
+                  {hasSnapshot && (
+                    <Button size="sm" variant="outline" onClick={() => setViewRow(row)} className="shrink-0">
+                      <Eye className="size-4 mr-1.5" /> Посмотреть
+                    </Button>
+                  )}
                 </li>
               );
             })}
           </ul>
         )}
       </div>
+
+      <Dialog open={!!viewRow} onOpenChange={(o) => !o && setViewRow(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Удалённый контракт</DialogTitle>
+          </DialogHeader>
+          {viewRow?.details?.snapshot && <ContractSnapshotView snapshot={viewRow.details.snapshot} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
