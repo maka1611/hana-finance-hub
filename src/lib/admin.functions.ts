@@ -95,6 +95,157 @@ export const adminStats = createServerFn({ method: "GET" })
     };
   });
 
+const analyticsSeriesInput = z.object({
+  period: z.enum(["all", "year", "quarter", "month", "week", "today", "custom"]).default("month"),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+});
+
+type AnalyticsRow = {
+  key: string;
+  label: string;
+  sales: number;
+  payments: number;
+  markup: number;
+  due: number;
+  contracts: number;
+};
+
+async function fetchAllRows<T>(
+  buildQuery: (from: number, to: number) => Promise<{ data: T[] | null; error: { message: string } | null }>,
+) {
+  const rows: T[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await buildQuery(from, from + 999);
+    if (error) throw new Error(error.message);
+    const chunk = data ?? [];
+    rows.push(...chunk);
+    if (chunk.length < 1000) break;
+  }
+  return rows;
+}
+
+const dayMs = 24 * 60 * 60 * 1000;
+const dateKey = (date: Date) => date.toISOString().slice(0, 10);
+const monthKey = (date: Date) => date.toISOString().slice(0, 7);
+const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const addDays = (date: Date, days: number) => new Date(date.getTime() + days * dayMs);
+
+function resolveAnalyticsPeriod(period: z.infer<typeof analyticsSeriesInput>["period"], from?: string | null, to?: string | null) {
+  const now = new Date();
+  const today = startOfDay(now);
+  let start: Date | null = null;
+  let end = today;
+
+  if (period === "year") start = startOfDay(new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()));
+  if (period === "quarter") start = startOfDay(new Date(now.getFullYear(), now.getMonth() - 3, now.getDate()));
+  if (period === "month") start = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (period === "week") start = addDays(today, -6);
+  if (period === "today") start = today;
+  if (period === "custom") {
+    start = from ? startOfDay(new Date(`${from}T00:00:00`)) : null;
+    end = to ? startOfDay(new Date(`${to}T00:00:00`)) : today;
+  }
+
+  if (start && start > end) [start, end] = [end, start];
+  return { start, end };
+}
+
+export const adminAnalyticsSeries = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => analyticsSeriesInput.parse(input ?? {}))
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { start, end } = resolveAnalyticsPeriod(data.period, data.from, data.to);
+    const startIso = start?.toISOString();
+    const endExclusiveIso = addDays(end, 1).toISOString();
+    const startDate = start ? dateKey(start) : null;
+    const endDate = dateKey(end);
+
+    const [contracts, payments, schedules] = await Promise.all([
+      fetchAllRows<{ created_at: string; total_sale_price: number | string; markup_amount: number | string }>((from, to) => {
+        let q: any = supabaseAdmin.from("installment_contracts").select("created_at,total_sale_price,markup_amount").order("created_at", { ascending: true });
+        if (startIso) q = q.gte("created_at", startIso);
+        q = q.lt("created_at", endExclusiveIso);
+        return q.range(from, to);
+      }),
+      fetchAllRows<{ paid_at: string; amount: number | string }>((from, to) => {
+        let q: any = supabaseAdmin.from("payments").select("paid_at,amount").order("paid_at", { ascending: true });
+        if (startIso) q = q.gte("paid_at", startIso);
+        q = q.lt("paid_at", endExclusiveIso);
+        return q.range(from, to);
+      }),
+      fetchAllRows<{ due_date: string; amount: number | string }>((from, to) => {
+        let q: any = supabaseAdmin.from("payment_schedules").select("due_date,amount").order("due_date", { ascending: true });
+        if (startDate) q = q.gte("due_date", startDate);
+        q = q.lte("due_date", endDate);
+        return q.range(from, to);
+      }),
+    ]);
+
+    const allDates = [
+      ...contracts.map((row) => new Date(row.created_at)),
+      ...payments.map((row) => new Date(row.paid_at)),
+      ...schedules.map((row) => new Date(`${row.due_date}T00:00:00`)),
+    ].filter((date) => !Number.isNaN(date.getTime()));
+    const rangeStart = start ?? (allDates.length ? startOfDay(new Date(Math.min(...allDates.map((date) => date.getTime())))) : today);
+    const rangeEnd = end;
+    const days = Math.max(1, Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / dayMs) + 1);
+    const granularity: "day" | "month" = data.period === "all" || days > 120 ? "month" : "day";
+    const rows = new Map<string, AnalyticsRow>();
+
+    if (granularity === "month") {
+      for (let cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1); cursor <= rangeEnd; cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)) {
+        const key = monthKey(cursor);
+        rows.set(key, { key, label: cursor.toLocaleDateString("ru-RU", { month: "short", year: "2-digit" }), sales: 0, payments: 0, markup: 0, due: 0, contracts: 0 });
+      }
+    } else {
+      for (let cursor = rangeStart; cursor <= rangeEnd; cursor = addDays(cursor, 1)) {
+        const key = dateKey(cursor);
+        rows.set(key, { key, label: cursor.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" }), sales: 0, payments: 0, markup: 0, due: 0, contracts: 0 });
+      }
+    }
+
+    const keyFor = (value: string, dateOnly = false) => {
+      const date = dateOnly ? new Date(`${value}T00:00:00`) : new Date(value);
+      return granularity === "month" ? monthKey(date) : dateKey(date);
+    };
+
+    for (const contract of contracts) {
+      const row = rows.get(keyFor(contract.created_at));
+      if (!row) continue;
+      row.sales += Number(contract.total_sale_price);
+      row.markup += Number(contract.markup_amount);
+      row.contracts += 1;
+    }
+    for (const payment of payments) {
+      const row = rows.get(keyFor(payment.paid_at));
+      if (row) row.payments += Number(payment.amount);
+    }
+    for (const schedule of schedules) {
+      const row = rows.get(keyFor(schedule.due_date, true));
+      if (row) row.due += Number(schedule.amount);
+    }
+
+    const chart = [...rows.values()];
+    return {
+      granularity,
+      from: dateKey(rangeStart),
+      to: dateKey(rangeEnd),
+      chart,
+      totals: chart.reduce(
+        (total, row) => ({
+          sales: total.sales + row.sales,
+          payments: total.payments + row.payments,
+          markup: total.markup + row.markup,
+          due: total.due + row.due,
+          contracts: total.contracts + row.contracts,
+        }),
+        { sales: 0, payments: 0, markup: 0, due: 0, contracts: 0 },
+      ),
+    };
+  });
+
 export const adminListClients = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
