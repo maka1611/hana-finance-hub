@@ -766,6 +766,14 @@ export const adminSetUserRole = createServerFn({ method: "POST" })
         .eq("role", data.role);
       if (error) throw new Error(error.message);
     }
+    await logAction({
+      actorId: context.userId,
+      action: data.grant ? "role.grant" : "role.revoke",
+      entityType: "user",
+      entityId: data.userId,
+      summary: `${data.grant ? "Назначена" : "Снята"} роль «${data.role}»`,
+      details: { role: data.role, userId: data.userId },
+    });
     return { ok: true };
   });
 
