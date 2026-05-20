@@ -161,3 +161,50 @@
 .no-spinner::-webkit-outer-spin-button,
 .no-spinner::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .no-spinner { -moz-appearance: textfield; }
+
+/* ============ Mobile / PWA polish ============ */
+
+/* Safe-area utilities for iPhone notch / Dynamic Island */
+.pt-safe { padding-top: max(env(safe-area-inset-top), 0px); }
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+.pl-safe { padding-left: max(env(safe-area-inset-left), 0px); }
+.pr-safe { padding-right: max(env(safe-area-inset-right), 0px); }
+.px-safe {
+  padding-left: max(env(safe-area-inset-left), 0px);
+  padding-right: max(env(safe-area-inset-right), 0px);
+}
+
+/* Make app feel native on touch devices */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent iOS Safari zoom on input focus (requires font-size >= 16px) */
+@media (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Remove tap delay and double-tap zoom on interactive elements */
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+/* Slide page transition (used by AnimatePresence in app layout) */
+@media (prefers-reduced-motion: reduce) {
+  .page-transition * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

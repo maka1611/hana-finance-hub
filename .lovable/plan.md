@@ -1,76 +1,64 @@
-Сделаю всё последовательно в одном проходе. Ниже — что войдёт.
+## Цель
 
-## 1. Расширение формы оформления `/app/new`
-Добавлю недостающие поля к карточке клиента и товара:
-- **ФИО** — автозаполнение из `profiles.full_name`, редактируемое (сохранение обратно в профиль)
-- **Telegram** (необязательно)
-- **Комментарий** (необязательно)
-- **Описание товара** (необязательно)
-- **Дата первого платежа** (date picker, по умолчанию — сегодня + 1 мес)
+Сделать так, чтобы NoorPay можно было добавить на главный экран iPhone (и Android) одной иконкой и пользоваться им как настоящим приложением: полноэкранный режим без адресной строки, нативные жесты, плавные slide-переходы между экранами, безопасные зоны под «чёлку».
 
-Для этого добавлю в `installment_contracts` колонки: `client_full_name`, `client_telegram`, `client_comment`, `product_description`. График платежей будет строиться от выбранной даты первого платежа.
+Без service worker и офлайн-режима — это даёт стабильность, отсутствие проблем с залипанием кеша и корректное обновление после публикации.
 
-## 2. Управление ролями в админке
-Новая страница `/admin/users`:
-- Список всех пользователей (профили + роли)
-- Поиск по email/ФИО
-- Назначение/снятие ролей `client | manager | admin` (только `owner` может назначать `admin`; `admin`/`owner` могут назначать `manager`)
-- Серверная функция `setUserRole` с проверкой прав через `has_role`
-- RLS на `user_roles`: разрешить INSERT/DELETE для `owner`/`admin` через политики
+## Что будет сделано
 
-## 3. Раздел «Платежи» в админке
-Новая страница `/admin/payments`:
-- Сводные KPI: ожидается в этом месяце, просрочено, поступило за период
-- Таблица всех `payment_schedules` с join на контракт и клиента
-- Фильтры: статус (pending/paid/overdue), период, поиск по клиенту
-- Aging buckets: 0–7, 8–30, 31–60, 60+ дней просрочки
-- Кнопка «Отметить оплачено» прямо из таблицы
-- Cron-логика статуса: помечать `overdue`, если `due_date < today` и статус `pending` (через серверную функцию, триггеримую при загрузке страницы)
+### 1. Иконка приложения NoorPay
+- Сгенерировать иконку в стиле проекта (тёмно-зелёная палитра, символика, читаемая в маленьком размере).
+- Три размера: `icon-192.png`, `icon-512.png` (maskable), `apple-touch-icon-180.png`.
+- Сохранить в `public/` чтобы пути были стабильными.
 
-## 4. Сид-данные
-Серверная функция `seedDemoData` (вызов кнопкой в админке, только для `owner`):
-- 10 демо-клиентов (profiles + user_roles)
-- 20 договоров с разными статусами и сроками
-- Графики платежей с частично оплаченными/просроченными позициями
+### 2. Web App Manifest
+- Создать `public/manifest.webmanifest` с полями: `name`, `short_name: "NoorPay"`, `start_url: "/app"` (чтобы открывалось сразу в личном кабинете), `scope: "/"`, `display: "standalone"`, `orientation: "portrait"`, `theme_color`, `background_color`, массив иконок.
 
-## 5. Email-уведомления (через Lovable Emails)
-- Настройка домена и инфраструктуры email
-- Транзакционные шаблоны: «договор оформлен», «напоминание о платеже за 3 дня», «платёж получен», «просрочка»
-- Cron-job (pg_cron → public API route) раз в день рассылает напоминания и просрочки
+### 3. Мета-теги для iOS и Android
+В `src/routes/__root.tsx` в `head().meta` и `head().links` добавить:
+- `viewport` с `viewport-fit=cover` (под safe-area).
+- `apple-mobile-web-app-capable: yes`, `apple-mobile-web-app-status-bar-style: black-translucent`, `apple-mobile-web-app-title: NoorPay`.
+- `theme-color` (для адресной строки Android Chrome).
+- `<link rel="manifest">`, `<link rel="apple-touch-icon">`, `<link rel="icon">`.
 
-## Технические детали
+### 4. Safe-area под iPhone (чёлка / Dynamic Island)
+- В `src/styles.css` добавить утилиты `pt-safe`, `pb-safe`, `px-safe` через `env(safe-area-inset-*)`.
+- Применить к шапке (`AuthTopBar`) и нижним фиксированным элементам.
 
-**Миграции:**
-```sql
-ALTER TABLE installment_contracts
-  ADD COLUMN client_full_name text,
-  ADD COLUMN client_telegram text,
-  ADD COLUMN client_comment text,
-  ADD COLUMN product_description text;
+### 5. Slide-переходы между экранами
+- Использовать уже установленный framer-motion (он используется в проекте). Если нет — добавить `bun add framer-motion`.
+- В layout `src/routes/_authenticated/app.tsx` обернуть `<Outlet />` в `AnimatePresence` с `motion.div`, который делает slide по X (вперёд/назад) и fade.
+- Длительность 250мс, easing `[0.32, 0.72, 0, 1]` (iOS-like).
+- Учитывать `prefers-reduced-motion` — отключать анимацию при включённой настройке.
 
--- RLS на user_roles: разрешить admin/owner управлять
-CREATE POLICY "Admins manage roles" ON user_roles
-  FOR ALL USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'owner'));
-```
+### 6. Мобильная полировка (без смены навигации)
+- Все `<input>` получают `font-size: 16px` минимум, чтобы iOS Safari не зумился при фокусе.
+- `-webkit-tap-highlight-color: transparent` на интерактивных элементах.
+- `touch-action: manipulation` на кнопках (убирает 300мс задержку и double-tap zoom).
+- `overscroll-behavior-y: contain` на скроллящихся контейнерах (отключает «bounce» страницы за пределы контента).
+- Минимальный тач-таргет 44×44px на иконках и иконочных кнопках.
 
-**Серверные функции** (createServerFn, в `src/lib/`):
-- `contracts.functions.ts` — расширить `createContract` новыми полями + `firstPaymentDate`
-- `admin-users.functions.ts` — `listUsers`, `setUserRole`, `removeRole`
-- `admin-payments.functions.ts` — `listPayments`, `markPaid`, `refreshOverdueStatuses`
-- `seed.functions.ts` — `seedDemoData`
-- `notifications.functions.ts` — `sendContractCreated`, `sendPaymentReminder`, `sendPaymentReceived`
+### 7. Проверка
+- Открыть превью на iPhone-вьюпорте (375×812), убедиться, что safe-area работает.
+- Проверить slide-анимацию переходов между `/app`, `/app/installments`, `/app/profile`.
+- На опубликованном сайте: Safari → Поделиться → На экран «Домой» → запустить иконку → убедиться, что открывается без адресной строки и сразу в `/app`.
 
-**Маршруты:**
-- `/admin/users`, `/admin/payments`
-- `/api/public/cron/send-reminders` (для pg_cron, проверка по shared secret)
+## Технические детали (для разработчика)
 
-**Email:**
-- Использую Lovable Emails (нужна настройка домена — попрошу через диалог настройки на этапе реализации)
+**Файлы, которые будут затронуты:**
+- Новые: `public/manifest.webmanifest`, `public/icon-192.png`, `public/icon-512.png`, `public/apple-touch-icon.png`
+- Изменены: `src/routes/__root.tsx` (мета и links), `src/routes/_authenticated/app.tsx` (AnimatePresence), `src/styles.css` (safe-area утилиты, тач-полировка), `src/components/AuthTopBar.tsx` (pt-safe)
 
-## Что НЕ войдёт (отложим)
-- Скоринг клиентов
-- Генерация PDF (договор, чек)
-- Реальный платёжный шлюз
-- 2FA, audit_logs, charity/penalty
+**Направление slide** определяется через сравнение текущего и предыдущего pathname (хранится в `useRef`): вглубь — slide справа, назад — слева.
 
-После реализации этих 5 пунктов система будет полностью рабочей для запуска. Скажешь — добавим остальное.
+**start_url = `/app`** означает, что иконка с домашнего экрана сразу ведёт в личный кабинет. Если сессия истекла, сработает уже существующий редирект на `/login` из `_authenticated.tsx`.
+
+**Что НЕ делаем:**
+- Не добавляем `vite-plugin-pwa` и service worker — это ломает превью Lovable и кеширует устаревший баланс/платежи.
+- Не трогаем backend и server-функции — изменения чисто фронтенд/презентационные.
+- Не меняем существующую навигацию и хедер.
+
+## Ограничения, о которых стоит знать
+- Push-уведомления на iOS работают только если PWA установлена на главный экран (iOS 16.4+) и требуют отдельной реализации — в этот план не входят.
+- При первом запуске после установки iOS показывает белый сплеш-экран по `background_color` из манифеста — это нормально, длится <1сек.
+- Анимации переходов и установка работают одинаково в Safari и Chrome на iOS (на iOS все браузеры используют WebKit).
