@@ -85,10 +85,17 @@ function AdminContractDetail() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-3">
+      <div className="grid md:grid-cols-5 gap-3">
         <Mini label="Цена товара" value={formatMoney(Number(contract.product_price))} />
         <Mini label="Первый взнос" value={formatMoney(Number(contract.down_payment))} />
-        <Mini label="Наценка" value={formatMoney(Number(contract.markup_amount))} />
+        <Mini
+          label={`Наценка ${(Number(contract.markup_rate) * 100).toFixed(2)}%/мес · ${contract.term_months} мес`}
+          value={formatMoney(Number(contract.markup_amount))}
+        />
+        <Mini
+          label="Итоговая наценка"
+          value={`${(Number(contract.markup_rate) * Number(contract.term_months) * 100).toFixed(1)}%`}
+        />
         <Mini label="Итоговая цена" value={formatMoney(Number(contract.total_sale_price))} highlight />
       </div>
 
