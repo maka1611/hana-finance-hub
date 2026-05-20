@@ -860,6 +860,34 @@ const AdminCreateInstallmentSchema = z.object({
     )
     .max(10)
     .optional(),
+  documents: z
+    .object({
+      passportSeries: z.string().trim().max(20).optional().nullable(),
+      passportNumber: z.string().trim().max(20).optional().nullable(),
+      passportIssuedBy: z.string().trim().max(300).optional().nullable(),
+      passportIssuedAt: z.string().trim().max(20).optional().nullable(),
+      driverLicenseNumber: z.string().trim().max(50).optional().nullable(),
+      driverLicenseCategories: z.string().trim().max(50).optional().nullable(),
+      driverLicenseIssuedAt: z.string().trim().max(20).optional().nullable(),
+      passportPhoto: z
+        .object({
+          fileName: z.string().trim().min(1).max(200),
+          contentType: z.string().trim().min(1).max(100),
+          dataBase64: z.string().min(1).max(15_000_000),
+        })
+        .optional()
+        .nullable(),
+      driverLicensePhoto: z
+        .object({
+          fileName: z.string().trim().min(1).max(200),
+          contentType: z.string().trim().min(1).max(100),
+          dataBase64: z.string().min(1).max(15_000_000),
+        })
+        .optional()
+        .nullable(),
+    })
+    .optional()
+    .nullable(),
 });
 
 export const adminCreateInstallment = createServerFn({ method: "POST" })
@@ -960,6 +988,41 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
           channels: p.channels ?? [],
         })),
       );
+    }
+
+    if (data.documents) {
+      const d = data.documents;
+      const patch: Record<string, string | null> = {};
+      if (d.passportSeries !== undefined) patch.passport_series = d.passportSeries || null;
+      if (d.passportNumber !== undefined) patch.passport_number = d.passportNumber || null;
+      if (d.passportIssuedBy !== undefined) patch.passport_issued_by = d.passportIssuedBy || null;
+      if (d.passportIssuedAt !== undefined) patch.passport_issued_at = d.passportIssuedAt || null;
+      if (d.driverLicenseNumber !== undefined) patch.driver_license_number = d.driverLicenseNumber || null;
+      if (d.driverLicenseCategories !== undefined) patch.driver_license_categories = d.driverLicenseCategories || null;
+      if (d.driverLicenseIssuedAt !== undefined) patch.driver_license_issued_at = d.driverLicenseIssuedAt || null;
+
+      for (const [kind, photo] of [
+        ["passport", d.passportPhoto] as const,
+        ["driver_license", d.driverLicensePhoto] as const,
+      ]) {
+        if (!photo) continue;
+        const ext = (photo.fileName.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const path = `${clientId}/${kind}-${Date.now()}.${ext}`;
+        const bytes = Uint8Array.from(atob(photo.dataBase64), (c) => c.charCodeAt(0));
+        const { error: upErr } = await supabaseAdmin.storage
+          .from("client-documents")
+          .upload(path, bytes, { contentType: photo.contentType, upsert: true });
+        if (upErr) throw new Error(upErr.message);
+        const { data: signed, error: signErr } = await supabaseAdmin.storage
+          .from("client-documents")
+          .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+        if (signErr) throw new Error(signErr.message);
+        patch[kind === "passport" ? "passport_photo_url" : "driver_license_photo_url"] = signed.signedUrl;
+      }
+
+      if (Object.keys(patch).length > 0) {
+        await supabaseAdmin.from("profiles").update(patch as never).eq("id", clientId);
+      }
     }
 
     return { contractId: contract.id, clientId, tempPassword };

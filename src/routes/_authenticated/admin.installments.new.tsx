@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, FilePlus2, UserPlus, Users, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronsUpDown, FilePlus2, UserPlus, Users, Plus, Trash2, FileText, ChevronDown, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ContactChannelToggles, type ContactChannel } from "@/components/admin/ContactChannels";
 
@@ -62,6 +62,40 @@ function AdminNewInstallment() {
   });
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Документы нового клиента
+  const [docsOpen, setDocsOpen] = useState(false);
+  const [passportSeries, setPassportSeries] = useState("");
+  const [passportNumber, setPassportNumber] = useState("");
+  const [passportIssuedBy, setPassportIssuedBy] = useState("");
+  const [passportIssuedAt, setPassportIssuedAt] = useState("");
+  const [driverLicenseNumber, setDriverLicenseNumber] = useState("");
+  const [driverLicenseCategories, setDriverLicenseCategories] = useState("");
+  const [driverLicenseIssuedAt, setDriverLicenseIssuedAt] = useState("");
+  type PhotoFile = { fileName: string; contentType: string; dataBase64: string; previewUrl: string };
+  const [passportPhoto, setPassportPhoto] = useState<PhotoFile | null>(null);
+  const [driverLicensePhoto, setDriverLicensePhoto] = useState<PhotoFile | null>(null);
+
+  const readFile = (file: File): Promise<PhotoFile> =>
+    new Promise((resolve, reject) => {
+      if (file.size > 8 * 1024 * 1024) {
+        reject(new Error("Файл больше 8 МБ"));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const dataBase64 = result.split(",")[1] ?? "";
+        resolve({
+          fileName: file.name,
+          contentType: file.type || "application/octet-stream",
+          dataBase64,
+          previewUrl: result,
+        });
+      };
+      reader.onerror = () => reject(new Error("Не удалось прочитать файл"));
+      reader.readAsDataURL(file);
+    });
 
   const selected = useMemo(
     () => (clients ?? []).find((c) => c.id === clientId) ?? null,
@@ -113,6 +147,32 @@ function AdminNewInstallment() {
                     label: p.label.trim() || null,
                     channels: p.channels,
                   }))
+              : undefined,
+          documents:
+            mode === "new" && docsOpen
+              ? {
+                  passportSeries: passportSeries.trim() || null,
+                  passportNumber: passportNumber.trim() || null,
+                  passportIssuedBy: passportIssuedBy.trim() || null,
+                  passportIssuedAt: passportIssuedAt || null,
+                  driverLicenseNumber: driverLicenseNumber.trim() || null,
+                  driverLicenseCategories: driverLicenseCategories.trim() || null,
+                  driverLicenseIssuedAt: driverLicenseIssuedAt || null,
+                  passportPhoto: passportPhoto
+                    ? {
+                        fileName: passportPhoto.fileName,
+                        contentType: passportPhoto.contentType,
+                        dataBase64: passportPhoto.dataBase64,
+                      }
+                    : null,
+                  driverLicensePhoto: driverLicensePhoto
+                    ? {
+                        fileName: driverLicensePhoto.fileName,
+                        contentType: driverLicensePhoto.contentType,
+                        dataBase64: driverLicensePhoto.dataBase64,
+                      }
+                    : null,
+                }
               : undefined,
         },
       });
@@ -297,6 +357,116 @@ function AdminNewInstallment() {
                   Подсветите иконки для предпочтительных способов связи: звонок, WhatsApp, Telegram.
                 </p>
               </div>
+
+              <div className="rounded-xl ring-1 ring-border bg-muted/20 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setDocsOpen((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold hover:bg-muted/40 transition-colors"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <FileText className="size-4" />
+                    Добавить документы
+                    <span className="text-xs font-normal text-muted-foreground">
+                      (паспорт и в/у — по желанию)
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={cn("size-4 transition-transform", docsOpen && "rotate-180")}
+                  />
+                </button>
+                {docsOpen && (
+                  <div className="p-4 space-y-5 border-t border-border">
+                    <div className="space-y-3">
+                      <h3 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                        Паспорт
+                      </h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Серия</Label>
+                          <Input
+                            value={passportSeries}
+                            onChange={(e) => setPassportSeries(e.target.value)}
+                            maxLength={20}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Номер</Label>
+                          <Input
+                            value={passportNumber}
+                            onChange={(e) => setPassportNumber(e.target.value)}
+                            maxLength={20}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Кем выдан</Label>
+                        <Input
+                          value={passportIssuedBy}
+                          onChange={(e) => setPassportIssuedBy(e.target.value)}
+                          maxLength={300}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Дата выдачи</Label>
+                        <Input
+                          type="date"
+                          value={passportIssuedAt}
+                          onChange={(e) => setPassportIssuedAt(e.target.value)}
+                        />
+                      </div>
+                      <PhotoPicker
+                        label="Фото паспорта"
+                        photo={passportPhoto}
+                        onChange={setPassportPhoto}
+                        readFile={readFile}
+                      />
+                    </div>
+
+                    <div className="h-px bg-border" />
+
+                    <div className="space-y-3">
+                      <h3 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                        Водительские права
+                      </h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Номер</Label>
+                          <Input
+                            value={driverLicenseNumber}
+                            onChange={(e) => setDriverLicenseNumber(e.target.value)}
+                            maxLength={50}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Категории</Label>
+                          <Input
+                            value={driverLicenseCategories}
+                            onChange={(e) => setDriverLicenseCategories(e.target.value)}
+                            placeholder="B, C"
+                            maxLength={50}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Дата выдачи</Label>
+                        <Input
+                          type="date"
+                          value={driverLicenseIssuedAt}
+                          onChange={(e) => setDriverLicenseIssuedAt(e.target.value)}
+                        />
+                      </div>
+                      <PhotoPicker
+                        label="Фото водительских прав"
+                        photo={driverLicensePhoto}
+                        onChange={setDriverLicensePhoto}
+                        readFile={readFile}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <p className="text-[11px] text-muted-foreground">
                 Будет создан аккаунт клиента. Временный пароль покажется после сохранения — передайте его клиенту.
               </p>
@@ -431,6 +601,71 @@ function Row({ k, v, bold }: { k: string; v: string; bold?: boolean }) {
     <div className="flex justify-between">
       <span className="text-muted-foreground">{k}</span>
       <span className={bold ? "font-bold" : "font-medium"}>{v}</span>
+    </div>
+  );
+}
+
+function PhotoPicker({
+  label,
+  photo,
+  onChange,
+  readFile,
+}: {
+  label: string;
+  photo: { fileName: string; contentType: string; dataBase64: string; previewUrl: string } | null;
+  onChange: (
+    p: { fileName: string; contentType: string; dataBase64: string; previewUrl: string } | null,
+  ) => void;
+  readFile: (
+    file: File,
+  ) => Promise<{ fileName: string; contentType: string; dataBase64: string; previewUrl: string }>;
+}) {
+  const inputId = `photo-${label.replace(/\s+/g, "-")}`;
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs">{label}</Label>
+      {photo ? (
+        <div className="relative inline-block">
+          <img
+            src={photo.previewUrl}
+            alt={label}
+            className="h-32 w-auto rounded-lg ring-1 ring-border object-cover"
+          />
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="absolute -top-2 -right-2 bg-background ring-1 ring-border rounded-full p-1 hover:bg-destructive hover:text-destructive-foreground"
+            aria-label="Удалить"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ) : (
+        <label
+          htmlFor={inputId}
+          className="flex items-center justify-center gap-2 h-24 rounded-lg border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-primary cursor-pointer transition-colors"
+        >
+          <Upload className="size-4" /> Загрузить фото
+        </label>
+      )}
+      <input
+        id={inputId}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          try {
+            const p = await readFile(file);
+            onChange(p);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Ошибка загрузки");
+          } finally {
+            e.target.value = "";
+          }
+        }}
+      />
     </div>
   );
 }
