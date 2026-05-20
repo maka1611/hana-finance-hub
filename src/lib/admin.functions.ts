@@ -252,6 +252,14 @@ export const adminRecordPayment = createServerFn({ method: "POST" })
         .update({ status: "closed" })
         .eq("id", sched.contract_id);
     }
+    await logAction({
+      actorId: context.userId,
+      action: "payment.record",
+      entityType: "contract",
+      entityId: sched.contract_id,
+      summary: `Принят платёж ${data.amount} ₽`,
+      details: { scheduleId: data.scheduleId, amount: data.amount, method: data.method },
+    });
     return { ok: true };
   });
 
@@ -270,6 +278,14 @@ export const adminUpdateContractStatus = createServerFn({ method: "POST" })
       .update({ status: data.status })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    await logAction({
+      actorId: context.userId,
+      action: "contract.status",
+      entityType: "contract",
+      entityId: data.id,
+      summary: `Статус контракта изменён на «${data.status}»`,
+      details: { status: data.status },
+    });
     return { ok: true };
   });
 
@@ -1023,6 +1039,11 @@ export const adminDeleteClient = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
     if (data.id === context.userId) throw new Error("Нельзя удалить самого себя");
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name,email")
+      .eq("id", data.id)
+      .maybeSingle();
 
     // Получим контракты клиента, чтобы каскадно вычистить графики и платежи
     const { data: contracts } = await supabaseAdmin
@@ -1044,6 +1065,14 @@ export const adminDeleteClient = createServerFn({ method: "POST" })
     if (authErr && !authErr.message.toLowerCase().includes("not found")) {
       throw new Error(authErr.message);
     }
+    await logAction({
+      actorId: context.userId,
+      action: "client.delete",
+      entityType: "client",
+      entityId: data.id,
+      summary: `Удалён клиент ${prof?.full_name ?? prof?.email ?? data.id}`,
+      details: { email: prof?.email ?? null },
+    });
     return { ok: true };
   });
 
