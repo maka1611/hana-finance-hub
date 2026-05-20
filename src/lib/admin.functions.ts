@@ -196,31 +196,31 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
         total_sale_price: number | string;
         markup_amount: number | string;
       }>((from, to) => {
-        let q: any = supabaseAdmin
+        const q = supabaseAdmin
           .from("installment_contracts")
           .select("created_at,total_sale_price,markup_amount")
           .order("created_at", { ascending: true });
-        if (startIso) q = q.gte("created_at", startIso);
-        q = q.lt("created_at", endExclusiveIso);
-        return q.range(from, to);
+        return (startIso ? q.gte("created_at", startIso) : q)
+          .lt("created_at", endExclusiveIso)
+          .range(from, to);
       }),
       fetchAllRows<{ paid_at: string; amount: number | string }>((from, to) => {
-        let q: any = supabaseAdmin
+        const q = supabaseAdmin
           .from("payments")
           .select("paid_at,amount")
           .order("paid_at", { ascending: true });
-        if (startIso) q = q.gte("paid_at", startIso);
-        q = q.lt("paid_at", endExclusiveIso);
-        return q.range(from, to);
+        return (startIso ? q.gte("paid_at", startIso) : q)
+          .lt("paid_at", endExclusiveIso)
+          .range(from, to);
       }),
       fetchAllRows<{ due_date: string; amount: number | string }>((from, to) => {
-        let q: any = supabaseAdmin
+        const q = supabaseAdmin
           .from("payment_schedules")
           .select("due_date,amount")
           .order("due_date", { ascending: true });
-        if (startDate) q = q.gte("due_date", startDate);
-        q = q.lte("due_date", endDate);
-        return q.range(from, to);
+        return (startDate ? q.gte("due_date", startDate) : q)
+          .lte("due_date", endDate)
+          .range(from, to);
       }),
     ]);
 
