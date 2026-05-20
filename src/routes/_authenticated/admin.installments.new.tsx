@@ -603,58 +603,79 @@ function Row({ k, v, bold }: { k: string; v: string; bold?: boolean }) {
 
 function PhotoPicker({
   label,
-  photo,
+  photos,
   onChange,
   readFile,
 }: {
   label: string;
-  photo: { fileName: string; contentType: string; dataBase64: string; previewUrl: string } | null;
-  onChange: (
-    p: { fileName: string; contentType: string; dataBase64: string; previewUrl: string } | null,
-  ) => void;
+  photos: Array<{ fileName: string; contentType: string; dataBase64: string; previewUrl: string }>;
+  onChange: React.Dispatch<
+    React.SetStateAction<
+      Array<{ fileName: string; contentType: string; dataBase64: string; previewUrl: string }>
+    >
+  >;
   readFile: (
     file: File,
   ) => Promise<{ fileName: string; contentType: string; dataBase64: string; previewUrl: string }>;
 }) {
   const inputId = `photo-${label.replace(/\s+/g, "-")}`;
+  const MAX = 5;
+  const limitReached = photos.length >= MAX;
   return (
     <div className="space-y-2">
-      <Label className="text-xs">{label}</Label>
-      {photo ? (
-        <div className="relative inline-block">
-          <img
-            src={photo.previewUrl}
-            alt={label}
-            className="h-32 w-auto rounded-lg ring-1 ring-border object-cover"
-          />
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className="absolute -top-2 -right-2 bg-background ring-1 ring-border rounded-full p-1 hover:bg-destructive hover:text-destructive-foreground"
-            aria-label="Удалить"
-          >
-            <X className="size-3.5" />
-          </button>
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">{label}</Label>
+        <span className="text-[10px] font-mono text-muted-foreground">{photos.length} / {MAX}</span>
+      </div>
+      {photos.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {photos.map((p, idx) => (
+            <div key={idx} className="relative">
+              <img
+                src={p.previewUrl}
+                alt={`${label} ${idx + 1}`}
+                className="w-full h-24 rounded-lg ring-1 ring-border object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => onChange((prev) => prev.filter((_, i) => i !== idx))}
+                className="absolute -top-2 -right-2 bg-background ring-1 ring-border rounded-full p-1 hover:bg-destructive hover:text-destructive-foreground"
+                aria-label="Удалить"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          ))}
         </div>
-      ) : (
+      )}
+      {!limitReached && (
         <label
           htmlFor={inputId}
-          className="flex items-center justify-center gap-2 h-24 rounded-lg border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-primary cursor-pointer transition-colors"
+          className="flex items-center justify-center gap-2 h-20 rounded-lg border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-primary cursor-pointer transition-colors"
         >
-          <Upload className="size-4" /> Загрузить фото
+          <Upload className="size-4" /> Добавить фото
         </label>
+      )}
+      {limitReached && (
+        <p className="text-[11px] text-muted-foreground">Достигнут лимит {MAX} фото</p>
       )}
       <input
         id={inputId}
         type="file"
         accept="image/*"
+        multiple
         className="hidden"
         onChange={async (e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
+          const files = Array.from(e.target.files ?? []);
+          if (files.length === 0) return;
           try {
-            const p = await readFile(file);
-            onChange(p);
+            const slotsLeft = MAX - photos.length;
+            const toRead = files.slice(0, slotsLeft);
+            const newOnes = await Promise.all(toRead.map((f) => readFile(f)));
+            onChange((prev) => [...prev, ...newOnes].slice(0, MAX));
+            if (files.length > slotsLeft) {
+              toast.error(`Можно загрузить не больше ${MAX} фото`);
+            }
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "Ошибка загрузки");
           } finally {
