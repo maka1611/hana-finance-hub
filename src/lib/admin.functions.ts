@@ -16,6 +16,43 @@ async function assertStaff(userId: string) {
   return roles;
 }
 
+const MAX_DOCS_PER_KIND = 5;
+const DOC_SIGNED_TTL = 60 * 60 * 24 * 365 * 5;
+
+async function getActorInfo(userId: string): Promise<{ email: string | null; name: string | null }> {
+  const { data } = await supabaseAdmin
+    .from("profiles")
+    .select("email,full_name")
+    .eq("id", userId)
+    .maybeSingle();
+  return { email: data?.email ?? null, name: data?.full_name ?? null };
+}
+
+async function logAction(params: {
+  actorId: string;
+  action: string;
+  entityType?: string | null;
+  entityId?: string | null;
+  summary?: string | null;
+  details?: Record<string, unknown> | null;
+}) {
+  try {
+    const info = await getActorInfo(params.actorId);
+    await supabaseAdmin.from("admin_audit_log").insert({
+      actor_id: params.actorId,
+      actor_email: info.email,
+      actor_name: info.name,
+      action: params.action,
+      entity_type: params.entityType ?? null,
+      entity_id: params.entityId ?? null,
+      summary: params.summary ?? null,
+      details: (params.details ?? null) as never,
+    });
+  } catch (e) {
+    console.error("audit log insert failed:", e);
+  }
+}
+
 export const getMyRoles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
