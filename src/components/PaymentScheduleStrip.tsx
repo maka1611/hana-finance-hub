@@ -41,7 +41,7 @@ export function PaymentScheduleStrip({ termMonths, monthly, paidUpTo = 0 }: Prop
                   <div className="text-xs space-y-0.5">
                     <div className="font-semibold">Месяц {i}</div>
                     <div>Платёж: {formatMoney(monthly)}</div>
-                    <div className="text-muted-foreground">
+                    <div className="opacity-80">
                       Остаток: {formatMoney(Math.max(0, remaining))}
                     </div>
                   </div>
