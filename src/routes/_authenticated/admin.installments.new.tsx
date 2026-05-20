@@ -19,8 +19,9 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, FilePlus2, UserPlus, Users } from "lucide-react";
+import { Check, ChevronsUpDown, FilePlus2, UserPlus, Users, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ContactChannelToggles, type ContactChannel } from "@/components/admin/ContactChannels";
 
 export const Route = createFileRoute("/_authenticated/admin/installments/new")({
   component: AdminNewInstallment,
@@ -43,7 +44,10 @@ function AdminNewInstallment() {
 
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
-  const [newPhone, setNewPhone] = useState("");
+  type PhoneRow = { phone: string; label: string; channels: ContactChannel[] };
+  const [phones, setPhones] = useState<PhoneRow[]>([
+    { phone: "", label: "Основной", channels: ["phone"] },
+  ]);
 
   const [productName, setProductName] = useState("");
   const [productDescription, setProductDescription] = useState("");
@@ -76,7 +80,7 @@ function AdminNewInstallment() {
     if (mode === "new") {
       if (!newEmail.trim()) return toast.error("Email обязателен");
       if (!newName.trim()) return toast.error("ФИО обязательно");
-      if (!newPhone.trim()) return toast.error("Телефон обязателен");
+      if (!phones[0]?.phone.trim()) return toast.error("Телефон обязателен");
     }
     setLoading(true);
     try {
@@ -85,7 +89,12 @@ function AdminNewInstallment() {
           client:
             mode === "existing"
               ? { kind: "existing", id: clientId! }
-              : { kind: "new", email: newEmail.trim(), fullName: newName.trim(), phone: newPhone.trim() },
+              : {
+                  kind: "new",
+                  email: newEmail.trim(),
+                  fullName: newName.trim(),
+                  phone: phones[0].phone.trim(),
+                },
           productName,
           productDescription: productDescription || null,
           productPrice,
@@ -94,6 +103,17 @@ function AdminNewInstallment() {
           firstPaymentDate,
           clientComment: comment || null,
           markupRate: markupPct / 100,
+          extraPhones:
+            mode === "new"
+              ? phones
+                  .slice(1)
+                  .filter((p) => p.phone.trim().length > 0)
+                  .map((p) => ({
+                    phone: p.phone.trim(),
+                    label: p.label.trim() || null,
+                    channels: p.channels,
+                  }))
+              : undefined,
         },
       });
       if (res.tempPassword) {
@@ -201,27 +221,81 @@ function AdminNewInstallment() {
                 <Label>ФИО</Label>
                 <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Иванов Иван" required />
               </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="client@mail.com"
-                    required
-                  />
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="client@mail.com"
+                  required
+                />
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Телефоны для связи</Label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPhones((arr) => [...arr, { phone: "", label: "", channels: [] }])
+                    }
+                    className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline"
+                  >
+                    <Plus className="size-3.5" /> Добавить номер
+                  </button>
                 </div>
-                <div className="space-y-2">
-                  <Label>Телефон</Label>
-                  <Input
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                    placeholder="+7 ..."
-                    required
-                    inputMode="tel"
-                  />
-                </div>
+                {phones.map((row, idx) => (
+                  <div key={idx} className="bg-muted/30 rounded-xl p-3 space-y-2 ring-1 ring-border">
+                    <div className="grid grid-cols-[1fr_160px] gap-2">
+                      <Input
+                        value={row.phone}
+                        onChange={(e) =>
+                          setPhones((arr) =>
+                            arr.map((p, i) => (i === idx ? { ...p, phone: e.target.value } : p)),
+                          )
+                        }
+                        placeholder={idx === 0 ? "+7 ... (основной)" : "+7 ..."}
+                        required={idx === 0}
+                        inputMode="tel"
+                      />
+                      <Input
+                        value={row.label}
+                        onChange={(e) =>
+                          setPhones((arr) =>
+                            arr.map((p, i) => (i === idx ? { ...p, label: e.target.value } : p)),
+                          )
+                        }
+                        placeholder="Комментарий"
+                        maxLength={50}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <ContactChannelToggles
+                        value={row.channels}
+                        onChange={(v) =>
+                          setPhones((arr) =>
+                            arr.map((p, i) => (i === idx ? { ...p, channels: v } : p)),
+                          )
+                        }
+                        size="sm"
+                      />
+                      {idx > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPhones((arr) => arr.filter((_, i) => i !== idx))
+                          }
+                          className="text-xs text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
+                        >
+                          <Trash2 className="size-3.5" /> Удалить
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <p className="text-[11px] text-muted-foreground">
+                  Подсветите иконки для предпочтительных способов связи: звонок, WhatsApp, Telegram.
+                </p>
               </div>
               <p className="text-[11px] text-muted-foreground">
                 Будет создан аккаунт клиента. Временный пароль покажется после сохранения — передайте его клиенту.
