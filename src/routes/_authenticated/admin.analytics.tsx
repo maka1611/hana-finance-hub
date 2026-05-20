@@ -1,16 +1,49 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { adminStats } from "@/lib/admin.functions";
+import { useState } from "react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { adminAnalyticsSeries, adminStats } from "@/lib/admin.functions";
 import { formatMoney } from "@/lib/installment";
+import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/_authenticated/admin/analytics")({
   component: AnalyticsPage,
 });
 
+type Period = "all" | "year" | "quarter" | "month" | "week" | "today" | "custom";
+
+const periodLabels: Record<Period, string> = {
+  all: "Всё время",
+  year: "Год",
+  quarter: "3 месяца",
+  month: "Этот месяц",
+  week: "Неделя",
+  today: "Сегодня",
+  custom: "Выбрать период",
+};
+
+const chartConfig = {
+  sales: { label: "Продажи", color: "var(--chart-1)" },
+  payments: { label: "Платежи", color: "var(--chart-2)" },
+  due: { label: "К получению", color: "var(--chart-3)" },
+} satisfies ChartConfig;
+
+const todayKey = () => new Date().toISOString().slice(0, 10);
+
 function AnalyticsPage() {
   const fn = useServerFn(adminStats);
+  const seriesFn = useServerFn(adminAnalyticsSeries);
+  const [period, setPeriod] = useState<Period>("month");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState(todayKey());
   const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fn() });
+  const { data: series, isLoading: seriesLoading } = useQuery({
+    queryKey: ["admin-analytics-series", period, from, to],
+    queryFn: () => seriesFn({ data: { period, from: from || undefined, to: to || undefined } }),
+  });
 
   if (isLoading || !data) return <p className="text-sm text-muted-foreground">Загрузка...</p>;
 
@@ -50,6 +83,92 @@ function AnalyticsPage() {
           <Flow label="Просроченные" value={data.contractsOverdue} prefix="" suffix=" контр." tone="danger" />
           <Flow label="Всего клиентов" value={data.clientsCount} prefix="" suffix="" />
         </div>
+      </div>
+
+      <div className="bg-card rounded-2xl ring-1 ring-border p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-2">Динамика</h2>
+            <p className="text-sm text-muted-foreground">
+              {series ? `${series.from} — ${series.to}` : "Загрузка периода..."}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Select value={period} onValueChange={(value) => setPeriod(value as Period)}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(Object.keys(periodLabels) as Period[]).map((key) => (
+                  <SelectItem key={key} value={key}>{periodLabels[key]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {period === "custom" && (
+              <>
+                <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
+                <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-4 gap-4 mb-6">
+          <Flow label="Продажи за период" value={series?.totals.sales ?? 0} />
+          <Flow label="Платежи за период" value={series?.totals.payments ?? 0} />
+          <Flow label="К получению" value={series?.totals.due ?? 0} />
+          <Flow label="Договоры" value={series?.totals.contracts ?? 0} prefix="" suffix=" шт." />
+        </div>
+
+        {seriesLoading || !series ? (
+          <div className="h-80 rounded-2xl bg-muted animate-pulse" />
+        ) : (
+          <ChartContainer config={chartConfig} className="h-80 w-full aspect-auto">
+            <AreaChart data={series.chart} margin={{ left: 8, right: 8, top: 12, bottom: 0 }}>
+              <defs>
+                <linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-sales)" stopOpacity={0.24} />
+                  <stop offset="95%" stopColor="var(--color-sales)" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="paymentsFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-payments)" stopOpacity={0.24} />
+                  <stop offset="95%" stopColor="var(--color-payments)" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
+              <YAxis tickLine={false} axisLine={false} width={74} tickFormatter={(value) => compactMoney(Number(value))} />
+              <ChartTooltip content={<AnalyticsTooltip />} />
+              <Area type="monotone" dataKey="sales" stroke="var(--color-sales)" fill="url(#salesFill)" strokeWidth={2} name="Продажи" />
+              <Area type="monotone" dataKey="payments" stroke="var(--color-payments)" fill="url(#paymentsFill)" strokeWidth={2} name="Платежи" />
+              <Area type="monotone" dataKey="due" stroke="var(--color-due)" fill="transparent" strokeWidth={2} name="К получению" />
+            </AreaChart>
+          </ChartContainer>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function compactMoney(value: number) {
+  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)} млн`;
+  if (Math.abs(value) >= 1_000) return `${Math.round(value / 1_000)} тыс`;
+  return value.toLocaleString("ru-RU");
+}
+
+function AnalyticsTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name?: string; value?: number; color?: string; payload?: { label?: string } }> }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="min-w-44 rounded-xl border border-border bg-background px-3 py-2 text-xs shadow-xl">
+      <div className="font-bold mb-2">{payload[0]?.payload?.label}</div>
+      <div className="space-y-1.5">
+        {payload.map((item) => (
+          <div key={item.name} className="flex items-center justify-between gap-4">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <span className="size-2 rounded-full" style={{ backgroundColor: item.color }} />
+              {item.name}
+            </span>
+            <span className="font-semibold">{formatMoney(Number(item.value ?? 0))}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
