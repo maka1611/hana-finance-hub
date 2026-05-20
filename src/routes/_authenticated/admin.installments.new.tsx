@@ -144,7 +144,7 @@ function AdminNewInstallment() {
                   .filter((p) => p.phone.trim().length > 0)
                   .map((p) => ({
                     phone: p.phone.trim(),
-                    label: p.label.trim() || null,
+                    label: p.label.trim() || autoLabelFromChannels(p.channels),
                     channels: p.channels,
                   }))
               : undefined,
