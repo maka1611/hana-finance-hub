@@ -1287,5 +1287,25 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
       }
     }
 
+    await logAction({
+      actorId: context.userId,
+      action: "installment.create",
+      entityType: "contract",
+      entityId: contract.id,
+      summary: `Оформлена рассрочка «${data.productName}» (${formatRu(data.productPrice)} ₽)`,
+      details: {
+        clientId,
+        productName: data.productName,
+        productPrice: data.productPrice,
+        downPayment: data.downPayment,
+        termMonths: data.termMonths,
+        newClient: data.client.kind === "new",
+      },
+    });
+
     return { contractId: contract.id, clientId, tempPassword };
   });
+
+function formatRu(n: number): string {
+  return new Intl.NumberFormat("ru-RU").format(n);
+}
