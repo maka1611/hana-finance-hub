@@ -4,6 +4,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { calcInstallment, buildSchedule, DEFAULT_MARKUP_RATE, MAX_TERM } from "@/lib/installment";
 
+const ChannelEnum = z.enum(["phone", "whatsapp", "telegram"]);
+const ExtraPhoneSchema = z.object({
+  phone: z.string().trim().min(3).max(50).regex(/^[+\d\s()\-]+$/, "Неверный формат телефона"),
+  label: z.string().trim().max(50).optional().nullable(),
+  channels: z.array(ChannelEnum).max(3).optional().default([]),
+});
+
 const ApplicationSchema = z.object({
   productName: z.string().trim().min(1).max(200),
   productDescription: z.string().trim().max(2000).optional().nullable(),
@@ -20,6 +27,7 @@ const ApplicationSchema = z.object({
     .max(50)
     .regex(/^[+\d\s()\-]+$/, "Неверный формат телефона"),
   clientComment: z.string().trim().max(2000).optional().nullable(),
+  extraPhones: z.array(ExtraPhoneSchema).max(10).optional(),
 });
 
 export const submitApplication = createServerFn({ method: "POST" })
@@ -33,6 +41,26 @@ export const submitApplication = createServerFn({ method: "POST" })
       if (data.clientFullName) patch.full_name = data.clientFullName;
       if (data.clientPhone) patch.phone = data.clientPhone;
       await supabase.from("profiles").update(patch).eq("id", userId);
+    }
+    // Дополнительные телефоны сохраняем в user_phones (без дубликата основного)
+    if (data.extraPhones && data.extraPhones.length > 0) {
+      const { data: existing } = await supabase
+        .from("user_phones")
+        .select("phone")
+        .eq("user_id", userId);
+      const existingSet = new Set((existing ?? []).map((p) => p.phone));
+      existingSet.add(data.clientPhone);
+      const rows = data.extraPhones
+        .filter((p) => !existingSet.has(p.phone))
+        .map((p) => ({
+          user_id: userId,
+          phone: p.phone,
+          label: p.label ?? null,
+          channels: p.channels ?? [],
+        }));
+      if (rows.length > 0) {
+        await supabase.from("user_phones").insert(rows);
+      }
     }
     const { data: row, error } = await supabase
       .from("installment_applications")
