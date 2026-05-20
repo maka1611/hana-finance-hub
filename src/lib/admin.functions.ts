@@ -133,7 +133,7 @@ async function fetchAllRows<T>(
   buildQuery: (
     from: number,
     to: number,
-  ) => Promise<{ data: T[] | null; error: { message: string } | null }>,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
 ) {
   const rows: T[] = [];
   for (let from = 0; ; from += 1000) {
