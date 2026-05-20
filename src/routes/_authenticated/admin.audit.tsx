@@ -219,7 +219,27 @@ function AuditPage() {
           <DialogHeader>
             <DialogTitle>Удалённый контракт</DialogTitle>
           </DialogHeader>
-          {viewRow?.details?.snapshot && <ContractSnapshotView snapshot={viewRow.details.snapshot} />}
+          {viewRow?.details?.snapshot ? (
+            <ContractSnapshotView snapshot={viewRow.details.snapshot} />
+          ) : (
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                Подробный снимок этого контракта не сохранён — он был удалён до добавления функции просмотра удалённых данных. Доступна только базовая информация:
+              </p>
+              <div className="rounded-xl bg-muted/40 p-4 space-y-1.5">
+                <div><span className="text-muted-foreground">Описание:</span> {viewRow?.summary ?? "—"}</div>
+                <div><span className="text-muted-foreground">Кто удалил:</span> {viewRow?.actor_name ?? "—"} {viewRow?.actor_email && `· ${viewRow.actor_email}`}</div>
+                <div><span className="text-muted-foreground">Когда:</span> {viewRow ? fmt(viewRow.created_at) : "—"}</div>
+                <div><span className="text-muted-foreground">ID контракта:</span> <span className="font-mono text-xs">{viewRow?.entity_id ?? "—"}</span></div>
+                {viewRow?.details && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-muted-foreground">Сырые данные</summary>
+                    <pre className="text-[11px] mt-2 overflow-x-auto">{JSON.stringify(viewRow.details, null, 2)}</pre>
+                  </details>
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
