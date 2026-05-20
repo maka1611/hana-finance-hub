@@ -1131,20 +1131,26 @@ const AdminCreateInstallmentSchema = z.object({
       driverLicenseNumber: z.string().trim().max(50).optional().nullable(),
       driverLicenseCategories: z.string().trim().max(50).optional().nullable(),
       driverLicenseIssuedAt: z.string().trim().max(20).optional().nullable(),
-      passportPhoto: z
-        .object({
-          fileName: z.string().trim().min(1).max(200),
-          contentType: z.string().trim().min(1).max(100),
-          dataBase64: z.string().min(1).max(15_000_000),
-        })
+      passportPhotos: z
+        .array(
+          z.object({
+            fileName: z.string().trim().min(1).max(200),
+            contentType: z.string().trim().min(1).max(100),
+            dataBase64: z.string().min(1).max(15_000_000),
+          }),
+        )
+        .max(5)
         .optional()
         .nullable(),
-      driverLicensePhoto: z
-        .object({
-          fileName: z.string().trim().min(1).max(200),
-          contentType: z.string().trim().min(1).max(100),
-          dataBase64: z.string().min(1).max(15_000_000),
-        })
+      driverLicensePhotos: z
+        .array(
+          z.object({
+            fileName: z.string().trim().min(1).max(200),
+            contentType: z.string().trim().min(1).max(100),
+            dataBase64: z.string().min(1).max(15_000_000),
+          }),
+        )
+        .max(5)
         .optional()
         .nullable(),
     })
@@ -1263,23 +1269,37 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
       if (d.driverLicenseCategories !== undefined) patch.driver_license_categories = d.driverLicenseCategories || null;
       if (d.driverLicenseIssuedAt !== undefined) patch.driver_license_issued_at = d.driverLicenseIssuedAt || null;
 
-      for (const [kind, photo] of [
-        ["passport", d.passportPhoto] as const,
-        ["driver_license", d.driverLicensePhoto] as const,
+      for (const [kind, photos] of [
+        ["passport", d.passportPhotos ?? []] as const,
+        ["driver_license", d.driverLicensePhotos ?? []] as const,
       ]) {
-        if (!photo) continue;
-        const ext = (photo.fileName.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
-        const path = `${clientId}/${kind}-${Date.now()}.${ext}`;
-        const bytes = Uint8Array.from(atob(photo.dataBase64), (c) => c.charCodeAt(0));
-        const { error: upErr } = await supabaseAdmin.storage
-          .from("client-documents")
-          .upload(path, bytes, { contentType: photo.contentType, upsert: true });
-        if (upErr) throw new Error(upErr.message);
-        const { data: signed, error: signErr } = await supabaseAdmin.storage
-          .from("client-documents")
-          .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
-        if (signErr) throw new Error(signErr.message);
-        patch[kind === "passport" ? "passport_photo_url" : "driver_license_photo_url"] = signed.signedUrl;
+        let firstSignedUrl: string | null = null;
+        for (let i = 0; i < photos.length; i++) {
+          const photo = photos[i];
+          const ext = (photo.fileName.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
+          const path = `${clientId}/${kind}-${Date.now()}-${i}.${ext}`;
+          const bytes = Uint8Array.from(atob(photo.dataBase64), (c) => c.charCodeAt(0));
+          const { error: upErr } = await supabaseAdmin.storage
+            .from("client-documents")
+            .upload(path, bytes, { contentType: photo.contentType, upsert: true });
+          if (upErr) throw new Error(upErr.message);
+          const { data: signed, error: signErr } = await supabaseAdmin.storage
+            .from("client-documents")
+            .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+          if (signErr) throw new Error(signErr.message);
+          await supabaseAdmin.from("client_documents").insert({
+            user_id: clientId,
+            kind,
+            file_path: path,
+            signed_url: signed.signedUrl,
+            content_type: photo.contentType,
+            uploaded_by: context.userId,
+          } as never);
+          if (i === 0) firstSignedUrl = signed.signedUrl;
+        }
+        if (firstSignedUrl) {
+          patch[kind === "passport" ? "passport_photo_url" : "driver_license_photo_url"] = firstSignedUrl;
+        }
       }
 
       if (Object.keys(patch).length > 0) {
