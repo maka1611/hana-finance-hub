@@ -66,7 +66,14 @@ function AdminContractDetail() {
           </p>
           <h1 className="text-3xl font-extrabold tracking-tight">{contract.product_name}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Клиент: <span className="text-foreground font-medium">{profile?.full_name ?? "—"}</span>
+            Клиент:{" "}
+            <Link
+              to="/admin/clients/$id"
+              params={{ id: contract.client_id }}
+              className="text-foreground font-medium hover:text-primary underline-offset-4 hover:underline"
+            >
+              {profile?.full_name ?? "—"}
+            </Link>
             {profile?.email && <> · {profile.email}</>}
             {profile?.phone && <> · {profile.phone}</>}
           </p>
