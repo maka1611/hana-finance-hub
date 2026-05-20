@@ -363,13 +363,19 @@ export const adminAddClientPhone = createServerFn({ method: "POST" })
       userId: z.string().uuid(),
       phone: z.string().trim().min(3).max(50).regex(/^[+\d\s()\-]+$/, "Неверный формат"),
       label: z.string().trim().max(50).optional().nullable(),
+      channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
     }).parse(input),
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
     const { error } = await supabaseAdmin
       .from("user_phones")
-      .insert({ user_id: data.userId, phone: data.phone, label: data.label ?? null });
+      .insert({
+        user_id: data.userId,
+        phone: data.phone,
+        label: data.label ?? null,
+        channels: data.channels ?? [],
+      });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -380,6 +386,28 @@ export const adminDeleteClientPhone = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
     const { error } = await supabaseAdmin.from("user_phones").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminUpdateClientPhone = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      phone: z.string().trim().min(3).max(50).regex(/^[+\d\s()\-]+$/).optional(),
+      label: z.string().trim().max(50).optional().nullable(),
+      channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
+    }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const patch: Record<string, unknown> = {};
+    if (data.phone !== undefined) patch.phone = data.phone;
+    if (data.label !== undefined) patch.label = data.label;
+    if (data.channels !== undefined) patch.channels = data.channels;
+    if (Object.keys(patch).length === 0) return { ok: true };
+    const { error } = await supabaseAdmin.from("user_phones").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
