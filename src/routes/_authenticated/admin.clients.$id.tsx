@@ -9,6 +9,8 @@ import {
   adminDeleteClientPhone,
   adminUpdateClientPhone,
   adminUploadClientDocument,
+  adminListClientDocuments,
+  adminDeleteClientDocument,
 } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +20,7 @@ import { formatMoney, formatDate } from "@/lib/installment";
 import { toast } from "sonner";
 import {
   ArrowLeft, Mail, Phone, Plus, Trash2, Star, Award,
-  CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink,
+  CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink, X,
 } from "lucide-react";
 import { ContactChannelToggles, roleLabelRu, type ContactChannel } from "@/components/admin/ContactChannels";
 
@@ -65,6 +67,15 @@ function ClientProfilePage() {
   const [dlIssuedAt, setDlIssuedAt] = useState("");
 
   const uploadFn = useServerFn(adminUploadClientDocument);
+  const listDocsFn = useServerFn(adminListClientDocuments);
+  const deleteDocFn = useServerFn(adminDeleteClientDocument);
+
+  const documentsQuery = useQuery({
+    queryKey: ["admin-client-documents", id],
+    queryFn: () => listDocsFn({ data: { userId: id } }),
+  });
+  const passportDocs = (documentsQuery.data ?? []).filter((d) => d.kind === "passport");
+  const driverDocs = (documentsQuery.data ?? []).filter((d) => d.kind === "driver_license");
 
   useEffect(() => {
     if (data?.profile) {
@@ -122,8 +133,20 @@ function ClientProfilePage() {
       });
       toast.success("Файл загружен");
       qc.invalidateQueries({ queryKey: ["admin-client", id] });
+      qc.invalidateQueries({ queryKey: ["admin-client-documents", id] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка загрузки");
+    }
+  };
+
+  const handleDeleteDoc = async (docId: string) => {
+    try {
+      await deleteDocFn({ data: { id: docId } });
+      toast.success("Фото удалено");
+      qc.invalidateQueries({ queryKey: ["admin-client", id] });
+      qc.invalidateQueries({ queryKey: ["admin-client-documents", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
     }
   };
 
@@ -260,8 +283,9 @@ function ClientProfilePage() {
         <DocumentCard
           title="Паспорт"
           icon={<IdCard className="size-4 text-primary" />}
-          photoUrl={(data.profile as Record<string, string | null>).passport_photo_url}
+          photos={passportDocs}
           onUpload={(f) => handleUpload("passport", f)}
+          onDeletePhoto={handleDeleteDoc}
         >
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -286,8 +310,9 @@ function ClientProfilePage() {
         <DocumentCard
           title="Водительское удостоверение"
           icon={<Car className="size-4 text-primary" />}
-          photoUrl={(data.profile as Record<string, string | null>).driver_license_photo_url}
+          photos={driverDocs}
           onUpload={(f) => handleUpload("driver_license", f)}
+          onDeletePhoto={handleDeleteDoc}
         >
           <div className="space-y-1.5">
             <Label className="text-xs">Номер</Label>
@@ -455,15 +480,18 @@ function AppStatusBadge({ status }: { status: string }) {
 }
 
 function DocumentCard({
-  title, icon, photoUrl, onUpload, children,
+  title, icon, photos, onUpload, onDeletePhoto, children,
 }: {
   title: string;
   icon: React.ReactNode;
-  photoUrl: string | null | undefined;
+  photos: Array<{ id: string; signed_url: string }>;
   onUpload: (f: File) => void;
+  onDeletePhoto: (id: string) => void;
   children: React.ReactNode;
 }) {
   const inputId = `up-${title.replace(/\s+/g, "-")}`;
+  const MAX = 5;
+  const limitReached = photos.length >= MAX;
   return (
     <div className="bg-card rounded-2xl ring-1 ring-border p-6 space-y-4">
       <div className="flex items-center justify-between">
@@ -471,19 +499,38 @@ function DocumentCard({
           {icon}
           <h2 className="font-bold">{title}</h2>
         </div>
-        {photoUrl && (
-          <a href={photoUrl} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1 hover:underline">
-            <ExternalLink className="size-3" /> Открыть
-          </a>
-        )}
+        <span className="text-xs text-muted-foreground font-mono">{photos.length} / {MAX}</span>
       </div>
-      {photoUrl ? (
-        <a href={photoUrl} target="_blank" rel="noreferrer" className="block">
-          <img src={photoUrl} alt={title} className="w-full h-40 object-cover rounded-lg ring-1 ring-border" />
-        </a>
-      ) : (
+      {photos.length === 0 ? (
         <div className="h-40 rounded-lg ring-1 ring-dashed ring-border flex items-center justify-center text-xs text-muted-foreground">
           Фото не загружено
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          {photos.map((p) => (
+            <div key={p.id} className="relative group">
+              <a href={p.signed_url} target="_blank" rel="noreferrer" className="block">
+                <img src={p.signed_url} alt={title} className="w-full h-24 object-cover rounded-lg ring-1 ring-border" />
+              </a>
+              <button
+                type="button"
+                onClick={() => onDeletePhoto(p.id)}
+                className="absolute top-1 right-1 size-6 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                title="Удалить фото"
+              >
+                <X className="size-3.5" />
+              </button>
+              <a
+                href={p.signed_url}
+                target="_blank"
+                rel="noreferrer"
+                className="absolute bottom-1 right-1 size-6 rounded-full bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                title="Открыть"
+              >
+                <ExternalLink className="size-3" />
+              </a>
+            </div>
+          ))}
         </div>
       )}
       <div>
@@ -502,9 +549,10 @@ function DocumentCard({
           type="button"
           variant="outline"
           size="sm"
+          disabled={limitReached}
           onClick={() => document.getElementById(inputId)?.click()}
         >
-          <Upload className="size-4" /> {photoUrl ? "Заменить фото" : "Загрузить фото"}
+          <Upload className="size-4" /> {limitReached ? `Достигнут лимит ${MAX} фото` : "Добавить фото"}
         </Button>
       </div>
       <div className="space-y-3 pt-2 border-t border-border">{children}</div>

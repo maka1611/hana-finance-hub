@@ -1,13 +1,24 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { adminGetContract, adminRecordPayment, adminUpdateContractStatus } from "@/lib/admin.functions";
+import { adminGetContract, adminRecordPayment, adminUpdateContractStatus, adminDeleteContract } from "@/lib/admin.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/contracts/$id")({
   component: AdminContractDetail,
@@ -15,15 +26,18 @@ export const Route = createFileRoute("/_authenticated/admin/contracts/$id")({
 
 function AdminContractDetail() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const fn = useServerFn(adminGetContract);
   const recordFn = useServerFn(adminRecordPayment);
   const statusFn = useServerFn(adminUpdateContractStatus);
+  const deleteFn = useServerFn(adminDeleteContract);
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-contract", id],
     queryFn: () => fn({ data: { id } }),
   });
   const [busy, setBusy] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   if (isLoading || !data) return <p className="text-sm text-muted-foreground">Загрузка...</p>;
 
@@ -50,6 +64,20 @@ function AdminContractDetail() {
       qc.invalidateQueries({ queryKey: ["admin-contract", id] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка");
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteFn({ data: { id } });
+      toast.success("Контракт удалён");
+      qc.invalidateQueries({ queryKey: ["admin-contracts"] });
+      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      navigate({ to: "/admin/contracts" });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+      setDeleting(false);
     }
   };
 
@@ -89,6 +117,31 @@ function AdminContractDetail() {
               <SelectItem value="closed">закрыта</SelectItem>
             </SelectContent>
           </Select>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" disabled={deleting}>
+                <Trash2 className="size-4" /> Удалить
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Удалить контракт?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Контракт «{contract.product_name}» и все связанные платежи и график
+                  будут безвозвратно удалены. Это действие нельзя отменить.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Удалить
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 

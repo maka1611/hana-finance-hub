@@ -11,7 +11,7 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Users, FileText, BarChart3, ArrowLeft, Wallet, ShieldCheck, Inbox, FilePlus2 } from "lucide-react";
+import { LayoutDashboard, Users, FileText, BarChart3, ArrowLeft, Wallet, ShieldCheck, Inbox, FilePlus2, History } from "lucide-react";
 
 const items = [
   { title: "Обзор", url: "/admin", icon: LayoutDashboard, exact: true },
@@ -22,6 +22,7 @@ const items = [
   { title: "Платежи", url: "/admin/payments", icon: Wallet, exact: false },
   { title: "Аналитика", url: "/admin/analytics", icon: BarChart3, exact: false },
   { title: "Пользователи", url: "/admin/users", icon: ShieldCheck, exact: false },
+  { title: "Журнал действий", url: "/admin/audit", icon: History, exact: false },
 ];
 
 export function AdminSidebar() {

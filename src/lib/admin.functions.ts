@@ -16,6 +16,43 @@ async function assertStaff(userId: string) {
   return roles;
 }
 
+const MAX_DOCS_PER_KIND = 5;
+const DOC_SIGNED_TTL = 60 * 60 * 24 * 365 * 5;
+
+async function getActorInfo(userId: string): Promise<{ email: string | null; name: string | null }> {
+  const { data } = await supabaseAdmin
+    .from("profiles")
+    .select("email,full_name")
+    .eq("id", userId)
+    .maybeSingle();
+  return { email: data?.email ?? null, name: data?.full_name ?? null };
+}
+
+async function logAction(params: {
+  actorId: string;
+  action: string;
+  entityType?: string | null;
+  entityId?: string | null;
+  summary?: string | null;
+  details?: Record<string, unknown> | null;
+}) {
+  try {
+    const info = await getActorInfo(params.actorId);
+    await supabaseAdmin.from("admin_audit_log").insert({
+      actor_id: params.actorId,
+      actor_email: info.email,
+      actor_name: info.name,
+      action: params.action,
+      entity_type: params.entityType ?? null,
+      entity_id: params.entityId ?? null,
+      summary: params.summary ?? null,
+      details: (params.details ?? null) as never,
+    });
+  } catch (e) {
+    console.error("audit log insert failed:", e);
+  }
+}
+
 export const getMyRoles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -215,6 +252,14 @@ export const adminRecordPayment = createServerFn({ method: "POST" })
         .update({ status: "closed" })
         .eq("id", sched.contract_id);
     }
+    await logAction({
+      actorId: context.userId,
+      action: "payment.record",
+      entityType: "contract",
+      entityId: sched.contract_id,
+      summary: `Принят платёж ${data.amount} ₽`,
+      details: { scheduleId: data.scheduleId, amount: data.amount, method: data.method },
+    });
     return { ok: true };
   });
 
@@ -233,6 +278,14 @@ export const adminUpdateContractStatus = createServerFn({ method: "POST" })
       .update({ status: data.status })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    await logAction({
+      actorId: context.userId,
+      action: "contract.status",
+      entityType: "contract",
+      entityId: data.id,
+      summary: `Статус контракта изменён на «${data.status}»`,
+      details: { status: data.status },
+    });
     return { ok: true };
   });
 
@@ -383,6 +436,15 @@ export const adminUploadClientDocument = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
+    // Проверяем лимит
+    const { count } = await supabaseAdmin
+      .from("client_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", data.userId)
+      .eq("kind", data.kind);
+    if ((count ?? 0) >= MAX_DOCS_PER_KIND) {
+      throw new Error(`Достигнут лимит ${MAX_DOCS_PER_KIND} фото для этого документа`);
+    }
     const ext = (data.fileName.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
     const path = `${data.userId}/${data.kind}-${Date.now()}.${ext}`;
     const bytes = Uint8Array.from(atob(data.dataBase64), (c) => c.charCodeAt(0));
@@ -392,15 +454,186 @@ export const adminUploadClientDocument = createServerFn({ method: "POST" })
     if (upErr) throw new Error(upErr.message);
     const { data: signed, error: signErr } = await supabaseAdmin.storage
       .from("client-documents")
-      .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+      .createSignedUrl(path, DOC_SIGNED_TTL);
     if (signErr) throw new Error(signErr.message);
+    // Запись в таблицу нескольких документов
+    const { data: inserted, error: insErr } = await supabaseAdmin
+      .from("client_documents")
+      .insert({
+        user_id: data.userId,
+        kind: data.kind,
+        file_path: path,
+        signed_url: signed.signedUrl,
+        content_type: data.contentType,
+        uploaded_by: context.userId,
+      } as never)
+      .select()
+      .single();
+    if (insErr) throw new Error(insErr.message);
+    // Совместимость со старыми полями: обновим, если это первое фото
     const col = data.kind === "passport" ? "passport_photo_url" : "driver_license_photo_url";
-    const { error: updErr } = await supabaseAdmin
-      .from("profiles")
-      .update({ [col]: signed.signedUrl } as never)
-      .eq("id", data.userId);
-    if (updErr) throw new Error(updErr.message);
-    return { url: signed.signedUrl };
+    if ((count ?? 0) === 0) {
+      await supabaseAdmin
+        .from("profiles")
+        .update({ [col]: signed.signedUrl } as never)
+        .eq("id", data.userId);
+    }
+    await logAction({
+      actorId: context.userId,
+      action: "document.upload",
+      entityType: "client",
+      entityId: data.userId,
+      summary: `Загружено фото ${data.kind === "passport" ? "паспорта" : "водительского удостоверения"}`,
+      details: { kind: data.kind, fileName: data.fileName },
+    });
+    return { url: signed.signedUrl, id: (inserted as { id: string }).id };
+  });
+
+export const adminListClientDocuments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { data: rows, error } = await supabaseAdmin
+      .from("client_documents")
+      .select("id,kind,file_path,signed_url,content_type,created_at")
+      .eq("user_id", data.userId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const adminDeleteClientDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { data: doc, error: gErr } = await supabaseAdmin
+      .from("client_documents")
+      .select("id,user_id,kind,file_path")
+      .eq("id", data.id)
+      .single();
+    if (gErr) throw new Error(gErr.message);
+    await supabaseAdmin.storage.from("client-documents").remove([doc.file_path]);
+    const { error: dErr } = await supabaseAdmin
+      .from("client_documents")
+      .delete()
+      .eq("id", data.id);
+    if (dErr) throw new Error(dErr.message);
+    // Если удалили последнее фото — почистим legacy-колонку
+    const { count } = await supabaseAdmin
+      .from("client_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", doc.user_id)
+      .eq("kind", doc.kind);
+    if ((count ?? 0) === 0) {
+      const col = doc.kind === "passport" ? "passport_photo_url" : "driver_license_photo_url";
+      await supabaseAdmin
+        .from("profiles")
+        .update({ [col]: null } as never)
+        .eq("id", doc.user_id);
+    } else {
+      // подставим первый оставшийся в legacy-колонку
+      const { data: first } = await supabaseAdmin
+        .from("client_documents")
+        .select("signed_url")
+        .eq("user_id", doc.user_id)
+        .eq("kind", doc.kind)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (first) {
+        const col = doc.kind === "passport" ? "passport_photo_url" : "driver_license_photo_url";
+        await supabaseAdmin
+          .from("profiles")
+          .update({ [col]: first.signed_url } as never)
+          .eq("id", doc.user_id);
+      }
+    }
+    await logAction({
+      actorId: context.userId,
+      action: "document.delete",
+      entityType: "client",
+      entityId: doc.user_id,
+      summary: `Удалено фото ${doc.kind === "passport" ? "паспорта" : "водительского удостоверения"}`,
+      details: { kind: doc.kind, documentId: doc.id },
+    });
+    return { ok: true };
+  });
+
+// === Удаление контракта ===
+
+export const adminDeleteContract = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.userId);
+    const { data: contract, error: gErr } = await supabaseAdmin
+      .from("installment_contracts")
+      .select("id,client_id,product_name,total_sale_price")
+      .eq("id", data.id)
+      .single();
+    if (gErr) throw new Error(gErr.message);
+    await supabaseAdmin.from("payments").delete().eq("contract_id", data.id);
+    await supabaseAdmin.from("payment_schedules").delete().eq("contract_id", data.id);
+    await supabaseAdmin
+      .from("installment_applications")
+      .update({ contract_id: null } as never)
+      .eq("contract_id", data.id);
+    const { error: dErr } = await supabaseAdmin
+      .from("installment_contracts")
+      .delete()
+      .eq("id", data.id);
+    if (dErr) throw new Error(dErr.message);
+    await logAction({
+      actorId: context.userId,
+      action: "contract.delete",
+      entityType: "contract",
+      entityId: data.id,
+      summary: `Удалён контракт «${contract.product_name}»`,
+      details: {
+        clientId: contract.client_id,
+        totalSalePrice: contract.total_sale_price,
+      },
+    });
+    return { ok: true };
+  });
+
+// === Журнал действий ===
+
+export const adminListAuditLog = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      limit: z.number().int().min(1).max(500).default(200),
+      actorId: z.string().uuid().optional(),
+      action: z.string().max(80).optional(),
+      search: z.string().max(200).optional(),
+    }).parse(input ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    let q = supabaseAdmin
+      .from("admin_audit_log")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(data.limit);
+    if (data.actorId) q = q.eq("actor_id", data.actorId);
+    if (data.action) q = q.eq("action", data.action);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const filtered = data.search
+      ? (rows ?? []).filter((r) => {
+          const s = data.search!.toLowerCase();
+          return (
+            (r.summary ?? "").toLowerCase().includes(s) ||
+            (r.actor_email ?? "").toLowerCase().includes(s) ||
+            (r.actor_name ?? "").toLowerCase().includes(s) ||
+            (r.action ?? "").toLowerCase().includes(s)
+          );
+        })
+      : rows ?? [];
+    return filtered;
   });
 
 export const adminAddClientPhone = createServerFn({ method: "POST" })
@@ -533,6 +766,14 @@ export const adminSetUserRole = createServerFn({ method: "POST" })
         .eq("role", data.role);
       if (error) throw new Error(error.message);
     }
+    await logAction({
+      actorId: context.userId,
+      action: data.grant ? "role.grant" : "role.revoke",
+      entityType: "user",
+      entityId: data.userId,
+      summary: `${data.grant ? "Назначена" : "Снята"} роль «${data.role}»`,
+      details: { role: data.role, userId: data.userId },
+    });
     return { ok: true };
   });
 
@@ -674,6 +915,14 @@ export const adminMarkSchedulePaid = createServerFn({ method: "POST" })
         .update({ status: "closed" })
         .eq("id", sched.contract_id);
     }
+    await logAction({
+      actorId: context.userId,
+      action: "payment.mark_paid",
+      entityType: "contract",
+      entityId: sched.contract_id,
+      summary: `Отмечен оплаченным платёж ${sched.amount} ₽`,
+      details: { scheduleId: data.scheduleId, amount: sched.amount },
+    });
     return { ok: true };
   });
 
@@ -806,6 +1055,11 @@ export const adminDeleteClient = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
     if (data.id === context.userId) throw new Error("Нельзя удалить самого себя");
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name,email")
+      .eq("id", data.id)
+      .maybeSingle();
 
     // Получим контракты клиента, чтобы каскадно вычистить графики и платежи
     const { data: contracts } = await supabaseAdmin
@@ -827,6 +1081,14 @@ export const adminDeleteClient = createServerFn({ method: "POST" })
     if (authErr && !authErr.message.toLowerCase().includes("not found")) {
       throw new Error(authErr.message);
     }
+    await logAction({
+      actorId: context.userId,
+      action: "client.delete",
+      entityType: "client",
+      entityId: data.id,
+      summary: `Удалён клиент ${prof?.full_name ?? prof?.email ?? data.id}`,
+      details: { email: prof?.email ?? null },
+    });
     return { ok: true };
   });
 
@@ -1025,5 +1287,25 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
       }
     }
 
+    await logAction({
+      actorId: context.userId,
+      action: "installment.create",
+      entityType: "contract",
+      entityId: contract.id,
+      summary: `Оформлена рассрочка «${data.productName}» (${formatRu(data.productPrice)} ₽)`,
+      details: {
+        clientId,
+        productName: data.productName,
+        productPrice: data.productPrice,
+        downPayment: data.downPayment,
+        termMonths: data.termMonths,
+        newClient: data.client.kind === "new",
+      },
+    });
+
     return { contractId: contract.id, clientId, tempPassword };
   });
+
+function formatRu(n: number): string {
+  return new Intl.NumberFormat("ru-RU").format(n);
+}
