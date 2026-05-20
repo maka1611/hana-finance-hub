@@ -49,17 +49,15 @@ export function Calculator({ onSubmit, compact }: CalculatorProps) {
             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               Сумма товара
             </Label>
-            <div className="relative flex items-center border-b border-border focus-within:border-primary transition-colors">
+            <div className="border-b border-border focus-within:border-primary transition-colors">
               <Input
                 type="number"
+                inputMode="numeric"
                 min={0}
                 value={productPrice || ""}
                 onChange={(e) => setProductPrice(Number(e.target.value) || 0)}
-                className="text-3xl font-extrabold p-0 pr-8 border-none focus-visible:ring-0 bg-transparent h-auto"
+                className="text-3xl font-extrabold p-0 border-none focus-visible:ring-0 bg-transparent h-auto no-spinner"
               />
-              <span className="absolute right-0 text-2xl font-medium opacity-30 pointer-events-none">
-                ₽
-              </span>
             </div>
           </div>
 
