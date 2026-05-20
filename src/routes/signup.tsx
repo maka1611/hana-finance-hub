@@ -36,7 +36,7 @@ function SignupPage() {
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("Проверьте почту для подтверждения регистрации");
-    navigate({ to: "/login" });
+    navigate({ to: "/app" });
   };
 
   const handleGoogle = async () => {
