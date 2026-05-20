@@ -158,20 +158,16 @@ function AdminNewInstallment() {
                   driverLicenseNumber: driverLicenseNumber.trim() || null,
                   driverLicenseCategories: driverLicenseCategories.trim() || null,
                   driverLicenseIssuedAt: driverLicenseIssuedAt || null,
-                  passportPhoto: passportPhoto
-                    ? {
-                        fileName: passportPhoto.fileName,
-                        contentType: passportPhoto.contentType,
-                        dataBase64: passportPhoto.dataBase64,
-                      }
-                    : null,
-                  driverLicensePhoto: driverLicensePhoto
-                    ? {
-                        fileName: driverLicensePhoto.fileName,
-                        contentType: driverLicensePhoto.contentType,
-                        dataBase64: driverLicensePhoto.dataBase64,
-                      }
-                    : null,
+                  passportPhotos: passportPhotos.map((p) => ({
+                    fileName: p.fileName,
+                    contentType: p.contentType,
+                    dataBase64: p.dataBase64,
+                  })),
+                  driverLicensePhotos: driverLicensePhotos.map((p) => ({
+                    fileName: p.fileName,
+                    contentType: p.contentType,
+                    dataBase64: p.dataBase64,
+                  })),
                 }
               : undefined,
         },
