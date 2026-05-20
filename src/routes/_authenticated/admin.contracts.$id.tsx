@@ -66,7 +66,14 @@ function AdminContractDetail() {
           </p>
           <h1 className="text-3xl font-extrabold tracking-tight">{contract.product_name}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Клиент: <span className="text-foreground font-medium">{profile?.full_name ?? "—"}</span>
+            Клиент:{" "}
+            <Link
+              to="/admin/clients/$id"
+              params={{ id: contract.client_id }}
+              className="text-foreground font-medium hover:text-primary underline-offset-4 hover:underline"
+            >
+              {profile?.full_name ?? "—"}
+            </Link>
             {profile?.email && <> · {profile.email}</>}
             {profile?.phone && <> · {profile.phone}</>}
           </p>
@@ -85,10 +92,17 @@ function AdminContractDetail() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-3">
+      <div className="grid md:grid-cols-5 gap-3">
         <Mini label="Цена товара" value={formatMoney(Number(contract.product_price))} />
         <Mini label="Первый взнос" value={formatMoney(Number(contract.down_payment))} />
-        <Mini label="Наценка" value={formatMoney(Number(contract.markup_amount))} />
+        <Mini
+          label={`Наценка ${(Number(contract.markup_rate) * 100).toFixed(2)}%/мес · ${contract.term_months} мес`}
+          value={formatMoney(Number(contract.markup_amount))}
+        />
+        <Mini
+          label="Итоговая наценка"
+          value={`${(Number(contract.markup_rate) * Number(contract.term_months) * 100).toFixed(1)}%`}
+        />
         <Mini label="Итоговая цена" value={formatMoney(Number(contract.total_sale_price))} highlight />
       </div>
 
