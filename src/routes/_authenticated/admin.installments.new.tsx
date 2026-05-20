@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, FilePlus2, UserPlus, Users, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronsUpDown, FilePlus2, UserPlus, Users, Plus, Trash2, FileText, ChevronDown, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ContactChannelToggles, type ContactChannel } from "@/components/admin/ContactChannels";
 
@@ -62,6 +62,40 @@ function AdminNewInstallment() {
   });
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Документы нового клиента
+  const [docsOpen, setDocsOpen] = useState(false);
+  const [passportSeries, setPassportSeries] = useState("");
+  const [passportNumber, setPassportNumber] = useState("");
+  const [passportIssuedBy, setPassportIssuedBy] = useState("");
+  const [passportIssuedAt, setPassportIssuedAt] = useState("");
+  const [driverLicenseNumber, setDriverLicenseNumber] = useState("");
+  const [driverLicenseCategories, setDriverLicenseCategories] = useState("");
+  const [driverLicenseIssuedAt, setDriverLicenseIssuedAt] = useState("");
+  type PhotoFile = { fileName: string; contentType: string; dataBase64: string; previewUrl: string };
+  const [passportPhoto, setPassportPhoto] = useState<PhotoFile | null>(null);
+  const [driverLicensePhoto, setDriverLicensePhoto] = useState<PhotoFile | null>(null);
+
+  const readFile = (file: File): Promise<PhotoFile> =>
+    new Promise((resolve, reject) => {
+      if (file.size > 8 * 1024 * 1024) {
+        reject(new Error("Файл больше 8 МБ"));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const dataBase64 = result.split(",")[1] ?? "";
+        resolve({
+          fileName: file.name,
+          contentType: file.type || "application/octet-stream",
+          dataBase64,
+          previewUrl: result,
+        });
+      };
+      reader.onerror = () => reject(new Error("Не удалось прочитать файл"));
+      reader.readAsDataURL(file);
+    });
 
   const selected = useMemo(
     () => (clients ?? []).find((c) => c.id === clientId) ?? null,
@@ -113,6 +147,32 @@ function AdminNewInstallment() {
                     label: p.label.trim() || null,
                     channels: p.channels,
                   }))
+              : undefined,
+          documents:
+            mode === "new" && docsOpen
+              ? {
+                  passportSeries: passportSeries.trim() || null,
+                  passportNumber: passportNumber.trim() || null,
+                  passportIssuedBy: passportIssuedBy.trim() || null,
+                  passportIssuedAt: passportIssuedAt || null,
+                  driverLicenseNumber: driverLicenseNumber.trim() || null,
+                  driverLicenseCategories: driverLicenseCategories.trim() || null,
+                  driverLicenseIssuedAt: driverLicenseIssuedAt || null,
+                  passportPhoto: passportPhoto
+                    ? {
+                        fileName: passportPhoto.fileName,
+                        contentType: passportPhoto.contentType,
+                        dataBase64: passportPhoto.dataBase64,
+                      }
+                    : null,
+                  driverLicensePhoto: driverLicensePhoto
+                    ? {
+                        fileName: driverLicensePhoto.fileName,
+                        contentType: driverLicensePhoto.contentType,
+                        dataBase64: driverLicensePhoto.dataBase64,
+                      }
+                    : null,
+                }
               : undefined,
         },
       });
