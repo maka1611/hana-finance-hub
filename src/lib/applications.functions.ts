@@ -4,6 +4,40 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { calcInstallment, buildSchedule, DEFAULT_MARKUP_RATE, MAX_TERM } from "@/lib/installment";
 
+async function getActorInfo(userId: string) {
+  const { data } = await supabaseAdmin
+    .from("profiles")
+    .select("email,full_name")
+    .eq("id", userId)
+    .maybeSingle();
+  return { email: data?.email ?? null, name: data?.full_name ?? null };
+}
+
+async function logAction(params: {
+  actorId: string;
+  action: string;
+  entityType?: string | null;
+  entityId?: string | null;
+  summary?: string | null;
+  details?: Record<string, unknown> | null;
+}) {
+  try {
+    const info = await getActorInfo(params.actorId);
+    await supabaseAdmin.from("admin_audit_log").insert({
+      actor_id: params.actorId,
+      actor_email: info.email,
+      actor_name: info.name,
+      action: params.action,
+      entity_type: params.entityType ?? null,
+      entity_id: params.entityId ?? null,
+      summary: params.summary ?? null,
+      details: (params.details ?? null) as never,
+    });
+  } catch (e) {
+    console.error("audit log insert failed:", e);
+  }
+}
+
 const ChannelEnum = z.enum(["phone", "whatsapp", "telegram"]);
 const ExtraPhoneSchema = z.object({
   phone: z.string().trim().min(3).max(50).regex(/^[+\d\s()\-]+$/, "Неверный формат телефона"),
@@ -277,6 +311,11 @@ export const adminUpdateApplication = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => AdminUpdateAppSchema.parse(input))
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
+    const { data: prevApp } = await supabaseAdmin
+      .from("installment_applications")
+      .select("product_name")
+      .eq("id", data.id)
+      .maybeSingle();
     const patch: {
       product_name?: string;
       product_description?: string | null;
@@ -306,6 +345,14 @@ export const adminUpdateApplication = createServerFn({ method: "POST" })
       .update(patch)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    await logAction({
+      actorId: context.userId,
+      action: "application.update",
+      entityType: "application",
+      entityId: data.id,
+      summary: `Изменена заявка «${prevApp?.product_name ?? "—"}»`,
+      details: { patch },
+    });
     return { ok: true };
   });
 
@@ -316,6 +363,11 @@ export const adminRejectApplication = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
+    const { data: prevApp } = await supabaseAdmin
+      .from("installment_applications")
+      .select("product_name,client_id")
+      .eq("id", data.id)
+      .maybeSingle();
     const { error } = await supabaseAdmin
       .from("installment_applications")
       .update({
@@ -326,6 +378,14 @@ export const adminRejectApplication = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    await logAction({
+      actorId: context.userId,
+      action: "application.reject",
+      entityType: "application",
+      entityId: data.id,
+      summary: `Отклонена заявка «${prevApp?.product_name ?? "—"}»`,
+      details: { note: data.note ?? null, clientId: prevApp?.client_id ?? null },
+    });
     return { ok: true };
   });
 
@@ -397,6 +457,19 @@ export const adminApproveApplication = createServerFn({ method: "POST" })
         contract_id: contract.id,
       })
       .eq("id", data.id);
+
+    await logAction({
+      actorId: context.userId,
+      action: "application.approve",
+      entityType: "application",
+      entityId: data.id,
+      summary: `Одобрена заявка «${app.product_name}» — создан контракт`,
+      details: {
+        contractId: contract.id,
+        clientId: app.client_id,
+        totalSalePrice: calc.totalSalePrice,
+      },
+    });
 
     return { contractId: contract.id };
   });
