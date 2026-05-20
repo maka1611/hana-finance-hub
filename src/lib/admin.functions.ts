@@ -365,7 +365,7 @@ export const adminUpdateClient = createServerFn({ method: "POST" })
     if (data.driverLicenseCategories !== undefined) patch.driver_license_categories = data.driverLicenseCategories || null;
     if (data.driverLicenseIssuedAt !== undefined) patch.driver_license_issued_at = data.driverLicenseIssuedAt || null;
     if (Object.keys(patch).length === 0) return { ok: true };
-    const { error } = await supabaseAdmin.from("profiles").update(patch).eq("id", data.id);
+    const { error } = await supabaseAdmin.from("profiles").update(patch as never).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -397,7 +397,7 @@ export const adminUploadClientDocument = createServerFn({ method: "POST" })
     const col = data.kind === "passport" ? "passport_photo_url" : "driver_license_photo_url";
     const { error: updErr } = await supabaseAdmin
       .from("profiles")
-      .update({ [col]: signed.signedUrl })
+      .update({ [col]: signed.signedUrl } as never)
       .eq("id", data.userId);
     if (updErr) throw new Error(updErr.message);
     return { url: signed.signedUrl };
