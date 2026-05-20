@@ -904,5 +904,16 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
     const { error: schedErr } = await supabaseAdmin.from("payment_schedules").insert(schedule);
     if (schedErr) throw new Error(schedErr.message);
 
+    if (data.extraPhones && data.extraPhones.length > 0) {
+      await supabaseAdmin.from("user_phones").insert(
+        data.extraPhones.map((p) => ({
+          user_id: clientId,
+          phone: p.phone,
+          label: p.label ?? null,
+          channels: p.channels ?? [],
+        })),
+      );
+    }
+
     return { contractId: contract.id, clientId, tempPassword };
   });
