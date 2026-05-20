@@ -1,10 +1,9 @@
 import { formatMoney } from "@/lib/installment";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface Props {
   termMonths: number;
@@ -17,17 +16,18 @@ export function PaymentScheduleStrip({ termMonths, monthly, paidUpTo = 0 }: Prop
   const totalDebt = monthly * termMonths;
   return (
     <div>
-      <TooltipProvider delayDuration={100}>
         <div className="flex gap-1.5 h-16 items-end">
           {bars.map((i) => {
             const paid = i <= paidUpTo;
             const current = i === paidUpTo + 1;
             const remaining = totalDebt - monthly * i;
             return (
-              <Tooltip key={i}>
-                <TooltipTrigger asChild>
-                  <div
-                    className={`flex-1 rounded-t-md transition-all cursor-pointer hover:opacity-80 ${
+              <Popover key={i}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={`Месяц ${i}`}
+                    className={`flex-1 rounded-t-md transition-all cursor-pointer hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary/40 ${
                       paid
                         ? "bg-primary/60"
                         : current
@@ -36,8 +36,8 @@ export function PaymentScheduleStrip({ termMonths, monthly, paidUpTo = 0 }: Prop
                     }`}
                     style={{ height: `${50 + (i / termMonths) * 50}%` }}
                   />
-                </TooltipTrigger>
-                <TooltipContent>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2" side="top">
                   <div className="text-xs space-y-0.5">
                     <div className="font-semibold">Месяц {i}</div>
                     <div>Платёж: {formatMoney(monthly)}</div>
@@ -45,12 +45,11 @@ export function PaymentScheduleStrip({ termMonths, monthly, paidUpTo = 0 }: Prop
                       Остаток: {formatMoney(Math.max(0, remaining))}
                     </div>
                   </div>
-                </TooltipContent>
-              </Tooltip>
+                </PopoverContent>
+              </Popover>
             );
           })}
         </div>
-      </TooltipProvider>
       <div className="flex justify-between mt-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
         <span>1 платёж</span>
         <span>{termMonths} платёж</span>
