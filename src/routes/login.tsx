@@ -33,7 +33,7 @@ function LoginPage() {
     setGoogleLoading(true);
     try {
       const r = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: `${window.location.origin}/app`,
         extraParams: { prompt: "select_account" },
       });
       if (r.redirected) return;
@@ -65,7 +65,12 @@ function LoginPage() {
           </div>
           <div className="space-y-2">
             <Label>Пароль</Label>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Вход..." : "Войти"}
@@ -74,12 +79,20 @@ function LoginPage() {
         <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
           <div className="flex-1 h-px bg-border" /> ИЛИ <div className="flex-1 h-px bg-border" />
         </div>
-        <Button type="button" variant="outline" className="w-full" onClick={handleGoogle} disabled={googleLoading}>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={handleGoogle}
+          disabled={googleLoading}
+        >
           {googleLoading ? "Открываем Google..." : "Войти через Google"}
         </Button>
         <p className="text-sm text-center text-muted-foreground mt-6">
           Нет аккаунта?{" "}
-          <Link to="/signup" className="text-primary font-medium">Регистрация</Link>
+          <Link to="/signup" className="text-primary font-medium">
+            Регистрация
+          </Link>
         </p>
       </div>
     </div>
