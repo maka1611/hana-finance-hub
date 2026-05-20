@@ -357,6 +357,116 @@ function AdminNewInstallment() {
                   Подсветите иконки для предпочтительных способов связи: звонок, WhatsApp, Telegram.
                 </p>
               </div>
+
+              <div className="rounded-xl ring-1 ring-border bg-muted/20 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setDocsOpen((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold hover:bg-muted/40 transition-colors"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <FileText className="size-4" />
+                    Добавить документы
+                    <span className="text-xs font-normal text-muted-foreground">
+                      (паспорт и в/у — по желанию)
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={cn("size-4 transition-transform", docsOpen && "rotate-180")}
+                  />
+                </button>
+                {docsOpen && (
+                  <div className="p-4 space-y-5 border-t border-border">
+                    <div className="space-y-3">
+                      <h3 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                        Паспорт
+                      </h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Серия</Label>
+                          <Input
+                            value={passportSeries}
+                            onChange={(e) => setPassportSeries(e.target.value)}
+                            maxLength={20}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Номер</Label>
+                          <Input
+                            value={passportNumber}
+                            onChange={(e) => setPassportNumber(e.target.value)}
+                            maxLength={20}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Кем выдан</Label>
+                        <Input
+                          value={passportIssuedBy}
+                          onChange={(e) => setPassportIssuedBy(e.target.value)}
+                          maxLength={300}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Дата выдачи</Label>
+                        <Input
+                          type="date"
+                          value={passportIssuedAt}
+                          onChange={(e) => setPassportIssuedAt(e.target.value)}
+                        />
+                      </div>
+                      <PhotoPicker
+                        label="Фото паспорта"
+                        photo={passportPhoto}
+                        onChange={setPassportPhoto}
+                        readFile={readFile}
+                      />
+                    </div>
+
+                    <div className="h-px bg-border" />
+
+                    <div className="space-y-3">
+                      <h3 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                        Водительские права
+                      </h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Номер</Label>
+                          <Input
+                            value={driverLicenseNumber}
+                            onChange={(e) => setDriverLicenseNumber(e.target.value)}
+                            maxLength={50}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Категории</Label>
+                          <Input
+                            value={driverLicenseCategories}
+                            onChange={(e) => setDriverLicenseCategories(e.target.value)}
+                            placeholder="B, C"
+                            maxLength={50}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Дата выдачи</Label>
+                        <Input
+                          type="date"
+                          value={driverLicenseIssuedAt}
+                          onChange={(e) => setDriverLicenseIssuedAt(e.target.value)}
+                        />
+                      </div>
+                      <PhotoPicker
+                        label="Фото водительских прав"
+                        photo={driverLicensePhoto}
+                        onChange={setDriverLicensePhoto}
+                        readFile={readFile}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <p className="text-[11px] text-muted-foreground">
                 Будет создан аккаунт клиента. Временный пароль покажется после сохранения — передайте его клиенту.
               </p>
