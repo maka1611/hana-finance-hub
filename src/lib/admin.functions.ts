@@ -156,6 +156,7 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => analyticsSeriesInput.parse(input ?? {}))
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
+    const today = startOfDay(new Date());
     const { start, end } = resolveAnalyticsPeriod(data.period, data.from, data.to);
     const startIso = start?.toISOString();
     const endExclusiveIso = addDays(end, 1).toISOString();
