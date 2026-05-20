@@ -774,6 +774,7 @@ const AdminCreateInstallmentSchema = z.object({
   termMonths: z.number().int().min(1).max(MAX_TERM),
   firstPaymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   clientComment: z.string().trim().max(2000).optional().nullable(),
+  markupRate: z.number().min(0).max(1).optional(),
 });
 
 export const adminCreateInstallment = createServerFn({ method: "POST" })
@@ -824,6 +825,7 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
       productPrice: data.productPrice,
       downPayment: data.downPayment,
       termMonths: data.termMonths,
+      markupRate: data.markupRate,
     });
     const startDate = data.firstPaymentDate
       ? new Date(data.firstPaymentDate + "T00:00:00")
@@ -840,7 +842,7 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
         product_price: data.productPrice,
         down_payment: data.downPayment,
         principal: calc.principal,
-        markup_rate: DEFAULT_MARKUP_RATE,
+        markup_rate: calc.markupRate,
         markup_amount: calc.markupAmount,
         total_sale_price: calc.totalSalePrice,
         monthly_payment: calc.monthlyPayment,

@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type FormEvent } from "react";
 import { adminListClients, adminCreateInstallment } from "@/lib/admin.functions";
-import { calcInstallment, formatMoney, MAX_TERM } from "@/lib/installment";
+import { calcInstallment, formatMoney, MAX_TERM, DEFAULT_MARKUP_RATE } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +50,7 @@ function AdminNewInstallment() {
   const [productPrice, setProductPrice] = useState<number>(250000);
   const [downPayment, setDownPayment] = useState<number>(50000);
   const [termMonths, setTermMonths] = useState<number>(12);
+  const [markupPct, setMarkupPct] = useState<number>(+(DEFAULT_MARKUP_RATE * 100).toFixed(2));
   const [firstPaymentDate, setFirstPaymentDate] = useState<string>(() => {
     const d = new Date();
     d.setMonth(d.getMonth() + 1);
@@ -64,8 +65,8 @@ function AdminNewInstallment() {
   );
 
   const calc = useMemo(
-    () => calcInstallment({ productPrice, downPayment, termMonths }),
-    [productPrice, downPayment, termMonths],
+    () => calcInstallment({ productPrice, downPayment, termMonths, markupRate: markupPct / 100 }),
+    [productPrice, downPayment, termMonths, markupPct],
   );
 
   const submit = async (e: FormEvent) => {
@@ -92,6 +93,7 @@ function AdminNewInstallment() {
           termMonths,
           firstPaymentDate,
           clientComment: comment || null,
+          markupRate: markupPct / 100,
         },
       });
       if (res.tempPassword) {
@@ -299,6 +301,34 @@ function AdminNewInstallment() {
               required
             />
           </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex justify-between items-end">
+            <Label>Наценка в месяц</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                step="0.1"
+                min={0}
+                max={100}
+                value={markupPct}
+                onChange={(e) => setMarkupPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                className="w-24 text-right font-mono"
+              />
+              <span className="text-sm font-mono text-muted-foreground">% / мес</span>
+            </div>
+          </div>
+          <Slider
+            min={0}
+            max={15}
+            step={0.1}
+            value={[markupPct]}
+            onValueChange={(v) => setMarkupPct(+v[0].toFixed(2))}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            По умолчанию: {(DEFAULT_MARKUP_RATE * 100).toFixed(1)}%. Итоговая наценка = % × срок.
+          </p>
         </div>
 
         <div className="space-y-2">
