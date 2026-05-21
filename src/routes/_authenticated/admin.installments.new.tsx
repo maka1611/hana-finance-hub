@@ -798,7 +798,7 @@ function AdminNewInstallment() {
                   <p className="text-[11px] text-muted-foreground">Email не указан</p>
                 )}
                 {g.emails.map((e, ei) => (
-                  <div key={ei} className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_160px_auto] gap-2">
+                  <div key={ei} className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] gap-2">
                     <Input
                       type="email"
                       value={e.email}
