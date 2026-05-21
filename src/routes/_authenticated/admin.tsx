@@ -16,7 +16,11 @@ export const Route = createFileRoute("/_authenticated/admin")({
 
 function AdminShell() {
   const rolesFn = useServerFn(getMyRoles);
-  const { data: roles, isLoading, refetch } = useQuery({
+  const {
+    data: roles,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["my-roles"],
     queryFn: () => rolesFn(),
   });
@@ -25,9 +29,7 @@ function AdminShell() {
     return <div className="p-10 text-sm text-muted-foreground">Проверка доступа...</div>;
   }
 
-  const isStaff = (roles ?? []).some(
-    (r) => r === "manager" || r === "admin" || r === "owner",
-  );
+  const isStaff = (roles ?? []).some((r) => r === "manager" || r === "admin" || r === "owner");
 
   if (!isStaff) {
     return <NoAccess onPromoted={() => refetch()} />;
@@ -38,7 +40,7 @@ function AdminShell() {
       <div className="min-h-screen flex w-full">
         <AdminSidebar />
         <div className="min-w-0 flex-1 flex flex-col">
-          <header className="min-h-16 pt-safe border-b border-border flex items-center px-4 gap-3 bg-background sticky top-0 z-30">
+          <header className="min-h-16 pt-safe border-b border-border flex items-center px-4 gap-3 bg-background sticky top-0 z-30 supports-[padding:max(0px)]:top-[env(safe-area-inset-top)]">
             <SidebarTrigger />
             <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
               Панель администратора
@@ -76,8 +78,8 @@ function NoAccess({ onPromoted }: { onPromoted: () => void }) {
         </div>
         <h1 className="text-2xl font-extrabold">Доступ запрещён</h1>
         <p className="text-sm text-muted-foreground">
-          У вас нет роли сотрудника. Если вы основатель проекта, назначьте себя владельцем —
-          это возможно один раз, пока владелец ещё не назначен.
+          У вас нет роли сотрудника. Если вы основатель проекта, назначьте себя владельцем — это
+          возможно один раз, пока владелец ещё не назначен.
         </p>
         <Button onClick={handle} disabled={loading} className="w-full">
           {loading ? "..." : "Стать владельцем"}
