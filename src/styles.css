@@ -165,7 +165,7 @@
 /* ============ Mobile / PWA polish ============ */
 
 /* Safe-area utilities for iPhone notch / Dynamic Island */
-.pt-safe { padding-top: max(env(safe-area-inset-top), 0px); }
+.pt-safe { padding-top: max(env(safe-area-inset-top), 16px); }
 .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
 /*
  * Horizontal safe-area is applied on <body> (see below) so it does NOT
