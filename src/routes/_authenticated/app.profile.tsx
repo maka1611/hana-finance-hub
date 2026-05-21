@@ -244,17 +244,17 @@ function ProfilePage() {
       </div>
 
       {/* Заявки */}
-      <div className="bg-card rounded-2xl ring-1 ring-border p-6 space-y-4">
+      <div className="min-w-0 bg-card rounded-2xl ring-1 ring-border p-4 md:p-6 space-y-4 overflow-hidden">
         <h2 className="font-bold">Мои заявки</h2>
         {data.applications.length === 0 ? (
           <p className="text-sm text-muted-foreground">Заявок нет</p>
         ) : (
           <ul className="divide-y divide-border">
             {data.applications.map((a) => (
-              <li key={a.id} className="py-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
+              <li key={a.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 min-w-0">
+                <div className="min-w-0 w-full">
                   <div className="font-medium truncate">{a.product_name}</div>
-                  <div className="text-xs text-muted-foreground font-mono">
+                  <div className="text-xs text-muted-foreground font-mono break-words">
                     {formatDate(a.created_at)} · {formatMoney(Number(a.product_price))} · {a.term_months} мес
                   </div>
                 </div>
@@ -266,21 +266,21 @@ function ProfilePage() {
       </div>
 
       {/* Рассрочки */}
-      <div className="bg-card rounded-2xl ring-1 ring-border p-6 space-y-4">
+      <div className="min-w-0 bg-card rounded-2xl ring-1 ring-border p-4 md:p-6 space-y-4 overflow-hidden">
         <h2 className="font-bold">Мои рассрочки</h2>
         {data.contracts.length === 0 ? (
           <p className="text-sm text-muted-foreground">Пока нет</p>
         ) : (
           <ul className="divide-y divide-border">
             {data.contracts.map((c) => (
-              <li key={c.id} className="py-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
+              <li key={c.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 min-w-0">
+                <div className="min-w-0 w-full">
                   <div className="font-medium truncate">{c.product_name}</div>
-                  <div className="text-xs text-muted-foreground font-mono">
+                  <div className="text-xs text-muted-foreground font-mono break-words">
                     {formatDate(c.start_date)} · {c.term_months} мес · {formatMoney(Number(c.monthly_payment))}/мес
                   </div>
                 </div>
-                <div className="text-sm font-bold">{formatMoney(Number(c.total_sale_price))}</div>
+                <div className="text-sm font-bold shrink-0">{formatMoney(Number(c.total_sale_price))}</div>
               </li>
             ))}
           </ul>
