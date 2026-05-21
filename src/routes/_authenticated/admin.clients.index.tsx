@@ -2,6 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Search, Star, Trash2, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { adminListClients, adminDeleteClient } from "@/lib/admin.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
