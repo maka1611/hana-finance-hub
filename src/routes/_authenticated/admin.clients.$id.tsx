@@ -188,6 +188,24 @@ function ClientProfilePage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
   });
 
+  // Доступ клиента (пароль виден только админам)
+  const getSecretFn = useServerFn(adminGetClientSecret);
+  const resetPwdFn = useServerFn(adminResetClientPassword);
+  const secretQuery = useQuery({
+    queryKey: ["admin-client-secret", id],
+    queryFn: () => getSecretFn({ data: { userId: id } }),
+  });
+  const [showPwd, setShowPwd] = useState(false);
+  const resetPwd = useMutation({
+    mutationFn: () => resetPwdFn({ data: { userId: id } }),
+    onSuccess: () => {
+      toast.success("Пароль сброшен");
+      setShowPwd(true);
+      qc.invalidateQueries({ queryKey: ["admin-client-secret", id] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
+  });
+
   if (isLoading) return <p className="text-sm text-muted-foreground">Загрузка...</p>;
   if (error || !data) {
     return (
