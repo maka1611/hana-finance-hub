@@ -210,6 +210,39 @@ function ProfilePage() {
         </div>
       </div>
 
+      {/* Безопасность */}
+      <div className="bg-card rounded-2xl ring-1 ring-border p-6 space-y-4">
+        <h2 className="font-bold inline-flex items-center gap-2">
+          <Lock className="size-4 text-primary" /> Безопасность
+        </h2>
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Новый пароль</Label>
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              maxLength={100}
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Повторите пароль</Label>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              maxLength={100}
+              autoComplete="new-password"
+            />
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">Минимум 8 символов.</p>
+        <Button onClick={changePassword} disabled={changingPwd || !newPassword || !confirmPassword}>
+          <Lock className="size-4" /> Изменить пароль
+        </Button>
+      </div>
+
       {/* Заявки */}
       <div className="bg-card rounded-2xl ring-1 ring-border p-6 space-y-4">
         <h2 className="font-bold">Мои заявки</h2>
