@@ -33,10 +33,10 @@ export const Route = createFileRoute("/_authenticated/admin/clients/$id")({
 
 const tierLabels: Record<string, { label: string; cls: string }> = {
   new: { label: "Новый клиент", cls: "bg-muted text-muted-foreground" },
-  bronze: { label: "Bronze", cls: "bg-amber-700/15 text-amber-700" },
-  silver: { label: "Silver", cls: "bg-slate-400/20 text-slate-500" },
-  gold: { label: "Gold", cls: "bg-amber-400/15 text-amber-600" },
-  platinum: { label: "Platinum", cls: "bg-primary/15 text-primary" },
+  bronze: { label: "Бронза", cls: "bg-amber-700/15 text-amber-700" },
+  silver: { label: "Серебро", cls: "bg-slate-400/20 text-slate-500" },
+  gold: { label: "Золото", cls: "bg-amber-400/15 text-amber-600" },
+  platinum: { label: "Платина", cls: "bg-primary/15 text-primary" },
 };
 
 function ClientProfilePage() {
