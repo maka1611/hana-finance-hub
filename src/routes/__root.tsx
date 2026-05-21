@@ -88,7 +88,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "mobile-web-app-capable", content: "yes" },
       {
         name: "apple-mobile-web-app-status-bar-style",
-        content: "black-translucent",
+        content: "default",
       },
       { name: "apple-mobile-web-app-title", content: "NoorPay" },
       { name: "format-detection", content: "telephone=no" },
