@@ -167,17 +167,37 @@
 /* Safe-area utilities for iPhone notch / Dynamic Island */
 .pt-safe { padding-top: max(env(safe-area-inset-top), 0px); }
 .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
-.pl-safe { padding-left: max(env(safe-area-inset-left), 0px); }
-.pr-safe { padding-right: max(env(safe-area-inset-right), 0px); }
-.px-safe {
-  padding-left: max(env(safe-area-inset-left), 0px);
-  padding-right: max(env(safe-area-inset-right), 0px);
-}
+/*
+ * Horizontal safe-area is applied on <body> (see below) so it does NOT
+ * conflict with per-element px-* utilities. These classes are kept as
+ * no-ops for backwards compatibility with existing markup.
+ */
+.pl-safe, .pr-safe, .px-safe { /* handled globally on body */ }
 
 /* Make app feel native on touch devices */
 html {
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
+}
+
+/* Prevent any horizontal overflow (slide transitions, wide tables, etc.)
+   from making the whole viewport scrollable sideways in standalone PWA. */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Apply horizontal safe-area insets once, globally, so notch / landscape
+   never clips content. Vertical insets stay opt-in via pt-safe / pb-safe. */
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Use dynamic viewport height where supported so iOS Safari URL bar
+   collapsing / standalone status bar doesn't cause min-h-screen jumps. */
+@supports (height: 100dvh) {
+  .min-h-screen { min-height: 100dvh; }
 }
 
 body {
