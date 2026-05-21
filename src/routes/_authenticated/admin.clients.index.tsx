@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Search, Star, Trash2, Plus } from "lucide-react";
+import { Search, Star, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { adminListClients, adminDeleteClient } from "@/lib/admin.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
@@ -79,12 +79,7 @@ function ClientsPage() {
               className="pl-9 w-64"
             />
           </div>
-          <Button asChild>
-            <Link to="/admin/installments/new">
-              <Plus className="size-4" /> Оформить рассрочку
-            </Link>
-          </Button>
-        </div>
+          </div>
       </div>
       <div className="bg-card rounded-2xl ring-1 ring-border overflow-x-auto">
         <Table>

@@ -16,7 +16,6 @@ import { LayoutDashboard, Users, FileText, BarChart3, ArrowLeft, Wallet, ShieldC
 const items = [
   { title: "Обзор", url: "/admin", icon: LayoutDashboard, exact: true },
   { title: "Заявки", url: "/admin/applications", icon: Inbox, exact: false },
-  { title: "Оформить рассрочку", url: "/admin/installments/new", icon: FilePlus2, exact: false },
   { title: "Клиенты", url: "/admin/clients", icon: Users, exact: false },
   { title: "Контракты", url: "/admin/contracts", icon: FileText, exact: false },
   { title: "Платежи", url: "/admin/payments", icon: Wallet, exact: false },
@@ -44,6 +43,24 @@ export function AdminSidebar() {
         </Link>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/admin/installments/new", false)}
+                  className="bg-green-600 text-white hover:bg-green-700 hover:text-white"
+                >
+                  <Link to="/admin/installments/new" className="flex items-center gap-2">
+                    <FilePlus2 className="h-4 w-4" />
+                    {!collapsed && <span>Оформить рассрочку</span>}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
         <SidebarGroup>
           <SidebarGroupLabel>Управление</SidebarGroupLabel>
           <SidebarGroupContent>
