@@ -165,6 +165,28 @@ function AdminNewInstallment() {
                     channels: p.channels,
                   }))
               : undefined,
+          guarantors:
+            guarantors.length > 0
+              ? guarantors
+                  .filter((g) => g.fullName.trim().length > 0)
+                  .map((g) => ({
+                    fullName: g.fullName.trim(),
+                    comment: g.comment.trim() || null,
+                    phones: g.phones
+                      .filter((p) => p.phone.trim().length > 0)
+                      .map((p) => ({
+                        phone: p.phone.trim(),
+                        label: p.label.trim() || autoLabelFromChannels(p.channels),
+                        channels: p.channels,
+                      })),
+                    emails: g.emails
+                      .filter((e) => e.email.trim().length > 0)
+                      .map((e) => ({
+                        email: e.email.trim(),
+                        label: e.label.trim() || null,
+                      })),
+                  }))
+              : undefined,
           documents:
             mode === "new" && docsOpen
               ? {
@@ -190,7 +212,7 @@ function AdminNewInstallment() {
         },
       });
       if (res.tempPassword) {
-        toast.success("Клиент создан. Временный пароль: " + res.tempPassword, { duration: 15000 });
+        toast.success("Клиент создан. Пароль доступен в профиле клиента", { duration: 8000 });
       } else {
         toast.success("Рассрочка оформлена");
       }
