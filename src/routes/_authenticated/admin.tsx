@@ -16,7 +16,11 @@ export const Route = createFileRoute("/_authenticated/admin")({
 
 function AdminShell() {
   const rolesFn = useServerFn(getMyRoles);
-  const { data: roles, isLoading, refetch } = useQuery({
+  const {
+    data: roles,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["my-roles"],
     queryFn: () => rolesFn(),
   });
@@ -25,9 +29,7 @@ function AdminShell() {
     return <div className="p-10 text-sm text-muted-foreground">Проверка доступа...</div>;
   }
 
-  const isStaff = (roles ?? []).some(
-    (r) => r === "manager" || r === "admin" || r === "owner",
-  );
+  const isStaff = (roles ?? []).some((r) => r === "manager" || r === "admin" || r === "owner");
 
   if (!isStaff) {
     return <NoAccess onPromoted={() => refetch()} />;
@@ -76,8 +78,8 @@ function NoAccess({ onPromoted }: { onPromoted: () => void }) {
         </div>
         <h1 className="text-2xl font-extrabold">Доступ запрещён</h1>
         <p className="text-sm text-muted-foreground">
-          У вас нет роли сотрудника. Если вы основатель проекта, назначьте себя владельцем —
-          это возможно один раз, пока владелец ещё не назначен.
+          У вас нет роли сотрудника. Если вы основатель проекта, назначьте себя владельцем — это
+          возможно один раз, пока владелец ещё не назначен.
         </p>
         <Button onClick={handle} disabled={loading} className="w-full">
           {loading ? "..." : "Стать владельцем"}
