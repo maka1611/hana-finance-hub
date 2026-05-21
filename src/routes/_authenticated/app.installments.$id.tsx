@@ -99,9 +99,9 @@ function InstallmentDetail() {
 
 function Row({ k, v, bold }: { k: string; v: string; bold?: boolean }) {
   return (
-    <div className="flex justify-between">
-      <span className="opacity-60">{k}</span>
-      <span className={bold ? "font-bold" : "font-medium"}>{v}</span>
+    <div className="flex justify-between gap-3 min-w-0">
+      <span className="opacity-60 min-w-0 truncate">{k}</span>
+      <span className={`shrink-0 ${bold ? "font-bold" : "font-medium"}`}>{v}</span>
     </div>
   );
 }
