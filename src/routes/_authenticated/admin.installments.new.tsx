@@ -615,6 +615,266 @@ function AdminNewInstallment() {
           <Textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} />
         </div>
 
+        <div className="h-px bg-border" />
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+              Поручители <span className="font-normal normal-case tracking-normal text-[11px]">(необязательно)</span>
+            </h2>
+            <button
+              type="button"
+              onClick={() => setGuarantors((arr) => [...arr, emptyGuarantor()])}
+              className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline"
+            >
+              <Plus className="size-3.5" /> Добавить поручителя
+            </button>
+          </div>
+          {guarantors.length === 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              Можно добавить нескольких поручителей с ФИО, телефонами, email и комментарием.
+            </p>
+          )}
+          {guarantors.map((g, gi) => (
+            <div
+              key={gi}
+              className="rounded-xl ring-1 ring-border bg-muted/20 p-4 space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
+                  Поручитель {gi + 1}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setGuarantors((arr) => arr.filter((_, i) => i !== gi))}
+                  className="text-xs text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
+                >
+                  <Trash2 className="size-3.5" /> Удалить
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">ФИО</Label>
+                <Input
+                  value={g.fullName}
+                  onChange={(e) =>
+                    setGuarantors((arr) =>
+                      arr.map((x, i) => (i === gi ? { ...x, fullName: e.target.value } : x)),
+                    )
+                  }
+                  placeholder="Иванов Иван Иванович"
+                  maxLength={200}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Телефоны</Label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setGuarantors((arr) =>
+                        arr.map((x, i) =>
+                          i === gi
+                            ? {
+                                ...x,
+                                phones: [
+                                  ...x.phones,
+                                  { phone: "", label: "", channels: ["phone"] as ContactChannel[] },
+                                ],
+                              }
+                            : x,
+                        ),
+                      )
+                    }
+                    className="text-[11px] font-semibold text-primary inline-flex items-center gap-1 hover:underline"
+                  >
+                    <Plus className="size-3" /> Добавить номер
+                  </button>
+                </div>
+                {g.phones.map((p, pi) => (
+                  <div key={pi} className="bg-card rounded-lg p-3 space-y-2 ring-1 ring-border">
+                    <div className="grid grid-cols-[1fr_160px] gap-2">
+                      <Input
+                        value={p.phone}
+                        onChange={(e) =>
+                          setGuarantors((arr) =>
+                            arr.map((x, i) =>
+                              i === gi
+                                ? {
+                                    ...x,
+                                    phones: x.phones.map((y, j) =>
+                                      j === pi ? { ...y, phone: e.target.value } : y,
+                                    ),
+                                  }
+                                : x,
+                            ),
+                          )
+                        }
+                        placeholder="+7 ..."
+                        inputMode="tel"
+                      />
+                      <Input
+                        value={p.label}
+                        onChange={(e) =>
+                          setGuarantors((arr) =>
+                            arr.map((x, i) =>
+                              i === gi
+                                ? {
+                                    ...x,
+                                    phones: x.phones.map((y, j) =>
+                                      j === pi ? { ...y, label: e.target.value } : y,
+                                    ),
+                                  }
+                                : x,
+                            ),
+                          )
+                        }
+                        placeholder={autoLabelFromChannels(p.channels)}
+                        maxLength={50}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <ContactChannelToggles
+                        value={p.channels}
+                        onChange={(v) =>
+                          setGuarantors((arr) =>
+                            arr.map((x, i) =>
+                              i === gi
+                                ? {
+                                    ...x,
+                                    phones: x.phones.map((y, j) =>
+                                      j === pi ? { ...y, channels: v } : y,
+                                    ),
+                                  }
+                                : x,
+                            ),
+                          )
+                        }
+                        size="sm"
+                      />
+                      {g.phones.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setGuarantors((arr) =>
+                              arr.map((x, i) =>
+                                i === gi
+                                  ? { ...x, phones: x.phones.filter((_, j) => j !== pi) }
+                                  : x,
+                              ),
+                            )
+                          }
+                          className="text-[11px] text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
+                        >
+                          <Trash2 className="size-3" /> Удалить
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Email</Label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setGuarantors((arr) =>
+                        arr.map((x, i) =>
+                          i === gi
+                            ? { ...x, emails: [...x.emails, { email: "", label: "" }] }
+                            : x,
+                        ),
+                      )
+                    }
+                    className="text-[11px] font-semibold text-primary inline-flex items-center gap-1 hover:underline"
+                  >
+                    <Plus className="size-3" /> Добавить email
+                  </button>
+                </div>
+                {g.emails.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">Email не указан</p>
+                )}
+                {g.emails.map((e, ei) => (
+                  <div key={ei} className="grid grid-cols-[1fr_160px_auto] gap-2">
+                    <Input
+                      type="email"
+                      value={e.email}
+                      onChange={(ev) =>
+                        setGuarantors((arr) =>
+                          arr.map((x, i) =>
+                            i === gi
+                              ? {
+                                  ...x,
+                                  emails: x.emails.map((y, j) =>
+                                    j === ei ? { ...y, email: ev.target.value } : y,
+                                  ),
+                                }
+                              : x,
+                          ),
+                        )
+                      }
+                      placeholder="email@example.com"
+                      maxLength={200}
+                    />
+                    <Input
+                      value={e.label}
+                      onChange={(ev) =>
+                        setGuarantors((arr) =>
+                          arr.map((x, i) =>
+                            i === gi
+                              ? {
+                                  ...x,
+                                  emails: x.emails.map((y, j) =>
+                                    j === ei ? { ...y, label: ev.target.value } : y,
+                                  ),
+                                }
+                              : x,
+                          ),
+                        )
+                      }
+                      placeholder="Метка"
+                      maxLength={50}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        setGuarantors((arr) =>
+                          arr.map((x, i) =>
+                            i === gi
+                              ? { ...x, emails: x.emails.filter((_, j) => j !== ei) }
+                              : x,
+                          ),
+                        )
+                      }
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Комментарий</Label>
+                <Textarea
+                  value={g.comment}
+                  onChange={(ev) =>
+                    setGuarantors((arr) =>
+                      arr.map((x, i) => (i === gi ? { ...x, comment: ev.target.value } : x)),
+                    )
+                  }
+                  rows={2}
+                  maxLength={2000}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
         <div className="bg-muted/40 rounded-xl p-5 space-y-2 text-sm">
           <Row k="Остаток" v={formatMoney(calc.principal)} />
           <Row k="Наценка" v={formatMoney(calc.markupAmount)} />
