@@ -99,11 +99,11 @@ function Dashboard() {
                 >
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4 min-w-0">
                     <div className="min-w-0">
-                      <div className="font-semibold truncate flex items-center gap-1.5">
+                        <div className="font-semibold flex items-start gap-1.5 break-words">
                         {p.overdue && (
                           <AlertTriangle className="size-3.5 text-destructive shrink-0" />
                         )}
-                        {p.productName}
+                          <span className="min-w-0 break-words">{p.productName}</span>
                       </div>
                       <div className="text-xs text-muted-foreground font-mono mt-0.5">
                         Платёж №{p.seq} · {formatDate(p.dueDate)}
@@ -145,7 +145,7 @@ function Dashboard() {
                   >
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 mb-2 min-w-0">
                       <div className="min-w-0">
-                        <div className="font-semibold truncate">{c.productName}</div>
+                        <div className="font-semibold break-words">{c.productName}</div>
                         <div className="text-xs text-muted-foreground font-mono mt-0.5">
                           Оплачено {c.paid} из {c.total}
                         </div>
