@@ -341,7 +341,7 @@ function AdminNewInstallment() {
                 </div>
                 {phones.map((row, idx) => (
                   <div key={idx} className="bg-muted/30 rounded-xl p-3 space-y-2 ring-1 ring-border">
-                    <div className="grid grid-cols-[1fr_160px] gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px] gap-2">
                       <Input
                         value={row.phone}
                         onChange={(e) =>
@@ -694,7 +694,7 @@ function AdminNewInstallment() {
                 </div>
                 {g.phones.map((p, pi) => (
                   <div key={pi} className="bg-card rounded-lg p-3 space-y-2 ring-1 ring-border">
-                    <div className="grid grid-cols-[1fr_160px] gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px] gap-2">
                       <Input
                         value={p.phone}
                         onChange={(e) =>
@@ -798,7 +798,7 @@ function AdminNewInstallment() {
                   <p className="text-[11px] text-muted-foreground">Email не указан</p>
                 )}
                 {g.emails.map((e, ei) => (
-                  <div key={ei} className="grid grid-cols-[1fr_160px_auto] gap-2">
+                  <div key={ei} className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_160px_auto] gap-2">
                     <Input
                       type="email"
                       value={e.email}
