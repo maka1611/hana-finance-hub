@@ -292,12 +292,12 @@ function ProfilePage() {
 
 function StatBox({ icon, label, value, sub, danger }: { icon: React.ReactNode; label: string; value: string; sub?: string; danger?: boolean }) {
   return (
-    <div className={`rounded-2xl p-4 ring-1 ${danger ? "bg-destructive/5 ring-destructive/20" : "bg-card ring-border"}`}>
-      <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5">
+    <div className={`min-w-0 rounded-2xl p-4 ring-1 overflow-hidden ${danger ? "bg-destructive/5 ring-destructive/20" : "bg-card ring-border"}`}>
+      <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5 min-w-0">
         {icon} {label}
       </div>
-      <div className="text-2xl font-extrabold">{value}</div>
-      {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
+      <div className="text-2xl font-extrabold truncate">{value}</div>
+      {sub && <div className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</div>}
     </div>
   );
 }
@@ -310,7 +310,7 @@ function AppStatusBadge({ status }: { status: string }) {
   };
   const v = map[status] ?? { label: status, cls: "bg-muted" };
   return (
-    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${v.cls}`}>
+    <span className={`w-fit max-w-full text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${v.cls}`}>
       {v.label}
     </span>
   );
