@@ -33,6 +33,17 @@ function ClientsPage() {
   const { data, isLoading } = useQuery({ queryKey: ["admin-clients"], queryFn: () => fn() });
   const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filtered = (data ?? []).filter((c) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (c.full_name ?? "").toLowerCase().includes(q) ||
+      (c.email ?? "").toLowerCase().includes(q) ||
+      (c.phone ?? "").toLowerCase().includes(q)
+    );
+  });
 
   const confirmDelete = async () => {
     if (!toDelete) return;
