@@ -69,11 +69,22 @@ function ClientsPage() {
           </p>
           <h1 className="text-3xl font-extrabold tracking-tight">Клиенты</h1>
         </div>
-        <Button asChild>
-          <Link to="/admin/installments/new">
-            <Plus className="size-4" /> Оформить рассрочку
-          </Link>
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Поиск по имени, email, телефону..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 w-64"
+            />
+          </div>
+          <Button asChild>
+            <Link to="/admin/installments/new">
+              <Plus className="size-4" /> Оформить рассрочку
+            </Link>
+          </Button>
+        </div>
       </div>
       <div className="bg-card rounded-2xl ring-1 ring-border overflow-x-auto">
         <Table>
