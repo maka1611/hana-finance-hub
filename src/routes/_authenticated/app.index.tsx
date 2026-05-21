@@ -5,7 +5,6 @@ import { getMyDashboard } from "@/lib/installments.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import {
-  FileCheck2,
   TrendingUp,
   Calendar,
   Wallet,
@@ -32,16 +31,11 @@ function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-end justify-between flex-wrap gap-4">
-        <div>
-          <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">
-            Обзор
-          </p>
-          <h1 className="text-4xl font-extrabold tracking-tight">Личный кабинет</h1>
-        </div>
-        <Button onClick={() => router.navigate({ to: "/app/new" })}>
-          <FileCheck2 className="size-4" /> Подать заявку
-        </Button>
+      <div>
+        <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">
+          Обзор
+        </p>
+        <h1 className="text-4xl font-extrabold tracking-tight">Личный кабинет</h1>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
