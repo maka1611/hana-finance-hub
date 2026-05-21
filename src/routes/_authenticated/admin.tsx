@@ -37,14 +37,14 @@ function AdminShell() {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AdminSidebar />
-        <div className="flex-1 flex flex-col">
+        <div className="min-w-0 flex-1 flex flex-col">
           <header className="min-h-16 pt-safe border-b border-border flex items-center px-4 gap-3 bg-background sticky top-0 z-30">
             <SidebarTrigger />
             <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
               Панель администратора
             </div>
           </header>
-          <main className="flex-1 p-8 bg-muted/20">
+          <main className="min-w-0 flex-1 p-4 md:p-8 bg-muted/20">
             <Outlet />
           </main>
         </div>
