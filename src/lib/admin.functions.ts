@@ -1453,6 +1453,34 @@ const AdminCreateInstallmentSchema = z.object({
     )
     .max(10)
     .optional(),
+  guarantors: z
+    .array(
+      z.object({
+        fullName: z.string().trim().min(1).max(200),
+        comment: z.string().trim().max(2000).optional().nullable(),
+        phones: z
+          .array(
+            z.object({
+              phone: z.string().trim().min(3).max(50).regex(/^[+\d\s()-]+$/),
+              label: z.string().trim().max(50).optional().nullable(),
+              channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
+            }),
+          )
+          .max(10)
+          .optional(),
+        emails: z
+          .array(
+            z.object({
+              email: z.string().trim().email().max(200),
+              label: z.string().trim().max(50).optional().nullable(),
+            }),
+          )
+          .max(10)
+          .optional(),
+      }),
+    )
+    .max(10)
+    .optional(),
   documents: z
     .object({
       passportSeries: z.string().trim().max(20).optional().nullable(),
