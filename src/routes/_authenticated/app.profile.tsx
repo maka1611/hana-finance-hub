@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { toast } from "sonner";
 import { Phone, Plus, Trash2, Star, Mail, User, CheckCircle2, AlertTriangle, Clock, Award } from "lucide-react";
+import { Lock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/app/profile")({
   head: () => ({ meta: [{ title: "Профиль — NoorPay" }] }),
@@ -22,10 +24,10 @@ export const Route = createFileRoute("/_authenticated/app/profile")({
 
 const tierLabels: Record<string, { label: string; cls: string }> = {
   new: { label: "Новый клиент", cls: "bg-muted text-muted-foreground" },
-  bronze: { label: "Bronze", cls: "bg-amber-700/15 text-amber-700" },
-  silver: { label: "Silver", cls: "bg-slate-400/20 text-slate-500" },
-  gold: { label: "Gold", cls: "bg-amber-400/15 text-amber-600" },
-  platinum: { label: "Platinum", cls: "bg-primary/15 text-primary" },
+  bronze: { label: "Бронза", cls: "bg-amber-700/15 text-amber-700" },
+  silver: { label: "Серебро", cls: "bg-slate-400/20 text-slate-500" },
+  gold: { label: "Золото", cls: "bg-amber-400/15 text-amber-600" },
+  platinum: { label: "Платина", cls: "bg-primary/15 text-primary" },
 };
 
 function ProfilePage() {
@@ -40,6 +42,32 @@ function ProfilePage() {
   const [phone, setPhone] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newPhoneLabel, setNewPhoneLabel] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPwd, setChangingPwd] = useState(false);
+
+  const changePassword = async () => {
+    if (newPassword.length < 8) {
+      toast.error("Пароль должен быть не короче 8 символов");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Пароли не совпадают");
+      return;
+    }
+    setChangingPwd(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success("Пароль обновлён");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setChangingPwd(false);
+    }
+  };
 
   useEffect(() => {
     if (data?.profile) {
@@ -180,6 +208,39 @@ function ProfilePage() {
             <Plus className="size-4" /> Добавить
           </Button>
         </div>
+      </div>
+
+      {/* Безопасность */}
+      <div className="bg-card rounded-2xl ring-1 ring-border p-6 space-y-4">
+        <h2 className="font-bold inline-flex items-center gap-2">
+          <Lock className="size-4 text-primary" /> Безопасность
+        </h2>
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Новый пароль</Label>
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              maxLength={100}
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Повторите пароль</Label>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              maxLength={100}
+              autoComplete="new-password"
+            />
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">Минимум 8 символов.</p>
+        <Button onClick={changePassword} disabled={changingPwd || !newPassword || !confirmPassword}>
+          <Lock className="size-4" /> Изменить пароль
+        </Button>
       </div>
 
       {/* Заявки */}
