@@ -38,7 +38,7 @@ function AdminShell() {
       <div className="min-h-screen flex w-full">
         <AdminSidebar />
         <div className="min-w-0 flex-1 flex flex-col">
-          <header className="min-h-16 pt-safe border-b border-border flex items-center px-4 gap-3 bg-background sticky top-0 z-30">
+          <header className="min-h-16 pt-safe border-b border-border flex items-center px-4 gap-3 bg-background sticky top-0 z-30 supports-[padding:max(0px)]:top-[env(safe-area-inset-top)]">
             <SidebarTrigger />
             <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
               Панель администратора
