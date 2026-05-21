@@ -116,13 +116,13 @@ function ProfilePage() {
               {(data.profile?.full_name || data.profile?.email || "U").slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-base md:text-lg font-bold truncate">{data.profile?.full_name || "Без имени"}</div>
+              <div className="text-base md:text-lg font-bold leading-snug break-words">{data.profile?.full_name || "Без имени"}</div>
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
-                <Mail className="size-3.5 shrink-0" /> <span className="truncate">{data.profile?.email ?? "—"}</span>
+                <Mail className="size-3.5 shrink-0" /> <span className="min-w-0 break-all">{data.profile?.email ?? "—"}</span>
               </div>
               {data.profile?.phone && (
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
-                  <Phone className="size-3.5 shrink-0" /> <span className="truncate">{data.profile.phone}</span>
+                  <Phone className="size-3.5 shrink-0" /> <span className="min-w-0 break-all">{data.profile.phone}</span>
                 </div>
               )}
             </div>
