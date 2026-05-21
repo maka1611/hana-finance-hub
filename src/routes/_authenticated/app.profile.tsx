@@ -253,7 +253,7 @@ function ProfilePage() {
             {data.applications.map((a) => (
               <li key={a.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 min-w-0">
                 <div className="min-w-0 w-full">
-                  <div className="font-medium truncate">{a.product_name}</div>
+                  <div className="font-medium break-words">{a.product_name}</div>
                   <div className="text-xs text-muted-foreground font-mono break-words">
                     {formatDate(a.created_at)} · {formatMoney(Number(a.product_price))} · {a.term_months} мес
                   </div>
@@ -275,7 +275,7 @@ function ProfilePage() {
             {data.contracts.map((c) => (
               <li key={c.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 min-w-0">
                 <div className="min-w-0 w-full">
-                  <div className="font-medium truncate">{c.product_name}</div>
+                  <div className="font-medium break-words">{c.product_name}</div>
                   <div className="text-xs text-muted-foreground font-mono break-words">
                     {formatDate(c.start_date)} · {c.term_months} мес · {formatMoney(Number(c.monthly_payment))}/мес
                   </div>
