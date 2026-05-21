@@ -76,6 +76,23 @@ function AdminNewInstallment() {
   const [passportPhotos, setPassportPhotos] = useState<PhotoFile[]>([]);
   const [driverLicensePhotos, setDriverLicensePhotos] = useState<PhotoFile[]>([]);
 
+  // Поручители
+  type GuarantorPhone = { phone: string; label: string; channels: ContactChannel[] };
+  type GuarantorEmail = { email: string; label: string };
+  type Guarantor = {
+    fullName: string;
+    comment: string;
+    phones: GuarantorPhone[];
+    emails: GuarantorEmail[];
+  };
+  const emptyGuarantor = (): Guarantor => ({
+    fullName: "",
+    comment: "",
+    phones: [{ phone: "", label: "", channels: ["phone"] }],
+    emails: [],
+  });
+  const [guarantors, setGuarantors] = useState<Guarantor[]>([]);
+
   const readFile = (file: File): Promise<PhotoFile> =>
     new Promise((resolve, reject) => {
       if (file.size > 8 * 1024 * 1024) {
