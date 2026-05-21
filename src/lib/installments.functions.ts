@@ -109,3 +109,92 @@ export const getInstallmentById = createServerFn({ method: "POST" })
     if (c.error) throw new Error(c.error.message);
     return { contract: c.data, schedule: s.data ?? [], payments: p.data ?? [] };
   });
+
+export const getMyDashboard = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+
+    const [contractsRes, applicationsRes] = await Promise.all([
+      supabase
+        .from("installment_contracts")
+        .select("id, product_name, product_image_url, status, term_months, monthly_payment, start_date, created_at")
+        .eq("client_id", userId)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("installment_applications")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", userId)
+        .eq("status", "pending"),
+    ]);
+
+    if (contractsRes.error) throw new Error(contractsRes.error.message);
+    if (applicationsRes.error) throw new Error(applicationsRes.error.message);
+
+    const contracts = contractsRes.data ?? [];
+    const activeContracts = contracts.filter((c) => c.status === "active");
+    const activeIds = activeContracts.map((c) => c.id);
+
+    type ScheduleRow = {
+      id: string;
+      contract_id: string;
+      seq: number;
+      due_date: string;
+      amount: number;
+      status: string;
+    };
+    let schedules: ScheduleRow[] = [];
+    if (activeIds.length > 0) {
+      const { data: sched, error: schedErr } = await supabase
+        .from("payment_schedules")
+        .select("id, contract_id, seq, due_date, amount, status")
+        .in("contract_id", activeIds)
+        .order("due_date", { ascending: true });
+      if (schedErr) throw new Error(schedErr.message);
+      schedules = (sched ?? []) as ScheduleRow[];
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const pendingOrOverdue = schedules.filter(
+      (s) => s.status === "pending" || s.status === "overdue",
+    );
+    const totalRemaining = pendingOrOverdue.reduce((sum, s) => sum + Number(s.amount), 0);
+
+    const contractNameById = new Map(activeContracts.map((c) => [c.id, c.product_name]));
+    const upcomingPayments = pendingOrOverdue.slice(0, 5).map((s) => ({
+      id: s.id,
+      contractId: s.contract_id,
+      productName: contractNameById.get(s.contract_id) ?? "—",
+      seq: s.seq,
+      dueDate: s.due_date,
+      amount: Number(s.amount),
+      status: s.status,
+      overdue: s.status === "overdue" || s.due_date < today,
+    }));
+
+    const nextPayment = upcomingPayments[0] ?? null;
+
+    // Прогресс по активным контрактам (оплачено N из M)
+    const contractProgress = activeContracts.map((c) => {
+      const own = schedules.filter((s) => s.contract_id === c.id);
+      const paid = own.filter((s) => s.status === "paid").length;
+      return {
+        id: c.id,
+        productName: c.product_name,
+        productImageUrl: c.product_image_url,
+        monthlyPayment: Number(c.monthly_payment),
+        termMonths: c.term_months,
+        paid,
+        total: own.length || c.term_months,
+      };
+    });
+
+    return {
+      nextPayment,
+      totalRemaining,
+      activeCount: activeContracts.length,
+      pendingApplicationsCount: applicationsRes.count ?? 0,
+      upcomingPayments,
+      activeContracts: contractProgress,
+    };
+  });

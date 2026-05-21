@@ -1,10 +1,17 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { listMyInstallments } from "@/lib/installments.functions";
+import { getMyDashboard } from "@/lib/installments.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
-import { FileCheck2, TrendingUp, Calendar, Wallet } from "lucide-react";
+import {
+  FileCheck2,
+  TrendingUp,
+  Calendar,
+  Wallet,
+  Clock,
+  AlertTriangle,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/")({
   head: () => ({ meta: [{ title: "Личный кабинет — NoorPay" }] }),
@@ -12,17 +19,16 @@ export const Route = createFileRoute("/_authenticated/app/")({
 });
 
 function Dashboard() {
-  const fn = useServerFn(listMyInstallments);
-  const { data, isLoading } = useQuery({ queryKey: ["my-installments"], queryFn: () => fn() });
+  const fn = useServerFn(getMyDashboard);
+  const { data, isLoading } = useQuery({ queryKey: ["my-dashboard"], queryFn: () => fn() });
   const router = useRouter();
 
-  const contracts = data ?? [];
-  const active = contracts.filter((c) => c.status === "active");
-  const totalDebt = active.reduce(
-    (s, c) => s + Number(c.principal) + Number(c.markup_amount),
-    0,
-  );
-  const monthlyTotal = active.reduce((s, c) => s + Number(c.monthly_payment), 0);
+  const nextPayment = data?.nextPayment ?? null;
+  const totalRemaining = data?.totalRemaining ?? 0;
+  const activeCount = data?.activeCount ?? 0;
+  const pendingApps = data?.pendingApplicationsCount ?? 0;
+  const upcoming = data?.upcomingPayments ?? [];
+  const activeContracts = data?.activeContracts ?? [];
 
   return (
     <div className="space-y-8">
@@ -38,92 +44,189 @@ function Dashboard() {
         </Button>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          icon={<TrendingUp className="size-4" />}
-          label="Активных рассрочек"
-          value={String(active.length)}
+          icon={<Clock className="size-4" />}
+          label="Ближайший платёж"
+          value={nextPayment ? formatMoney(nextPayment.amount) : "—"}
+          hint={
+            nextPayment
+              ? `${formatDate(nextPayment.dueDate)}${nextPayment.overdue ? " · просрочен" : ""}`
+              : "Нет активных платежей"
+          }
+          tone={nextPayment?.overdue ? "danger" : "default"}
+          onClick={() => router.navigate({ to: "/app/installments" })}
         />
         <StatCard
           icon={<Wallet className="size-4" />}
-          label="Долг к оплате"
-          value={formatMoney(totalDebt)}
+          label="Остаток к выплате"
+          value={formatMoney(totalRemaining)}
+          hint="По всем активным рассрочкам"
+        />
+        <StatCard
+          icon={<TrendingUp className="size-4" />}
+          label="Активные рассрочки"
+          value={String(activeCount)}
+          hint={activeCount === 0 ? "Пока пусто" : "Открытые контракты"}
+          onClick={
+            activeCount > 0 ? () => router.navigate({ to: "/app/installments" }) : undefined
+          }
         />
         <StatCard
           icon={<Calendar className="size-4" />}
-          label="Ежемесячно"
-          value={formatMoney(monthlyTotal)}
+          label="Заявки на рассмотрении"
+          value={String(pendingApps)}
+          hint={pendingApps === 0 ? "Нет ожидающих" : "Ждут решения"}
+          muted={pendingApps === 0}
         />
       </div>
 
-      <div>
-        <h2 className="text-lg font-bold mb-4">Последние рассрочки</h2>
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Загрузка...</p>
-        ) : contracts.length === 0 ? (
-          <div className="bg-card rounded-2xl ring-1 ring-border p-10 text-center">
-            <p className="text-muted-foreground mb-4">У вас пока нет рассрочек</p>
-            <Button onClick={() => router.navigate({ to: "/app/new" })}>
-              Подать первую заявку
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {contracts.slice(0, 5).map((c) => (
-              <Link
-                key={c.id}
-                to="/app/installments/$id"
-                params={{ id: c.id }}
-                className="block bg-card hover:bg-muted/40 rounded-xl ring-1 ring-border p-4 transition-colors"
-              >
-                <div className="flex justify-between items-center gap-4">
-                  <div className="min-w-0">
-                    <div className="font-semibold truncate">{c.product_name}</div>
-                    <div className="text-xs text-muted-foreground font-mono mt-0.5">
-                      {formatDate(c.start_date)} · {c.term_months} мес
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div>
+          <h2 className="text-lg font-bold mb-4">Ближайшие платежи</h2>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Загрузка...</p>
+          ) : upcoming.length === 0 ? (
+            <div className="bg-card rounded-2xl ring-1 ring-border p-8 text-center text-sm text-muted-foreground">
+              Нет предстоящих платежей
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {upcoming.map((p) => (
+                <Link
+                  key={p.id}
+                  to="/app/installments/$id"
+                  params={{ id: p.contractId }}
+                  className={`block rounded-xl ring-1 p-4 transition-colors ${
+                    p.overdue
+                      ? "bg-destructive/5 ring-destructive/30 hover:bg-destructive/10"
+                      : "bg-card ring-border hover:bg-muted/40"
+                  }`}
+                >
+                  <div className="flex justify-between items-center gap-4">
+                    <div className="min-w-0">
+                      <div className="font-semibold truncate flex items-center gap-1.5">
+                        {p.overdue && (
+                          <AlertTriangle className="size-3.5 text-destructive shrink-0" />
+                        )}
+                        {p.productName}
+                      </div>
+                      <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                        Платёж №{p.seq} · {formatDate(p.dueDate)}
+                      </div>
+                    </div>
+                    <div
+                      className={`font-bold ${p.overdue ? "text-destructive" : ""}`}
+                    >
+                      {formatMoney(p.amount)}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold">{formatMoney(Number(c.monthly_payment))}/мес</div>
-                    <StatusBadge status={c.status} />
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h2 className="text-lg font-bold mb-4">Мои рассрочки</h2>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Загрузка...</p>
+          ) : activeContracts.length === 0 ? (
+            <div className="bg-card rounded-2xl ring-1 ring-border p-8 text-center">
+              <p className="text-sm text-muted-foreground mb-4">
+                У вас пока нет активных рассрочек
+              </p>
+              <Button onClick={() => router.navigate({ to: "/app/new" })}>
+                Подать первую заявку
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {activeContracts.map((c) => {
+                const pct = c.total > 0 ? Math.round((c.paid / c.total) * 100) : 0;
+                return (
+                  <Link
+                    key={c.id}
+                    to="/app/installments/$id"
+                    params={{ id: c.id }}
+                    className="block bg-card hover:bg-muted/40 rounded-xl ring-1 ring-border p-4 transition-colors"
+                  >
+                    <div className="flex justify-between items-start gap-4 mb-2">
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate">{c.productName}</div>
+                        <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                          Оплачено {c.paid} из {c.total}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-sm">
+                          {formatMoney(c.monthlyPayment)}/мес
+                        </div>
+                      </div>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function StatCard({
+  icon,
+  label,
+  value,
+  hint,
+  tone = "default",
+  muted = false,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "default" | "danger";
+  muted?: boolean;
+  onClick?: () => void;
+}) {
+  const toneClass =
+    tone === "danger"
+      ? "bg-destructive/5 ring-destructive/30"
+      : muted
+        ? "bg-card/60 ring-border/60"
+        : "bg-card ring-border";
+  const Tag = onClick ? "button" : "div";
   return (
-    <div className="bg-card rounded-2xl ring-1 ring-border p-5">
-      <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
+    <Tag
+      onClick={onClick}
+      className={`text-left w-full rounded-2xl ring-1 p-5 transition-colors ${toneClass} ${
+        onClick ? "hover:bg-muted/40 cursor-pointer" : ""
+      }`}
+    >
+      <div
+        className={`flex items-center gap-2 text-xs font-mono uppercase tracking-wider mb-2 ${
+          tone === "danger" ? "text-destructive" : "text-muted-foreground"
+        }`}
+      >
         {icon} {label}
       </div>
-      <div className="text-2xl font-extrabold">{value}</div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    active: "bg-primary/10 text-primary",
-    closed: "bg-muted text-muted-foreground",
-    overdue: "bg-destructive/10 text-destructive",
-    pending: "bg-muted text-muted-foreground",
-  };
-  const label: Record<string, string> = {
-    active: "активна",
-    closed: "закрыта",
-    overdue: "просрочена",
-    pending: "ожидает",
-  };
-  return (
-    <span className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mt-1 ${map[status] ?? ""}`}>
-      {label[status] ?? status}
-    </span>
+      <div
+        className={`text-2xl font-extrabold ${
+          tone === "danger" ? "text-destructive" : muted ? "text-muted-foreground" : ""
+        }`}
+      >
+        {value}
+      </div>
+      {hint && <div className="text-xs text-muted-foreground mt-1">{hint}</div>}
+    </Tag>
   );
 }
