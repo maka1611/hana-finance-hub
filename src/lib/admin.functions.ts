@@ -1559,6 +1559,10 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
         full_name: data.client.fullName,
         phone: data.client.phone,
       });
+      // Сохраняем начальный пароль для доступа админов в профиле клиента
+      await supabaseAdmin
+        .from("client_secrets")
+        .upsert({ user_id: clientId, initial_password: tempPassword } as never);
     }
 
     const calc = calcInstallment({
@@ -1621,6 +1625,44 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
           channels: p.channels ?? [],
         })),
       );
+    }
+
+    // Поручители
+    if (data.guarantors && data.guarantors.length > 0) {
+      for (const g of data.guarantors) {
+        const { data: gRow, error: gErr } = await supabaseAdmin
+          .from("contract_guarantors")
+          .insert({
+            contract_id: contract.id,
+            full_name: g.fullName,
+            comment: g.comment ?? null,
+          } as never)
+          .select("id")
+          .single();
+        if (gErr || !gRow) throw new Error(gErr?.message ?? "Не удалось добавить поручителя");
+        const gid = (gRow as { id: string }).id;
+        if (g.phones && g.phones.length > 0) {
+          const { error } = await supabaseAdmin.from("guarantor_phones").insert(
+            g.phones.map((p) => ({
+              guarantor_id: gid,
+              phone: p.phone,
+              label: p.label ?? null,
+              channels: p.channels ?? [],
+            })) as never,
+          );
+          if (error) throw new Error(error.message);
+        }
+        if (g.emails && g.emails.length > 0) {
+          const { error } = await supabaseAdmin.from("guarantor_emails").insert(
+            g.emails.map((e) => ({
+              guarantor_id: gid,
+              email: e.email,
+              label: e.label ?? null,
+            })) as never,
+          );
+          if (error) throw new Error(error.message);
+        }
+      }
     }
 
     if (data.documents) {
