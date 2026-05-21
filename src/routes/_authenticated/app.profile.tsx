@@ -105,24 +105,24 @@ function ProfilePage() {
     <div className="space-y-8 max-w-5xl">
       <div>
         <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">Аккаунт</p>
-        <h1 className="text-4xl font-extrabold tracking-tight">Профиль</h1>
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Профиль</h1>
       </div>
 
       {/* Карточка пользователя + рейтинг */}
       <div className="grid md:grid-cols-3 gap-4">
-        <div className="md:col-span-2 bg-card rounded-2xl ring-1 ring-border p-6 space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="size-16 rounded-full bg-primary/15 text-primary font-bold text-xl flex items-center justify-center">
+        <div className="md:col-span-2 bg-card rounded-2xl ring-1 ring-border p-4 md:p-6 space-y-4">
+          <div className="flex items-center gap-3 md:gap-4 min-w-0">
+            <div className="size-14 md:size-16 shrink-0 rounded-full bg-primary/15 text-primary font-bold text-xl flex items-center justify-center">
               {(data.profile?.full_name || data.profile?.email || "U").slice(0, 2).toUpperCase()}
             </div>
-            <div className="min-w-0">
-              <div className="text-lg font-bold truncate">{data.profile?.full_name || "Без имени"}</div>
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Mail className="size-3.5" /> {data.profile?.email ?? "—"}
+            <div className="min-w-0 flex-1">
+              <div className="text-base md:text-lg font-bold truncate">{data.profile?.full_name || "Без имени"}</div>
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
+                <Mail className="size-3.5 shrink-0" /> <span className="truncate">{data.profile?.email ?? "—"}</span>
               </div>
               {data.profile?.phone && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Phone className="size-3.5" /> {data.profile.phone}
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
+                  <Phone className="size-3.5 shrink-0" /> <span className="truncate">{data.profile.phone}</span>
                 </div>
               )}
             </div>

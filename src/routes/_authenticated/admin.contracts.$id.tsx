@@ -145,7 +145,7 @@ function AdminContractDetail() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Mini label="Цена товара" value={formatMoney(Number(contract.product_price))} />
         <Mini label="Первый взнос" value={formatMoney(Number(contract.down_payment))} />
         <Mini
