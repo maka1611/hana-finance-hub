@@ -36,7 +36,7 @@ function InstallmentsPage() {
             >
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 min-w-0">
                 <div className="min-w-0 w-full">
-                  <div className="font-bold text-lg truncate">{c.product_name}</div>
+                  <div className="font-bold text-lg leading-snug break-words">{c.product_name}</div>
                   <div className="text-xs text-muted-foreground font-mono mt-1 break-words">
                     Открыто {formatDate(c.start_date)} · {c.term_months} мес · наценка{" "}
                     {formatMoney(Number(c.markup_amount))}
