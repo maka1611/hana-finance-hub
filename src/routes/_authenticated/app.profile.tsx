@@ -319,7 +319,6 @@ function ProfilePage() {
           <Lock className="size-4" /> Изменить пароль
         </Button>
       </div>
-
     </div>
   );
 }
@@ -349,4 +348,3 @@ function StatBox({
     </div>
   );
 }
-
