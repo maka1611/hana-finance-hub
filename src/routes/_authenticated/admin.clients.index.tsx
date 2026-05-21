@@ -2,6 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Search, Star, Trash2, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { adminListClients, adminDeleteClient } from "@/lib/admin.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Star, Trash2, Plus } from "lucide-react";
+
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/clients/")({
@@ -31,6 +33,17 @@ function ClientsPage() {
   const { data, isLoading } = useQuery({ queryKey: ["admin-clients"], queryFn: () => fn() });
   const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filtered = (data ?? []).filter((c) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (c.full_name ?? "").toLowerCase().includes(q) ||
+      (c.email ?? "").toLowerCase().includes(q) ||
+      (c.phone ?? "").toLowerCase().includes(q)
+    );
+  });
 
   const confirmDelete = async () => {
     if (!toDelete) return;
@@ -56,11 +69,22 @@ function ClientsPage() {
           </p>
           <h1 className="text-3xl font-extrabold tracking-tight">Клиенты</h1>
         </div>
-        <Button asChild>
-          <Link to="/admin/installments/new">
-            <Plus className="size-4" /> Оформить рассрочку
-          </Link>
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Поиск по имени, email, телефону..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 w-64"
+            />
+          </div>
+          <Button asChild>
+            <Link to="/admin/installments/new">
+              <Plus className="size-4" /> Оформить рассрочку
+            </Link>
+          </Button>
+        </div>
       </div>
       <div className="bg-card rounded-2xl ring-1 ring-border overflow-x-auto">
         <Table>
@@ -80,10 +104,12 @@ function ClientsPage() {
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">Загрузка...</TableCell></TableRow>
-            ) : (data ?? []).length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">Нет клиентов</TableCell></TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">
+                {searchQuery ? "Ничего не найдено" : "Нет клиентов"}
+              </TableCell></TableRow>
             ) : (
-              (data ?? []).map((c) => (
+              filtered.map((c) => (
                 <TableRow
                   key={c.id}
                   className="cursor-pointer hover:bg-muted/40 transition-colors"
