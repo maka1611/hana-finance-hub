@@ -82,7 +82,7 @@ function UsersPage() {
         />
       </div>
 
-      <div className="bg-card rounded-2xl ring-1 ring-border overflow-hidden">
+      <div className="bg-card rounded-2xl ring-1 ring-border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
