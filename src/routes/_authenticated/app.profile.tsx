@@ -102,16 +102,16 @@ function ProfilePage() {
   const tier = tierLabels[r.tier];
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-6 md:space-y-8 w-full min-w-0 max-w-5xl overflow-hidden">
       <div>
         <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">Аккаунт</p>
         <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Профиль</h1>
       </div>
 
       {/* Карточка пользователя + рейтинг */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <div className="md:col-span-2 bg-card rounded-2xl ring-1 ring-border p-4 md:p-6 space-y-4">
-          <div className="flex items-center gap-3 md:gap-4 min-w-0">
+      <div className="grid min-w-0 md:grid-cols-3 gap-4">
+        <div className="min-w-0 md:col-span-2 bg-card rounded-2xl ring-1 ring-border p-4 md:p-6 space-y-4 overflow-hidden">
+          <div className="flex items-center gap-3 md:gap-4 min-w-0 overflow-hidden">
             <div className="size-14 md:size-16 shrink-0 rounded-full bg-primary/15 text-primary font-bold text-xl flex items-center justify-center">
               {(data.profile?.full_name || data.profile?.email || "U").slice(0, 2).toUpperCase()}
             </div>
@@ -137,12 +137,12 @@ function ProfilePage() {
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={50} placeholder="+7 ..." />
             </div>
           </div>
-          <Button onClick={() => saveProfile.mutate()} disabled={saveProfile.isPending}>
+          <Button className="w-full sm:w-auto" onClick={() => saveProfile.mutate()} disabled={saveProfile.isPending}>
             <User className="size-4" /> Сохранить
           </Button>
         </div>
 
-        <div className="bg-card rounded-2xl ring-1 ring-border p-6 space-y-3">
+        <div className="min-w-0 bg-card rounded-2xl ring-1 ring-border p-4 md:p-6 space-y-3 overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Рейтинг</span>
             <Award className="size-4 text-primary" />
@@ -156,7 +156,7 @@ function ProfilePage() {
           <div className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${tier.cls}`}>
             {tier.label}
           </div>
-          <div className="text-xs text-muted-foreground pt-2 leading-relaxed">
+          <div className="text-xs text-muted-foreground pt-2 leading-relaxed break-words">
             Рейтинг рассчитывается из доли оплаченных платежей. Просрочки снижают его.
           </div>
         </div>
