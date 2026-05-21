@@ -72,7 +72,7 @@ function AppLayout() {
       <div className="min-h-screen flex w-full bg-background">
         <ClientSidebar isStaff={isStaff} />
         <div className="min-w-0 flex-1 flex flex-col">
-          <header className="min-h-16 pt-safe border-b border-border flex items-center px-4 gap-3 bg-background sticky top-0 z-30 supports-[padding:max(0px)]:top-[env(safe-area-inset-top)]">
+          <header className="min-h-16 pt-safe border-b border-border flex items-center px-4 gap-3 bg-background md:sticky md:top-0 z-30">
             <SidebarTrigger />
             <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground hidden sm:block">
               Личный кабинет
@@ -93,7 +93,7 @@ function AppLayout() {
               </div>
             </div>
           </header>
-          <main className="min-w-0 max-w-full flex-1 px-4 md:px-8 py-6 md:py-10 px-safe pb-safe overflow-x-hidden">
+          <main className="min-w-0 max-w-full flex-1 px-4 md:px-8 pt-8 pb-6 md:py-10 px-safe pb-safe overflow-x-hidden">
             <AnimatePresence mode="wait" initial={false} custom={direction}>
               <motion.div
                 key={location.pathname}
