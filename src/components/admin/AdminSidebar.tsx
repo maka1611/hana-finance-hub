@@ -44,6 +44,24 @@ export function AdminSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/admin/installments/new", false)}
+                  className="bg-green-600 text-white hover:bg-green-700 hover:text-white"
+                >
+                  <Link to="/admin/installments/new" className="flex items-center gap-2">
+                    <FilePlus2 className="h-4 w-4" />
+                    {!collapsed && <span>Оформить рассрочку</span>}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
           <SidebarGroupLabel>Управление</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
