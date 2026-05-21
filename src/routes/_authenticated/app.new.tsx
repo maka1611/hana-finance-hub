@@ -118,19 +118,19 @@ function NewInstallment() {
   };
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="w-full min-w-0 max-w-3xl space-y-6 md:space-y-8 overflow-hidden">
       <div>
         <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">
           Заявка
         </p>
-        <h1 className="text-4xl font-extrabold tracking-tight">Подать заявку на рассрочку</h1>
-        <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Подать заявку на рассрочку</h1>
+        <p className="text-sm text-muted-foreground mt-2 max-w-2xl break-words">
           Заполните заявку — менеджер проверит данные, при необходимости свяжется
           с вами и оформит рассрочку. После одобрения договор и график появятся в личном кабинете.
         </p>
       </div>
 
-      <form onSubmit={submit} className="bg-card rounded-2xl ring-1 ring-border p-6 md:p-8 space-y-6">
+      <form onSubmit={submit} className="min-w-0 bg-card rounded-2xl ring-1 ring-border p-4 md:p-8 space-y-6 overflow-hidden">
         <div className="space-y-4">
           <h2 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
             Данные клиента
@@ -159,7 +159,7 @@ function NewInstallment() {
             </div>
             {phones.map((row, idx) => (
               <div key={idx} className="bg-muted/30 rounded-xl p-3 space-y-2 ring-1 ring-border">
-                <div className="grid grid-cols-[1fr_180px] gap-2">
+                <div className="grid min-w-0 sm:grid-cols-[minmax(0,1fr)_180px] gap-2">
                   <Input
                     value={row.phone}
                     onChange={(e) =>
@@ -182,7 +182,7 @@ function NewInstallment() {
                     maxLength={50}
                   />
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
                   <ContactChannelToggles
                     value={row.channels}
                     onChange={(v) =>
@@ -296,7 +296,7 @@ function NewInstallment() {
           </div>
         </div>
 
-        <div className="bg-muted/40 rounded-xl p-5 space-y-2 text-sm">
+        <div className="min-w-0 bg-muted/40 rounded-xl p-4 md:p-5 space-y-2 text-sm overflow-hidden">
           <Row k="Остаток" v={formatMoney(calc.principal)} />
           <Row k="Наценка за рассрочку (предв.)" v={formatMoney(calc.markupAmount)} />
           <Row k="Ежемесячный платёж (предв.)" v={formatMoney(calc.monthlyPayment)} bold />
