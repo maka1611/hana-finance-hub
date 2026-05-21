@@ -305,6 +305,82 @@ function ClientProfilePage() {
         <StatBox icon={<Clock className="size-4 text-muted-foreground" />} label="Предстоящие" value={`${r.pendingCount}`} sub={formatMoney(r.pendingAmount)} />
       </div>
 
+      {/* Доступ клиента */}
+      <div className="bg-card rounded-2xl ring-1 ring-border p-6 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-bold inline-flex items-center gap-2">
+            <KeyRound className="size-4 text-primary" /> Доступ клиента
+          </h2>
+          <span className="text-[11px] text-muted-foreground">Виден только администраторам</span>
+        </div>
+        {secretQuery.isLoading ? (
+          <p className="text-sm text-muted-foreground">Загрузка...</p>
+        ) : secretQuery.data?.password ? (
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="font-mono text-sm bg-muted px-3 py-2 rounded-lg ring-1 ring-border select-all">
+                {showPwd ? secretQuery.data.password : "•".repeat(12)}
+              </code>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPwd((v) => !v)}
+              >
+                {showPwd ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                {showPwd ? "Скрыть" : "Показать"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(secretQuery.data!.password!);
+                    toast.success("Пароль скопирован");
+                  } catch {
+                    toast.error("Не удалось скопировать");
+                  }
+                }}
+              >
+                <Copy className="size-4" /> Копировать
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => resetPwd.mutate()}
+                disabled={resetPwd.isPending}
+              >
+                <RefreshCw className="size-4" /> Сбросить
+              </Button>
+            </div>
+            {secretQuery.data.updatedAt && (
+              <p className="text-[11px] text-muted-foreground">
+                Обновлён: {formatDate(secretQuery.data.updatedAt)}
+              </p>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Это последний пароль, заданный администратором. Клиент мог сменить его сам — тогда этот станет неактуальным. Нажмите «Сбросить», чтобы сгенерировать новый.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Пароль не сохранён. Сгенерируйте новый — клиент сможет войти с ним.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => resetPwd.mutate()}
+              disabled={resetPwd.isPending}
+            >
+              <KeyRound className="size-4" /> Сгенерировать пароль
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Документы клиента */}
       <div className="grid md:grid-cols-2 gap-4">
         <DocumentCard
