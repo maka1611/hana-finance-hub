@@ -86,10 +86,11 @@ export const createInstallment = createServerFn({ method: "POST" })
 export const listMyInstallments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("installment_contracts")
       .select("*")
+      .eq("client_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data;
