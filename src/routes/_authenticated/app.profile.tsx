@@ -163,14 +163,14 @@ function ProfilePage() {
       </div>
 
       {/* Статистика по платежам */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         <StatBox icon={<CheckCircle2 className="size-4 text-emerald-600" />} label="Оплачено" value={`${r.paidCount}`} sub={formatMoney(r.paidAmount)} />
         <StatBox icon={<AlertTriangle className="size-4 text-destructive" />} label="Просрочено" value={`${r.overdueCount}`} sub={formatMoney(r.overdueAmount)} danger={r.overdueCount > 0} />
         <StatBox icon={<Clock className="size-4 text-muted-foreground" />} label="Предстоящие" value={`${r.pendingCount}`} />
       </div>
 
       {/* Доп. телефоны */}
-      <div className="bg-card rounded-2xl ring-1 ring-border p-6 space-y-4">
+      <div className="min-w-0 bg-card rounded-2xl ring-1 ring-border p-4 md:p-6 space-y-4 overflow-hidden">
         <div className="flex items-center justify-between">
           <h2 className="font-bold">Дополнительные телефоны</h2>
         </div>
@@ -179,10 +179,10 @@ function ProfilePage() {
         ) : (
           <ul className="divide-y divide-border">
             {data.phones.map((p) => (
-              <li key={p.id} className="py-3 flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-medium">{p.phone}</div>
-                  {p.label && <div className="text-xs text-muted-foreground">{p.label}</div>}
+              <li key={p.id} className="py-3 flex items-center justify-between gap-3 min-w-0">
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{p.phone}</div>
+                  {p.label && <div className="text-xs text-muted-foreground truncate">{p.label}</div>}
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => delPhone.mutate(p.id)} disabled={delPhone.isPending}>
                   <Trash2 className="size-4" />
@@ -191,7 +191,7 @@ function ProfilePage() {
             ))}
           </ul>
         )}
-        <div className="grid md:grid-cols-[1fr_180px_auto] gap-2 pt-2 border-t border-border">
+        <div className="grid min-w-0 md:grid-cols-[minmax(0,1fr)_180px_auto] gap-2 pt-2 border-t border-border">
           <Input
             placeholder="+7 ..."
             value={newPhone}
@@ -204,14 +204,14 @@ function ProfilePage() {
             onChange={(e) => setNewPhoneLabel(e.target.value)}
             maxLength={50}
           />
-          <Button onClick={() => newPhone.trim() && addPhone.mutate()} disabled={addPhone.isPending || !newPhone.trim()}>
+          <Button className="w-full md:w-auto" onClick={() => newPhone.trim() && addPhone.mutate()} disabled={addPhone.isPending || !newPhone.trim()}>
             <Plus className="size-4" /> Добавить
           </Button>
         </div>
       </div>
 
       {/* Безопасность */}
-      <div className="bg-card rounded-2xl ring-1 ring-border p-6 space-y-4">
+      <div className="min-w-0 bg-card rounded-2xl ring-1 ring-border p-4 md:p-6 space-y-4 overflow-hidden">
         <h2 className="font-bold inline-flex items-center gap-2">
           <Lock className="size-4 text-primary" /> Безопасность
         </h2>
@@ -238,7 +238,7 @@ function ProfilePage() {
           </div>
         </div>
         <p className="text-[11px] text-muted-foreground">Минимум 8 символов.</p>
-        <Button onClick={changePassword} disabled={changingPwd || !newPassword || !confirmPassword}>
+        <Button className="w-full sm:w-auto" onClick={changePassword} disabled={changingPwd || !newPassword || !confirmPassword}>
           <Lock className="size-4" /> Изменить пароль
         </Button>
       </div>
