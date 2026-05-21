@@ -30,15 +30,15 @@ function Dashboard() {
   const activeContracts = data?.activeContracts ?? [];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8 w-full min-w-0 overflow-hidden">
       <div>
         <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">
           Обзор
         </p>
-        <h1 className="text-4xl font-extrabold tracking-tight">Личный кабинет</h1>
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Личный кабинет</h1>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid min-w-0 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Clock className="size-4" />}
           label="Ближайший платёж"
@@ -75,8 +75,8 @@ function Dashboard() {
         />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div>
+      <div className="grid min-w-0 lg:grid-cols-2 gap-6">
+        <div className="min-w-0">
           <h2 className="text-lg font-bold mb-4">Ближайшие платежи</h2>
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Загрузка...</p>
@@ -97,7 +97,7 @@ function Dashboard() {
                       : "bg-card ring-border hover:bg-muted/40"
                   }`}
                 >
-                  <div className="flex justify-between items-center gap-4">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4 min-w-0">
                     <div className="min-w-0">
                       <div className="font-semibold truncate flex items-center gap-1.5">
                         {p.overdue && (
@@ -109,9 +109,7 @@ function Dashboard() {
                         Платёж №{p.seq} · {formatDate(p.dueDate)}
                       </div>
                     </div>
-                    <div
-                      className={`font-bold ${p.overdue ? "text-destructive" : ""}`}
-                    >
+                    <div className={`font-bold shrink-0 ${p.overdue ? "text-destructive" : ""}`}>
                       {formatMoney(p.amount)}
                     </div>
                   </div>
@@ -121,7 +119,7 @@ function Dashboard() {
           )}
         </div>
 
-        <div>
+        <div className="min-w-0">
           <h2 className="text-lg font-bold mb-4">Мои рассрочки</h2>
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Загрузка...</p>
@@ -145,14 +143,14 @@ function Dashboard() {
                     params={{ id: c.id }}
                     className="block bg-card hover:bg-muted/40 rounded-xl ring-1 ring-border p-4 transition-colors"
                   >
-                    <div className="flex justify-between items-start gap-4 mb-2">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 mb-2 min-w-0">
                       <div className="min-w-0">
                         <div className="font-semibold truncate">{c.productName}</div>
                         <div className="text-xs text-muted-foreground font-mono mt-0.5">
                           Оплачено {c.paid} из {c.total}
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="sm:text-right shrink-0">
                         <div className="font-bold text-sm">
                           {formatMoney(c.monthlyPayment)}/мес
                         </div>
