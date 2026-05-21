@@ -38,7 +38,9 @@ function InstallmentDetail() {
         <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2 break-words">
           Контракт #{contract.id.slice(0, 8)}
         </p>
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight break-words">{contract.product_name}</h1>
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight break-words">
+          {contract.product_name}
+        </h1>
       </div>
 
       <div className="grid min-w-0 md:grid-cols-2 gap-4">

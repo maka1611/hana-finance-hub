@@ -41,9 +41,7 @@ function NewInstallment() {
   const [termMonths, setTermMonths] = useState<number>(search.term ?? 12);
   const [clientFullName, setClientFullName] = useState("");
   type PhoneRow = { phone: string; label: string; channels: ContactChannel[] };
-  const [phones, setPhones] = useState<PhoneRow[]>([
-    { phone: "", label: "", channels: [] },
-  ]);
+  const [phones, setPhones] = useState<PhoneRow[]>([{ phone: "", label: "", channels: [] }]);
   const [clientComment, setClientComment] = useState("");
   const [firstPaymentDate, setFirstPaymentDate] = useState<string>(() => {
     const d = new Date();
@@ -55,7 +53,9 @@ function NewInstallment() {
   // Подтягиваем ФИО/телефон из профиля
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
       const { data } = await supabase
         .from("profiles")
@@ -123,14 +123,19 @@ function NewInstallment() {
         <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">
           Заявка
         </p>
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Подать заявку на рассрочку</h1>
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+          Подать заявку на рассрочку
+        </h1>
         <p className="text-sm text-muted-foreground mt-2 max-w-2xl break-words">
-          Заполните заявку — менеджер проверит данные, при необходимости свяжется
-          с вами и оформит рассрочку. После одобрения договор и график появятся в личном кабинете.
+          Заполните заявку — менеджер проверит данные, при необходимости свяжется с вами и оформит
+          рассрочку. После одобрения договор и график появятся в личном кабинете.
         </p>
       </div>
 
-      <form onSubmit={submit} className="min-w-0 bg-card rounded-2xl ring-1 ring-border p-4 md:p-8 space-y-6 overflow-hidden">
+      <form
+        onSubmit={submit}
+        className="min-w-0 bg-card rounded-2xl ring-1 ring-border p-4 md:p-8 space-y-6 overflow-hidden"
+      >
         <div className="space-y-4">
           <h2 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
             Данные клиента
@@ -149,9 +154,7 @@ function NewInstallment() {
               <Label>Телефоны для связи</Label>
               <button
                 type="button"
-                onClick={() =>
-                  setPhones((arr) => [...arr, { phone: "", label: "", channels: [] }])
-                }
+                onClick={() => setPhones((arr) => [...arr, { phone: "", label: "", channels: [] }])}
                 className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline"
               >
                 <Plus className="size-3.5" /> Добавить номер
@@ -186,9 +189,7 @@ function NewInstallment() {
                   <ContactChannelToggles
                     value={row.channels}
                     onChange={(v) =>
-                      setPhones((arr) =>
-                        arr.map((p, i) => (i === idx ? { ...p, channels: v } : p)),
-                      )
+                      setPhones((arr) => arr.map((p, i) => (i === idx ? { ...p, channels: v } : p)))
                     }
                     size="sm"
                   />
@@ -210,7 +211,10 @@ function NewInstallment() {
             </p>
           </div>
           <div className="space-y-2">
-            <Label>Комментарий менеджеру <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
+            <Label>
+              Комментарий менеджеру{" "}
+              <span className="text-muted-foreground font-normal">(необязательно)</span>
+            </Label>
             <Textarea
               value={clientComment}
               onChange={(e) => setClientComment(e.target.value)}
@@ -237,7 +241,10 @@ function NewInstallment() {
         </div>
 
         <div className="space-y-2">
-          <Label>Описание товара <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
+          <Label>
+            Описание товара{" "}
+            <span className="text-muted-foreground font-normal">(необязательно)</span>
+          </Label>
           <Textarea
             value={productDescription}
             onChange={(e) => setProductDescription(e.target.value)}
@@ -262,9 +269,7 @@ function NewInstallment() {
             <Input
               type="number"
               value={downPayment || ""}
-              onChange={(e) =>
-                setDownPayment(Math.min(Number(e.target.value) || 0, productPrice))
-              }
+              onChange={(e) => setDownPayment(Math.min(Number(e.target.value) || 0, productPrice))}
               min={0}
               max={productPrice}
             />

@@ -18,7 +18,9 @@ function AppLayout() {
   const rolesFn = useServerFn(getMyRoles);
   const { data: roles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
   const isStaff = (roles ?? []).some((r) => r === "manager" || r === "admin" || r === "owner");
-  const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(
+    null,
+  );
 
   // Track navigation depth to decide slide direction
   const ROUTE_DEPTH: Record<string, number> = {
