@@ -179,7 +179,7 @@ function AuditPage() {
         </Select>
       </div>
 
-      <div className="bg-card rounded-2xl ring-1 ring-border overflow-hidden">
+      <div className="bg-card rounded-2xl ring-1 ring-border overflow-x-auto">
         {isLoading ? (
           <p className="p-8 text-sm text-muted-foreground">Загрузка...</p>
         ) : filtered.length === 0 ? (
