@@ -26,7 +26,7 @@ function InstallmentDetail() {
   const progress = schedule.length > 0 ? (paid / schedule.length) * 100 : 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8 w-full min-w-0 overflow-hidden">
       <Link
         to="/app/installments"
         className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
@@ -35,18 +35,20 @@ function InstallmentDetail() {
       </Link>
 
       <div>
-        <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">
+        <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2 break-words">
           Контракт #{contract.id.slice(0, 8)}
         </p>
-        <h1 className="text-4xl font-extrabold tracking-tight">{contract.product_name}</h1>
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight break-words">
+          {contract.product_name}
+        </h1>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-primary text-primary-foreground rounded-2xl p-6">
+      <div className="grid min-w-0 md:grid-cols-2 gap-4">
+        <div className="min-w-0 bg-primary text-primary-foreground rounded-2xl p-4 md:p-6 overflow-hidden">
           <div className="opacity-60 text-xs font-bold uppercase tracking-widest mb-2">
             Ежемесячный платёж
           </div>
-          <div className="text-4xl font-extrabold">
+          <div className="text-3xl md:text-4xl font-extrabold truncate">
             {formatMoney(Number(contract.monthly_payment))}
           </div>
           <div className="mt-6 space-y-2 text-sm">
@@ -57,7 +59,7 @@ function InstallmentDetail() {
           </div>
         </div>
 
-        <div className="bg-card rounded-2xl ring-1 ring-border p-6">
+        <div className="min-w-0 bg-card rounded-2xl ring-1 ring-border p-4 md:p-6 overflow-hidden">
           <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-4">
             Прогресс
           </div>
@@ -68,7 +70,7 @@ function InstallmentDetail() {
           <div className="h-2 bg-muted rounded-full mt-4 overflow-hidden">
             <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
           </div>
-          <div className="mt-6 text-xs font-mono uppercase tracking-wider text-muted-foreground">
+          <div className="mt-6 text-xs font-mono uppercase tracking-wider text-muted-foreground break-words">
             Начало: {formatDate(contract.start_date)} · Срок: {contract.term_months} мес
           </div>
         </div>
@@ -76,19 +78,19 @@ function InstallmentDetail() {
 
       <div>
         <h2 className="text-lg font-bold mb-4">График платежей</h2>
-        <div className="bg-card rounded-2xl ring-1 ring-border divide-y divide-border overflow-hidden">
+        <div className="min-w-0 bg-card rounded-2xl ring-1 ring-border divide-y divide-border overflow-hidden">
           {schedule.map((s) => (
-            <div key={s.id} className="flex items-center justify-between p-4 gap-4">
-              <div className="flex items-center gap-4">
+            <div key={s.id} className="flex items-center justify-between p-4 gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
                 <div className="size-9 rounded-lg bg-muted flex items-center justify-center font-mono text-xs font-bold">
                   {s.seq}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="font-semibold text-sm">{formatDate(s.due_date)}</div>
                   <div className="text-xs text-muted-foreground capitalize">{s.status}</div>
                 </div>
               </div>
-              <div className="font-bold">{formatMoney(Number(s.amount))}</div>
+              <div className="font-bold shrink-0">{formatMoney(Number(s.amount))}</div>
             </div>
           ))}
         </div>
@@ -99,9 +101,9 @@ function InstallmentDetail() {
 
 function Row({ k, v, bold }: { k: string; v: string; bold?: boolean }) {
   return (
-    <div className="flex justify-between">
-      <span className="opacity-60">{k}</span>
-      <span className={bold ? "font-bold" : "font-medium"}>{v}</span>
+    <div className="flex justify-between gap-3 min-w-0">
+      <span className="opacity-60 min-w-0 truncate">{k}</span>
+      <span className={`shrink-0 ${bold ? "font-bold" : "font-medium"}`}>{v}</span>
     </div>
   );
 }

@@ -4,13 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getMyDashboard } from "@/lib/installments.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
-import {
-  TrendingUp,
-  Calendar,
-  Wallet,
-  Clock,
-  AlertTriangle,
-} from "lucide-react";
+import { TrendingUp, Calendar, Wallet, Clock, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/")({
   head: () => ({ meta: [{ title: "Личный кабинет — NoorPay" }] }),
@@ -30,15 +24,15 @@ function Dashboard() {
   const activeContracts = data?.activeContracts ?? [];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8 w-full min-w-0 overflow-hidden">
       <div>
         <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">
           Обзор
         </p>
-        <h1 className="text-4xl font-extrabold tracking-tight">Личный кабинет</h1>
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Личный кабинет</h1>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid min-w-0 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Clock className="size-4" />}
           label="Ближайший платёж"
@@ -62,9 +56,7 @@ function Dashboard() {
           label="Активные рассрочки"
           value={String(activeCount)}
           hint={activeCount === 0 ? "Пока пусто" : "Открытые контракты"}
-          onClick={
-            activeCount > 0 ? () => router.navigate({ to: "/app/installments" }) : undefined
-          }
+          onClick={activeCount > 0 ? () => router.navigate({ to: "/app/installments" }) : undefined}
         />
         <StatCard
           icon={<Calendar className="size-4" />}
@@ -75,8 +67,8 @@ function Dashboard() {
         />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div>
+      <div className="grid min-w-0 lg:grid-cols-2 gap-6">
+        <div className="min-w-0">
           <h2 className="text-lg font-bold mb-4">Ближайшие платежи</h2>
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Загрузка...</p>
@@ -97,21 +89,19 @@ function Dashboard() {
                       : "bg-card ring-border hover:bg-muted/40"
                   }`}
                 >
-                  <div className="flex justify-between items-center gap-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4 min-w-0">
                     <div className="min-w-0">
-                      <div className="font-semibold truncate flex items-center gap-1.5">
+                      <div className="font-semibold flex items-start gap-1.5 break-words">
                         {p.overdue && (
                           <AlertTriangle className="size-3.5 text-destructive shrink-0" />
                         )}
-                        {p.productName}
+                        <span className="min-w-0 break-words">{p.productName}</span>
                       </div>
                       <div className="text-xs text-muted-foreground font-mono mt-0.5">
                         Платёж №{p.seq} · {formatDate(p.dueDate)}
                       </div>
                     </div>
-                    <div
-                      className={`font-bold ${p.overdue ? "text-destructive" : ""}`}
-                    >
+                    <div className={`font-bold shrink-0 ${p.overdue ? "text-destructive" : ""}`}>
                       {formatMoney(p.amount)}
                     </div>
                   </div>
@@ -121,7 +111,7 @@ function Dashboard() {
           )}
         </div>
 
-        <div>
+        <div className="min-w-0">
           <h2 className="text-lg font-bold mb-4">Мои рассрочки</h2>
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Загрузка...</p>
@@ -145,17 +135,15 @@ function Dashboard() {
                     params={{ id: c.id }}
                     className="block bg-card hover:bg-muted/40 rounded-xl ring-1 ring-border p-4 transition-colors"
                   >
-                    <div className="flex justify-between items-start gap-4 mb-2">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 mb-2 min-w-0">
                       <div className="min-w-0">
-                        <div className="font-semibold truncate">{c.productName}</div>
+                        <div className="font-semibold break-words">{c.productName}</div>
                         <div className="text-xs text-muted-foreground font-mono mt-0.5">
                           Оплачено {c.paid} из {c.total}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-bold text-sm">
-                          {formatMoney(c.monthlyPayment)}/мес
-                        </div>
+                      <div className="sm:text-right shrink-0">
+                        <div className="font-bold text-sm">{formatMoney(c.monthlyPayment)}/мес</div>
                       </div>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -202,25 +190,25 @@ function StatCard({
   return (
     <Tag
       onClick={onClick}
-      className={`text-left w-full rounded-2xl ring-1 p-5 transition-colors ${toneClass} ${
+      className={`text-left w-full min-w-0 rounded-2xl ring-1 p-4 md:p-5 transition-colors overflow-hidden ${toneClass} ${
         onClick ? "hover:bg-muted/40 cursor-pointer" : ""
       }`}
     >
       <div
-        className={`flex items-center gap-2 text-xs font-mono uppercase tracking-wider mb-2 ${
+        className={`flex items-center gap-2 text-xs font-mono uppercase tracking-wider mb-2 min-w-0 ${
           tone === "danger" ? "text-destructive" : "text-muted-foreground"
         }`}
       >
-        {icon} {label}
+        <span className="shrink-0">{icon}</span> <span className="min-w-0 truncate">{label}</span>
       </div>
       <div
-        className={`text-2xl font-extrabold ${
+        className={`text-2xl font-extrabold truncate ${
           tone === "danger" ? "text-destructive" : muted ? "text-muted-foreground" : ""
         }`}
       >
         {value}
       </div>
-      {hint && <div className="text-xs text-muted-foreground mt-1">{hint}</div>}
+      {hint && <div className="text-xs text-muted-foreground mt-1 break-words">{hint}</div>}
     </Tag>
   );
 }

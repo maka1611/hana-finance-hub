@@ -14,19 +14,19 @@ function InstallmentsPage() {
   const { data, isLoading } = useQuery({ queryKey: ["my-installments"], queryFn: () => fn() });
   const contracts = data ?? [];
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full min-w-0 overflow-hidden">
       <div>
         <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">
           Контракты
         </p>
-        <h1 className="text-4xl font-extrabold tracking-tight">Мои рассрочки</h1>
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Мои рассрочки</h1>
       </div>
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Загрузка...</p>
       ) : contracts.length === 0 ? (
         <p className="text-muted-foreground">Нет рассрочек</p>
       ) : (
-        <div className="bg-card rounded-2xl ring-1 ring-border divide-y divide-border overflow-hidden">
+        <div className="min-w-0 bg-card rounded-2xl ring-1 ring-border divide-y divide-border overflow-hidden">
           {contracts.map((c) => (
             <Link
               key={c.id}
@@ -34,15 +34,15 @@ function InstallmentsPage() {
               params={{ id: c.id }}
               className="block p-5 hover:bg-muted/40 transition-colors"
             >
-              <div className="flex justify-between items-start gap-4 flex-wrap">
-                <div className="min-w-0">
-                  <div className="font-bold text-lg">{c.product_name}</div>
-                  <div className="text-xs text-muted-foreground font-mono mt-1">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 min-w-0">
+                <div className="min-w-0 w-full">
+                  <div className="font-bold text-lg leading-snug break-words">{c.product_name}</div>
+                  <div className="text-xs text-muted-foreground font-mono mt-1 break-words">
                     Открыто {formatDate(c.start_date)} · {c.term_months} мес · наценка{" "}
                     {formatMoney(Number(c.markup_amount))}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="sm:text-right shrink-0">
                   <div className="font-extrabold text-lg">
                     {formatMoney(Number(c.total_sale_price))}
                   </div>

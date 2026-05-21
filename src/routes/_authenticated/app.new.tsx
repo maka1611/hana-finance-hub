@@ -41,9 +41,7 @@ function NewInstallment() {
   const [termMonths, setTermMonths] = useState<number>(search.term ?? 12);
   const [clientFullName, setClientFullName] = useState("");
   type PhoneRow = { phone: string; label: string; channels: ContactChannel[] };
-  const [phones, setPhones] = useState<PhoneRow[]>([
-    { phone: "", label: "", channels: [] },
-  ]);
+  const [phones, setPhones] = useState<PhoneRow[]>([{ phone: "", label: "", channels: [] }]);
   const [clientComment, setClientComment] = useState("");
   const [firstPaymentDate, setFirstPaymentDate] = useState<string>(() => {
     const d = new Date();
@@ -55,7 +53,9 @@ function NewInstallment() {
   // Подтягиваем ФИО/телефон из профиля
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
       const { data } = await supabase
         .from("profiles")
@@ -118,19 +118,24 @@ function NewInstallment() {
   };
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="w-full min-w-0 max-w-3xl space-y-6 md:space-y-8 overflow-hidden">
       <div>
         <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">
           Заявка
         </p>
-        <h1 className="text-4xl font-extrabold tracking-tight">Подать заявку на рассрочку</h1>
-        <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
-          Заполните заявку — менеджер проверит данные, при необходимости свяжется
-          с вами и оформит рассрочку. После одобрения договор и график появятся в личном кабинете.
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+          Подать заявку на рассрочку
+        </h1>
+        <p className="text-sm text-muted-foreground mt-2 max-w-2xl break-words">
+          Заполните заявку — менеджер проверит данные, при необходимости свяжется с вами и оформит
+          рассрочку. После одобрения договор и график появятся в личном кабинете.
         </p>
       </div>
 
-      <form onSubmit={submit} className="bg-card rounded-2xl ring-1 ring-border p-6 md:p-8 space-y-6">
+      <form
+        onSubmit={submit}
+        className="min-w-0 bg-card rounded-2xl ring-1 ring-border p-4 md:p-8 space-y-6 overflow-hidden"
+      >
         <div className="space-y-4">
           <h2 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
             Данные клиента
@@ -149,9 +154,7 @@ function NewInstallment() {
               <Label>Телефоны для связи</Label>
               <button
                 type="button"
-                onClick={() =>
-                  setPhones((arr) => [...arr, { phone: "", label: "", channels: [] }])
-                }
+                onClick={() => setPhones((arr) => [...arr, { phone: "", label: "", channels: [] }])}
                 className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline"
               >
                 <Plus className="size-3.5" /> Добавить номер
@@ -159,7 +162,7 @@ function NewInstallment() {
             </div>
             {phones.map((row, idx) => (
               <div key={idx} className="bg-muted/30 rounded-xl p-3 space-y-2 ring-1 ring-border">
-                <div className="grid grid-cols-[1fr_180px] gap-2">
+                <div className="grid min-w-0 sm:grid-cols-[minmax(0,1fr)_180px] gap-2">
                   <Input
                     value={row.phone}
                     onChange={(e) =>
@@ -182,13 +185,11 @@ function NewInstallment() {
                     maxLength={50}
                   />
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
                   <ContactChannelToggles
                     value={row.channels}
                     onChange={(v) =>
-                      setPhones((arr) =>
-                        arr.map((p, i) => (i === idx ? { ...p, channels: v } : p)),
-                      )
+                      setPhones((arr) => arr.map((p, i) => (i === idx ? { ...p, channels: v } : p)))
                     }
                     size="sm"
                   />
@@ -210,7 +211,10 @@ function NewInstallment() {
             </p>
           </div>
           <div className="space-y-2">
-            <Label>Комментарий менеджеру <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
+            <Label>
+              Комментарий менеджеру{" "}
+              <span className="text-muted-foreground font-normal">(необязательно)</span>
+            </Label>
             <Textarea
               value={clientComment}
               onChange={(e) => setClientComment(e.target.value)}
@@ -237,7 +241,10 @@ function NewInstallment() {
         </div>
 
         <div className="space-y-2">
-          <Label>Описание товара <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
+          <Label>
+            Описание товара{" "}
+            <span className="text-muted-foreground font-normal">(необязательно)</span>
+          </Label>
           <Textarea
             value={productDescription}
             onChange={(e) => setProductDescription(e.target.value)}
@@ -262,9 +269,7 @@ function NewInstallment() {
             <Input
               type="number"
               value={downPayment || ""}
-              onChange={(e) =>
-                setDownPayment(Math.min(Number(e.target.value) || 0, productPrice))
-              }
+              onChange={(e) => setDownPayment(Math.min(Number(e.target.value) || 0, productPrice))}
               min={0}
               max={productPrice}
             />
@@ -296,7 +301,7 @@ function NewInstallment() {
           </div>
         </div>
 
-        <div className="bg-muted/40 rounded-xl p-5 space-y-2 text-sm">
+        <div className="min-w-0 bg-muted/40 rounded-xl p-4 md:p-5 space-y-2 text-sm overflow-hidden">
           <Row k="Остаток" v={formatMoney(calc.principal)} />
           <Row k="Наценка за рассрочку (предв.)" v={formatMoney(calc.markupAmount)} />
           <Row k="Ежемесячный платёж (предв.)" v={formatMoney(calc.monthlyPayment)} bold />
@@ -316,9 +321,9 @@ function NewInstallment() {
 
 function Row({ k, v, bold }: { k: string; v: string; bold?: boolean }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{k}</span>
-      <span className={bold ? "font-bold" : "font-medium"}>{v}</span>
+    <div className="flex justify-between gap-3 min-w-0">
+      <span className="text-muted-foreground min-w-0 truncate">{k}</span>
+      <span className={`shrink-0 ${bold ? "font-bold" : "font-medium"}`}>{v}</span>
     </div>
   );
 }

@@ -18,7 +18,9 @@ function AppLayout() {
   const rolesFn = useServerFn(getMyRoles);
   const { data: roles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
   const isStaff = (roles ?? []).some((r) => r === "manager" || r === "admin" || r === "owner");
-  const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(
+    null,
+  );
 
   // Track navigation depth to decide slide direction
   const ROUTE_DEPTH: Record<string, number> = {
@@ -91,7 +93,7 @@ function AppLayout() {
               </div>
             </div>
           </header>
-          <main className="min-w-0 flex-1 px-4 md:px-8 py-6 md:py-10 px-safe pb-safe overflow-x-hidden">
+          <main className="min-w-0 max-w-full flex-1 px-4 md:px-8 py-6 md:py-10 px-safe pb-safe overflow-x-hidden">
             <AnimatePresence mode="wait" initial={false} custom={direction}>
               <motion.div
                 key={location.pathname}
@@ -100,7 +102,7 @@ function AppLayout() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: direction * -24 }}
                 transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-                className="page-transition max-w-7xl mx-auto"
+                className="page-transition w-full min-w-0 max-w-7xl mx-auto overflow-hidden"
               >
                 <Outlet />
               </motion.div>
