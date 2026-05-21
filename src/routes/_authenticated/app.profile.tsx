@@ -42,6 +42,32 @@ function ProfilePage() {
   const [phone, setPhone] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newPhoneLabel, setNewPhoneLabel] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPwd, setChangingPwd] = useState(false);
+
+  const changePassword = async () => {
+    if (newPassword.length < 8) {
+      toast.error("Пароль должен быть не короче 8 символов");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Пароли не совпадают");
+      return;
+    }
+    setChangingPwd(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success("Пароль обновлён");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setChangingPwd(false);
+    }
+  };
 
   useEffect(() => {
     if (data?.profile) {
