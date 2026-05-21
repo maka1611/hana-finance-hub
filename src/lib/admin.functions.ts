@@ -1745,3 +1745,121 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
 function formatRu(n: number): string {
   return new Intl.NumberFormat("ru-RU").format(n);
 }
+
+// === Доступ клиента: начальный пароль и сброс ===
+
+function generatePassword(): string {
+  return (
+    Math.random().toString(36).slice(2, 10) +
+    Math.random().toString(36).slice(2, 6).toUpperCase() +
+    "!"
+  );
+}
+
+export const adminGetClientSecret = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { data: row } = await supabaseAdmin
+      .from("client_secrets")
+      .select("initial_password,updated_at")
+      .eq("user_id", data.userId)
+      .maybeSingle();
+    return {
+      password: (row as { initial_password?: string } | null)?.initial_password ?? null,
+      updatedAt: (row as { updated_at?: string } | null)?.updated_at ?? null,
+    };
+  });
+
+export const adminResetClientPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const newPassword = generatePassword();
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      password: newPassword,
+    });
+    if (error) throw new Error(error.message);
+    await supabaseAdmin
+      .from("client_secrets")
+      .upsert({ user_id: data.userId, initial_password: newPassword } as never);
+    await logAction({
+      actorId: context.userId,
+      action: "client.password_reset",
+      entityType: "client",
+      entityId: data.userId,
+      summary: "Сброшен пароль клиента",
+    });
+    return { password: newPassword };
+  });
+
+// === Поручители ===
+
+export const adminListGuarantors = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ contractId: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { data: guarantors, error } = await supabaseAdmin
+      .from("contract_guarantors")
+      .select("id,full_name,comment,created_at")
+      .eq("contract_id", data.contractId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    const ids = (guarantors ?? []).map((g) => (g as { id: string }).id);
+    if (ids.length === 0) return [] as Array<{
+      id: string;
+      full_name: string;
+      comment: string | null;
+      phones: Array<{ id: string; phone: string; label: string | null; channels: string[] }>;
+      emails: Array<{ id: string; email: string; label: string | null }>;
+    }>;
+    const [{ data: phones }, { data: emails }] = await Promise.all([
+      supabaseAdmin
+        .from("guarantor_phones")
+        .select("id,guarantor_id,phone,label,channels")
+        .in("guarantor_id", ids),
+      supabaseAdmin
+        .from("guarantor_emails")
+        .select("id,guarantor_id,email,label")
+        .in("guarantor_id", ids),
+    ]);
+    return (guarantors ?? []).map((g) => {
+      const row = g as { id: string; full_name: string; comment: string | null };
+      return {
+        id: row.id,
+        full_name: row.full_name,
+        comment: row.comment,
+        phones: (phones ?? [])
+          .filter((p) => (p as { guarantor_id: string }).guarantor_id === row.id)
+          .map((p) => ({
+            id: (p as { id: string }).id,
+            phone: (p as { phone: string }).phone,
+            label: (p as { label: string | null }).label,
+            channels: ((p as { channels?: string[] }).channels ?? []) as string[],
+          })),
+        emails: (emails ?? [])
+          .filter((e) => (e as { guarantor_id: string }).guarantor_id === row.id)
+          .map((e) => ({
+            id: (e as { id: string }).id,
+            email: (e as { email: string }).email,
+            label: (e as { label: string | null }).label,
+          })),
+      };
+    });
+  });
+
+export const adminDeleteGuarantor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { error } = await supabaseAdmin
+      .from("contract_guarantors")
+      .delete()
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
