@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatMoney, formatDate } from "@/lib/installment";
+import { formatMoney } from "@/lib/installment";
 import { toast } from "sonner";
 import {
   Phone,
@@ -320,59 +320,6 @@ function ProfilePage() {
         </Button>
       </div>
 
-      {/* Заявки */}
-      <div className="min-w-0 bg-card rounded-2xl ring-1 ring-border p-4 md:p-6 space-y-4 overflow-hidden">
-        <h2 className="font-bold">Мои заявки</h2>
-        {data.applications.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Заявок нет</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {data.applications.map((a) => (
-              <li
-                key={a.id}
-                className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 min-w-0"
-              >
-                <div className="min-w-0 w-full">
-                  <div className="font-medium break-words">{a.product_name}</div>
-                  <div className="text-xs text-muted-foreground font-mono break-words">
-                    {formatDate(a.created_at)} · {formatMoney(Number(a.product_price))} ·{" "}
-                    {a.term_months} мес
-                  </div>
-                </div>
-                <AppStatusBadge status={a.status} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* Рассрочки */}
-      <div className="min-w-0 bg-card rounded-2xl ring-1 ring-border p-4 md:p-6 space-y-4 overflow-hidden">
-        <h2 className="font-bold">Мои рассрочки</h2>
-        {data.contracts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Пока нет</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {data.contracts.map((c) => (
-              <li
-                key={c.id}
-                className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 min-w-0"
-              >
-                <div className="min-w-0 w-full">
-                  <div className="font-medium break-words">{c.product_name}</div>
-                  <div className="text-xs text-muted-foreground font-mono break-words">
-                    {formatDate(c.start_date)} · {c.term_months} мес ·{" "}
-                    {formatMoney(Number(c.monthly_payment))}/мес
-                  </div>
-                </div>
-                <div className="text-sm font-bold shrink-0">
-                  {formatMoney(Number(c.total_sale_price))}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
     </div>
   );
 }
@@ -403,18 +350,3 @@ function StatBox({
   );
 }
 
-function AppStatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    pending: { label: "На рассмотрении", cls: "bg-amber-400/15 text-amber-700" },
-    approved: { label: "Одобрена", cls: "bg-primary/15 text-primary" },
-    rejected: { label: "Отклонена", cls: "bg-destructive/10 text-destructive" },
-  };
-  const v = map[status] ?? { label: status, cls: "bg-muted" };
-  return (
-    <span
-      className={`w-fit max-w-full text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${v.cls}`}
-    >
-      {v.label}
-    </span>
-  );
-}
