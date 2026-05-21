@@ -37,7 +37,7 @@ function Index() {
   };
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md pt-safe">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <Link to="/" className="font-extrabold text-xl tracking-tighter uppercase">
