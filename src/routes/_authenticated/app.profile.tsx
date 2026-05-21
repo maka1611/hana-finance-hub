@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { toast } from "sonner";
 import { Phone, Plus, Trash2, Star, Mail, User, CheckCircle2, AlertTriangle, Clock, Award } from "lucide-react";
+import { Lock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/app/profile")({
   head: () => ({ meta: [{ title: "Профиль — NoorPay" }] }),
@@ -22,10 +24,10 @@ export const Route = createFileRoute("/_authenticated/app/profile")({
 
 const tierLabels: Record<string, { label: string; cls: string }> = {
   new: { label: "Новый клиент", cls: "bg-muted text-muted-foreground" },
-  bronze: { label: "Bronze", cls: "bg-amber-700/15 text-amber-700" },
-  silver: { label: "Silver", cls: "bg-slate-400/20 text-slate-500" },
-  gold: { label: "Gold", cls: "bg-amber-400/15 text-amber-600" },
-  platinum: { label: "Platinum", cls: "bg-primary/15 text-primary" },
+  bronze: { label: "Бронза", cls: "bg-amber-700/15 text-amber-700" },
+  silver: { label: "Серебро", cls: "bg-slate-400/20 text-slate-500" },
+  gold: { label: "Золото", cls: "bg-amber-400/15 text-amber-600" },
+  platinum: { label: "Платина", cls: "bg-primary/15 text-primary" },
 };
 
 function ProfilePage() {
