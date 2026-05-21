@@ -200,25 +200,25 @@ function StatCard({
   return (
     <Tag
       onClick={onClick}
-      className={`text-left w-full rounded-2xl ring-1 p-5 transition-colors ${toneClass} ${
+      className={`text-left w-full min-w-0 rounded-2xl ring-1 p-4 md:p-5 transition-colors overflow-hidden ${toneClass} ${
         onClick ? "hover:bg-muted/40 cursor-pointer" : ""
       }`}
     >
       <div
-        className={`flex items-center gap-2 text-xs font-mono uppercase tracking-wider mb-2 ${
+        className={`flex items-center gap-2 text-xs font-mono uppercase tracking-wider mb-2 min-w-0 ${
           tone === "danger" ? "text-destructive" : "text-muted-foreground"
         }`}
       >
-        {icon} {label}
+        <span className="shrink-0">{icon}</span> <span className="min-w-0 truncate">{label}</span>
       </div>
       <div
-        className={`text-2xl font-extrabold ${
+        className={`text-2xl font-extrabold truncate ${
           tone === "danger" ? "text-destructive" : muted ? "text-muted-foreground" : ""
         }`}
       >
         {value}
       </div>
-      {hint && <div className="text-xs text-muted-foreground mt-1">{hint}</div>}
+      {hint && <div className="text-xs text-muted-foreground mt-1 break-words">{hint}</div>}
     </Tag>
   );
 }
