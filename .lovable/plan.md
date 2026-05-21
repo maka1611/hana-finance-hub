@@ -1,64 +1,65 @@
-## Цель
+## Что делаем
 
-Сделать так, чтобы NoorPay можно было добавить на главный экран iPhone (и Android) одной иконкой и пользоваться им как настоящим приложением: полноэкранный режим без адресной строки, нативные жесты, плавные slide-переходы между экранами, безопасные зоны под «чёлку».
+Перестраиваем клиентский раздел `/app` по образцу админки: слева — боковая панель навигации, сверху — компактный хедер с триггером, в обзоре — карточки с актуальной для клиента информацией (без баланса).
 
-Без service worker и офлайн-режима — это даёт стабильность, отсутствие проблем с залипанием кеша и корректное обновление после публикации.
+## Боковая панель (`src/components/client/ClientSidebar.tsx`)
 
-## Что будет сделано
+Аналог `AdminSidebar`, но для клиента:
+- **Зелёный CTA сверху** «Подать заявку» (`/app/new`) — тот же стиль `bg-emerald-800 ... rounded-xl`, что и в админке
+- Группа **«Кабинет»**:
+  - Обзор (`/app`)
+  - Мои рассрочки (`/app/installments`)
+  - Профиль (`/app/profile`)
+- Внизу: для staff — ссылка «В админку»; кнопка «Выйти»
+- `collapsible="offcanvas"` — на телефоне панель полностью прячется и открывается по кнопке-гамбургеру в шапке
 
-### 1. Иконка приложения NoorPay
-- Сгенерировать иконку в стиле проекта (тёмно-зелёная палитра, символика, читаемая в маленьком размере).
-- Три размера: `icon-192.png`, `icon-512.png` (maskable), `apple-touch-icon-180.png`.
-- Сохранить в `public/` чтобы пути были стабильными.
+## Layout `src/routes/_authenticated/app.tsx`
 
-### 2. Web App Manifest
-- Создать `public/manifest.webmanifest` с полями: `name`, `short_name: "NoorPay"`, `start_url: "/app"` (чтобы открывалось сразу в личном кабинете), `scope: "/"`, `display: "standalone"`, `orientation: "portrait"`, `theme_color`, `background_color`, массив иконок.
+- Убираем текущий верхний навбар со вкладками
+- Оборачиваем в `SidebarProvider` + `<ClientSidebar />` + правую колонку с `header` (логотип NoorPay, `SidebarTrigger`, аватар/имя справа) и `main` с `<Outlet />`
+- Сохраняем существующую анимацию переходов между страницами (framer-motion) и safe-area paddings (`pt-safe`/`pb-safe`/`px-safe`)
+- Запрос профиля и ролей переезжает в layout как сейчас
 
-### 3. Мета-теги для iOS и Android
-В `src/routes/__root.tsx` в `head().meta` и `head().links` добавить:
-- `viewport` с `viewport-fit=cover` (под safe-area).
-- `apple-mobile-web-app-capable: yes`, `apple-mobile-web-app-status-bar-style: black-translucent`, `apple-mobile-web-app-title: NoorPay`.
-- `theme-color` (для адресной строки Android Chrome).
-- `<link rel="manifest">`, `<link rel="apple-touch-icon">`, `<link rel="icon">`.
+## Новый обзор `src/routes/_authenticated/app.index.tsx`
 
-### 4. Safe-area под iPhone (чёлка / Dynamic Island)
-- В `src/styles.css` добавить утилиты `pt-safe`, `pb-safe`, `px-safe` через `env(safe-area-inset-*)`.
-- Применить к шапке (`AuthTopBar`) и нижним фиксированным элементам.
+Карточек **4** (по выбору пользователя):
 
-### 5. Slide-переходы между экранами
-- Использовать уже установленный framer-motion (он используется в проекте). Если нет — добавить `bun add framer-motion`.
-- В layout `src/routes/_authenticated/app.tsx` обернуть `<Outlet />` в `AnimatePresence` с `motion.div`, который делает slide по X (вперёд/назад) и fade.
-- Длительность 250мс, easing `[0.32, 0.72, 0, 1]` (iOS-like).
-- Учитывать `prefers-reduced-motion` — отключать анимацию при включённой настройке.
+1. **Ближайший платёж** — сумма и дата ближайшего `pending` платежа из `payment_schedules` по активным контрактам клиента; кнопка «Все платежи» → `/app/installments`
+2. **Остаток к выплате** — сумма всех `pending` платежей (это реальный непогашенный долг, а не сумма контракта)
+3. **Активные рассрочки** — число контрактов со статусом `active`
+4. **Заявки на рассмотрении** — число `installment_applications` со статусом `pending` (если 0 — карточка тоже отображается, но приглушённо)
 
-### 6. Мобильная полировка (без смены навигации)
-- Все `<input>` получают `font-size: 16px` минимум, чтобы iOS Safari не зумился при фокусе.
-- `-webkit-tap-highlight-color: transparent` на интерактивных элементах.
-- `touch-action: manipulation` на кнопках (убирает 300мс задержку и double-tap zoom).
-- `overscroll-behavior-y: contain` на скроллящихся контейнерах (отключает «bounce» страницы за пределы контента).
-- Минимальный тач-таргет 44×44px на иконках и иконочных кнопках.
+Ниже:
+- **Список ближайших 3–5 платежей** (продукт, дата, сумма, статус — overdue выделять красным)
+- **Активные контракты** с мини-прогрессом (оплачено N из M) — клик ведёт в `/app/installments/$id`
 
-### 7. Проверка
-- Открыть превью на iPhone-вьюпорте (375×812), убедиться, что safe-area работает.
-- Проверить slide-анимацию переходов между `/app`, `/app/installments`, `/app/profile`.
-- На опубликованном сайте: Safari → Поделиться → На экран «Домой» → запустить иконку → убедиться, что открывается без адресной строки и сразу в `/app`.
+## Серверные функции (`src/lib/installments.functions.ts`)
 
-## Технические детали (для разработчика)
+Добавляем одну новую функцию (чтобы не тянуть весь массив контрактов и не считать всё на клиенте):
 
-**Файлы, которые будут затронуты:**
-- Новые: `public/manifest.webmanifest`, `public/icon-192.png`, `public/icon-512.png`, `public/apple-touch-icon.png`
-- Изменены: `src/routes/__root.tsx` (мета и links), `src/routes/_authenticated/app.tsx` (AnimatePresence), `src/styles.css` (safe-area утилиты, тач-полировка), `src/components/AuthTopBar.tsx` (pt-safe)
+```ts
+export const getMyDashboard = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    // Возвращает:
+    // - upcomingPayments: ближайшие pending платежи с product_name
+    // - totalRemaining: сумма всех pending платежей по контрактам клиента
+    // - activeCount: число активных контрактов
+    // - pendingApplicationsCount: число заявок в статусе pending
+    // - activeContracts: активные контракты + paid/total seq для прогресса
+  });
+```
 
-**Направление slide** определяется через сравнение текущего и предыдущего pathname (хранится в `useRef`): вглубь — slide справа, назад — слева.
+Под капотом: один select из `payment_schedules` с join'ом `installment_contracts` (фильтр `client_id = userId`), отдельный count из `installment_applications`. Всё через middleware-supabase (RLS уже корректные).
 
-**start_url = `/app`** означает, что иконка с домашнего экрана сразу ведёт в личный кабинет. Если сессия истекла, сработает уже существующий редирект на `/login` из `_authenticated.tsx`.
+## Технические детали
 
-**Что НЕ делаем:**
-- Не добавляем `vite-plugin-pwa` и service worker — это ломает превью Lovable и кеширует устаревший баланс/платежи.
-- Не трогаем backend и server-функции — изменения чисто фронтенд/презентационные.
-- Не меняем существующую навигацию и хедер.
+- Файлы: новый `src/components/client/ClientSidebar.tsx`, переписанный `src/routes/_authenticated/app.tsx`, переписанный `src/routes/_authenticated/app.index.tsx`, добавление `getMyDashboard` в `src/lib/installments.functions.ts`
+- На мобильном `SidebarProvider` использует `Sheet` (offcanvas) — уже исправлен с учётом safe-area
+- Активный раздел подсвечивается через `useRouterState` + `isActive`, как в `AdminSidebar`
+- Никаких изменений схемы БД и RLS не требуется
 
-## Ограничения, о которых стоит знать
-- Push-уведомления на iOS работают только если PWA установлена на главный экран (iOS 16.4+) и требуют отдельной реализации — в этот план не входят.
-- При первом запуске после установки iOS показывает белый сплеш-экран по `background_color` из манифеста — это нормально, длится <1сек.
-- Анимации переходов и установка работают одинаково в Safari и Chrome на iOS (на iOS все браузеры используют WebKit).
+## Что не трогаем
+
+- `/app/new`, `/app/installments`, `/app/installments/$id`, `/app/profile` — содержимое остаётся прежним
+- Админка не меняется
