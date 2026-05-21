@@ -86,6 +86,123 @@ export type Database = {
         }
         Relationships: []
       }
+      client_secrets: {
+        Row: {
+          initial_password: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          initial_password: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          initial_password?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      contract_guarantors: {
+        Row: {
+          comment: string | null
+          contract_id: string
+          created_at: string
+          full_name: string
+          id: string
+        }
+        Insert: {
+          comment?: string | null
+          contract_id: string
+          created_at?: string
+          full_name: string
+          id?: string
+        }
+        Update: {
+          comment?: string | null
+          contract_id?: string
+          created_at?: string
+          full_name?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_guarantors_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "installment_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guarantor_emails: {
+        Row: {
+          created_at: string
+          email: string
+          guarantor_id: string
+          id: string
+          label: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          guarantor_id: string
+          id?: string
+          label?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          guarantor_id?: string
+          id?: string
+          label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guarantor_emails_guarantor_id_fkey"
+            columns: ["guarantor_id"]
+            isOneToOne: false
+            referencedRelation: "contract_guarantors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guarantor_phones: {
+        Row: {
+          channels: string[]
+          created_at: string
+          guarantor_id: string
+          id: string
+          label: string | null
+          phone: string
+        }
+        Insert: {
+          channels?: string[]
+          created_at?: string
+          guarantor_id: string
+          id?: string
+          label?: string | null
+          phone: string
+        }
+        Update: {
+          channels?: string[]
+          created_at?: string
+          guarantor_id?: string
+          id?: string
+          label?: string | null
+          phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guarantor_phones_guarantor_id_fkey"
+            columns: ["guarantor_id"]
+            isOneToOne: false
+            referencedRelation: "contract_guarantors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       installment_applications: {
         Row: {
           admin_note: string | null
