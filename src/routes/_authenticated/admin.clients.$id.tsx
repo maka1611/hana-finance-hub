@@ -14,6 +14,10 @@ import {
   adminGetClientSecret,
   adminResetClientPassword,
 } from "@/lib/admin.functions";
+import {
+  getEffectiveMarkupRateForUser,
+  adminSetUserMarkupRate,
+} from "@/lib/pricing.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +26,7 @@ import { formatMoney, formatDate } from "@/lib/installment";
 import { toast } from "sonner";
 import {
   ArrowLeft, Mail, Phone, Plus, Trash2, Star, Award,
-  CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink, X, KeyRound, Eye, EyeOff, Copy, RefreshCw,
+  CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink, X, KeyRound, Eye, EyeOff, Copy, RefreshCw, Percent,
 } from "lucide-react";
 import { ContactChannelToggles, roleLabelRu, type ContactChannel } from "@/components/admin/ContactChannels";
 
