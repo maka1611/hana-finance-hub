@@ -1,8 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, type FormEvent } from "react";
 import { calcInstallment, formatMoney, MAX_TERM } from "@/lib/installment";
 import { submitApplication } from "@/lib/applications.functions";
+import { getEffectiveMarkupRate } from "@/lib/pricing.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +35,12 @@ function NewInstallment() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const fn = useServerFn(submitApplication);
+  const rateFn = useServerFn(getEffectiveMarkupRate);
+  const { data: rateInfo } = useQuery({
+    queryKey: ["my-effective-markup-rate"],
+    queryFn: () => rateFn(),
+    staleTime: 60_000,
+  });
 
   const [productName, setProductName] = useState("");
   const [productDescription, setProductDescription] = useState("");
@@ -74,8 +82,14 @@ function NewInstallment() {
   }, []);
 
   const calc = useMemo(
-    () => calcInstallment({ productPrice, downPayment, termMonths }),
-    [productPrice, downPayment, termMonths],
+    () =>
+      calcInstallment({
+        productPrice,
+        downPayment,
+        termMonths,
+        markupRate: rateInfo?.rate,
+      }),
+    [productPrice, downPayment, termMonths, rateInfo?.rate],
   );
 
   const submit = async (e: FormEvent) => {
