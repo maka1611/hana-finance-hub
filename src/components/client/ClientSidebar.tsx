@@ -19,11 +19,13 @@ import {
   FilePlus2,
   ShieldCheck,
   LogOut,
+  Calculator as CalculatorIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const items = [
   { title: "Обзор", url: "/app", icon: LayoutDashboard, exact: true },
+  { title: "Калькулятор", url: "/app/calculator", icon: CalculatorIcon, exact: false },
   { title: "Мои рассрочки", url: "/app/installments", icon: List, exact: false },
   { title: "Профиль", url: "/app/profile", icon: User, exact: false },
 ];

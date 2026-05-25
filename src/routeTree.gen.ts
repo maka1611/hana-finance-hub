@@ -20,6 +20,7 @@ import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppNewRouteImport } from './routes/_authenticated/app.new'
+import { Route as AuthenticatedAppCalculatorRouteImport } from './routes/_authenticated/app.calculator'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin.payments'
 import { Route as AuthenticatedAdminClientsRouteImport } from './routes/_authenticated/admin.clients'
@@ -92,6 +93,12 @@ const AuthenticatedAppNewRoute = AuthenticatedAppNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppCalculatorRoute =
+  AuthenticatedAppCalculatorRouteImport.update({
+    id: '/calculator',
+    path: '/calculator',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -205,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/app/calculator': typeof AuthenticatedAppCalculatorRoute
   '/app/new': typeof AuthenticatedAppNewRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -231,6 +239,7 @@ export interface FileRoutesByTo {
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/app/calculator': typeof AuthenticatedAppCalculatorRoute
   '/app/new': typeof AuthenticatedAppNewRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -262,6 +271,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
   '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/_authenticated/app/calculator': typeof AuthenticatedAppCalculatorRoute
   '/_authenticated/app/new': typeof AuthenticatedAppNewRoute
   '/_authenticated/app/profile': typeof AuthenticatedAppProfileRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
     | '/admin/clients'
     | '/admin/payments'
     | '/admin/users'
+    | '/app/calculator'
     | '/app/new'
     | '/app/profile'
     | '/admin/'
@@ -319,6 +330,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/payments'
     | '/admin/users'
+    | '/app/calculator'
     | '/app/new'
     | '/app/profile'
     | '/admin'
@@ -349,6 +361,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/clients'
     | '/_authenticated/admin/payments'
     | '/_authenticated/admin/users'
+    | '/_authenticated/app/calculator'
     | '/_authenticated/app/new'
     | '/_authenticated/app/profile'
     | '/_authenticated/admin/'
@@ -452,6 +465,13 @@ declare module '@tanstack/react-router' {
       path: '/new'
       fullPath: '/app/new'
       preLoaderRoute: typeof AuthenticatedAppNewRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/calculator': {
+      id: '/_authenticated/app/calculator'
+      path: '/calculator'
+      fullPath: '/app/calculator'
+      preLoaderRoute: typeof AuthenticatedAppCalculatorRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/admin/users': {
@@ -632,6 +652,7 @@ const AuthenticatedAdminRouteWithChildren =
   AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppCalculatorRoute: typeof AuthenticatedAppCalculatorRoute
   AuthenticatedAppNewRoute: typeof AuthenticatedAppNewRoute
   AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
@@ -640,6 +661,7 @@ interface AuthenticatedAppRouteChildren {
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppCalculatorRoute: AuthenticatedAppCalculatorRoute,
   AuthenticatedAppNewRoute: AuthenticatedAppNewRoute,
   AuthenticatedAppProfileRoute: AuthenticatedAppProfileRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
