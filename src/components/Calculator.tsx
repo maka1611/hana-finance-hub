@@ -169,7 +169,7 @@ export function Calculator({ onSubmit, compact }: CalculatorProps) {
             onClick={handleSubmit}
             className="w-full bg-white text-primary hover:bg-white/90 font-bold py-6 rounded-xl text-base"
           >
-            Оформить рассрочку
+            Подать заявку
           </Button>
         </div>
       </div>
