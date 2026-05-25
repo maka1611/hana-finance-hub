@@ -265,6 +265,298 @@ function AdminApplicationDetail() {
           <Textarea value={adminNote} onChange={(e) => setAdminNote(e.target.value)} rows={2} placeholder="Причина решения, договорённости..." />
         </div>
 
+        {isPending && (
+          <>
+            <div className="space-y-3">
+              <div className="flex justify-between items-end">
+                <Label>Наценка в месяц</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min={0}
+                    max={100}
+                    value={markupPct}
+                    onChange={(e) => setMarkupPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                    className="w-24 text-right font-mono"
+                  />
+                  <span className="text-sm font-mono text-muted-foreground">% / мес</span>
+                </div>
+              </div>
+              <Slider min={0} max={15} step={0.1} value={[markupPct]} onValueChange={(v) => setMarkupPct(+v[0].toFixed(2))} />
+              <p className="text-[11px] text-muted-foreground">
+                По умолчанию: {(DEFAULT_MARKUP_RATE * 100).toFixed(1)}%. Итоговая наценка = % × срок.
+              </p>
+            </div>
+
+            <div className="h-px bg-border" />
+
+            <div className="space-y-3">
+              <h3 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                Инвестор <span className="font-normal normal-case tracking-normal text-[11px]">(необязательно)</span>
+              </h3>
+              {(investors ?? []).length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">Список инвесторов пуст.</p>
+              ) : (
+                <>
+                  <select
+                    value={investorId ?? ""}
+                    onChange={(e) => setInvestorId(e.target.value || null)}
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="">— Без инвестора (собственные средства) —</option>
+                    {(investors ?? []).map((inv) => (
+                      <option key={inv.id} value={inv.id}>
+                        {inv.full_name} · свободно {formatMoney(inv.free)} · доля {(Number(inv.profit_share_rate) * 100).toFixed(0)}%
+                      </option>
+                    ))}
+                  </select>
+                  {investorId && (() => {
+                    const inv = (investors ?? []).find((x) => x.id === investorId);
+                    if (!inv) return null;
+                    const afterPlacement = inv.free - calc.principal;
+                    const investorProfit = calc.markupAmount * Number(inv.profit_share_rate);
+                    const ourProfit = calc.markupAmount - investorProfit;
+                    return (
+                      <div className="rounded-xl bg-muted/30 ring-1 ring-border p-3 grid sm:grid-cols-3 gap-3 text-xs">
+                        <div>
+                          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">У инвестора останется</div>
+                          <div className={`font-extrabold text-sm ${afterPlacement < 0 ? "text-destructive" : ""}`}>
+                            {formatMoney(afterPlacement)}
+                          </div>
+                          {afterPlacement < 0 && (
+                            <div className="text-[10px] text-destructive">Превышает свободные средства</div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Прибыль инвестора</div>
+                          <div className="font-extrabold text-sm">{formatMoney(investorProfit)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Наша прибыль</div>
+                          <div className="font-extrabold text-sm">{formatMoney(ourProfit)}</div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
+
+            <div className="h-px bg-border" />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                  Поручители <span className="font-normal normal-case tracking-normal text-[11px]">(необязательно)</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setGuarantors((arr) => [...arr, emptyGuarantor()])}
+                  className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline"
+                >
+                  <Plus className="size-3.5" /> Добавить поручителя
+                </button>
+              </div>
+              {guarantors.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  Можно добавить нескольких поручителей с ФИО, телефонами, email и комментарием.
+                </p>
+              )}
+              {guarantors.map((g, gi) => (
+                <div key={gi} className="rounded-xl ring-1 ring-border bg-muted/20 p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
+                      Поручитель {gi + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setGuarantors((arr) => arr.filter((_, i) => i !== gi))}
+                      className="text-xs text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
+                    >
+                      <Trash2 className="size-3.5" /> Удалить
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">ФИО</Label>
+                    <Input
+                      value={g.fullName}
+                      onChange={(e) =>
+                        setGuarantors((arr) => arr.map((x, i) => (i === gi ? { ...x, fullName: e.target.value } : x)))
+                      }
+                      placeholder="Иванов Иван Иванович"
+                      maxLength={200}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Телефоны</Label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setGuarantors((arr) =>
+                            arr.map((x, i) =>
+                              i === gi
+                                ? { ...x, phones: [...x.phones, { phone: "", label: "", channels: ["phone"] as ContactChannel[] }] }
+                                : x,
+                            ),
+                          )
+                        }
+                        className="text-[11px] font-semibold text-primary inline-flex items-center gap-1 hover:underline"
+                      >
+                        <Plus className="size-3" /> Добавить номер
+                      </button>
+                    </div>
+                    {g.phones.map((p, pi) => (
+                      <div key={pi} className="bg-card rounded-lg p-3 space-y-2 ring-1 ring-border">
+                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px] gap-2">
+                          <Input
+                            value={p.phone}
+                            onChange={(e) =>
+                              setGuarantors((arr) =>
+                                arr.map((x, i) =>
+                                  i === gi
+                                    ? { ...x, phones: x.phones.map((y, j) => (j === pi ? { ...y, phone: e.target.value } : y)) }
+                                    : x,
+                                ),
+                              )
+                            }
+                            placeholder="+7 ..."
+                            inputMode="tel"
+                          />
+                          <Input
+                            value={p.label}
+                            onChange={(e) =>
+                              setGuarantors((arr) =>
+                                arr.map((x, i) =>
+                                  i === gi
+                                    ? { ...x, phones: x.phones.map((y, j) => (j === pi ? { ...y, label: e.target.value } : y)) }
+                                    : x,
+                                ),
+                              )
+                            }
+                            placeholder={autoLabelFromChannels(p.channels)}
+                            maxLength={50}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <ContactChannelToggles
+                            value={p.channels}
+                            onChange={(v) =>
+                              setGuarantors((arr) =>
+                                arr.map((x, i) =>
+                                  i === gi
+                                    ? { ...x, phones: x.phones.map((y, j) => (j === pi ? { ...y, channels: v } : y)) }
+                                    : x,
+                                ),
+                              )
+                            }
+                            size="sm"
+                          />
+                          {g.phones.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setGuarantors((arr) =>
+                                  arr.map((x, i) =>
+                                    i === gi ? { ...x, phones: x.phones.filter((_, j) => j !== pi) } : x,
+                                  ),
+                                )
+                              }
+                              className="text-[11px] text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
+                            >
+                              <Trash2 className="size-3" /> Удалить
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Email</Label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setGuarantors((arr) =>
+                            arr.map((x, i) => (i === gi ? { ...x, emails: [...x.emails, { email: "", label: "" }] } : x)),
+                          )
+                        }
+                        className="text-[11px] font-semibold text-primary inline-flex items-center gap-1 hover:underline"
+                      >
+                        <Plus className="size-3" /> Добавить email
+                      </button>
+                    </div>
+                    {g.emails.length === 0 && <p className="text-[11px] text-muted-foreground">Email не указан</p>}
+                    {g.emails.map((e, ei) => (
+                      <div key={ei} className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] gap-2">
+                        <Input
+                          type="email"
+                          value={e.email}
+                          onChange={(ev) =>
+                            setGuarantors((arr) =>
+                              arr.map((x, i) =>
+                                i === gi
+                                  ? { ...x, emails: x.emails.map((y, j) => (j === ei ? { ...y, email: ev.target.value } : y)) }
+                                  : x,
+                              ),
+                            )
+                          }
+                          placeholder="email@example.com"
+                          maxLength={200}
+                        />
+                        <Input
+                          value={e.label}
+                          onChange={(ev) =>
+                            setGuarantors((arr) =>
+                              arr.map((x, i) =>
+                                i === gi
+                                  ? { ...x, emails: x.emails.map((y, j) => (j === ei ? { ...y, label: ev.target.value } : y)) }
+                                  : x,
+                              ),
+                            )
+                          }
+                          placeholder="Метка"
+                          maxLength={50}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setGuarantors((arr) =>
+                              arr.map((x, i) =>
+                                i === gi ? { ...x, emails: x.emails.filter((_, j) => j !== ei) } : x,
+                              ),
+                            )
+                          }
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Комментарий</Label>
+                    <Textarea
+                      value={g.comment}
+                      onChange={(ev) =>
+                        setGuarantors((arr) => arr.map((x, i) => (i === gi ? { ...x, comment: ev.target.value } : x)))
+                      }
+                      rows={2}
+                      maxLength={2000}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
         <div className="bg-muted/40 rounded-xl p-5 space-y-2 text-sm">
           <Row k="Остаток" v={formatMoney(calc.principal)} />
           <Row k="Наценка" v={formatMoney(calc.markupAmount)} />
