@@ -8,14 +8,16 @@ import {
   adminApproveApplication,
   adminRejectApplication,
 } from "@/lib/applications.functions";
-import { calcInstallment, formatMoney, MAX_TERM, formatDate } from "@/lib/installment";
+import { listInvestorsLite } from "@/lib/investors.functions";
+import { calcInstallment, formatMoney, MAX_TERM, formatDate, DEFAULT_MARKUP_RATE } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { ArrowLeft, Check, X, Save, Mail, Phone, User } from "lucide-react";
+import { ArrowLeft, Check, X, Save, Mail, Phone, User, Plus, Trash2 } from "lucide-react";
+import { ContactChannelToggles, autoLabelFromChannels, type ContactChannel } from "@/components/admin/ContactChannels";
 
 export const Route = createFileRoute("/_authenticated/admin/applications/$id")({
   component: AdminApplicationDetail,
@@ -29,10 +31,15 @@ function AdminApplicationDetail() {
   const updateFn = useServerFn(adminUpdateApplication);
   const approveFn = useServerFn(adminApproveApplication);
   const rejectFn = useServerFn(adminRejectApplication);
+  const investorsFn = useServerFn(listInvestorsLite);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-application", id],
     queryFn: () => getFn({ data: { id } }),
+  });
+  const { data: investors } = useQuery({
+    queryKey: ["investors-lite"],
+    queryFn: () => investorsFn(),
   });
 
   const [productName, setProductName] = useState("");
@@ -46,6 +53,19 @@ function AdminApplicationDetail() {
   const [clientPhone, setClientPhone] = useState("");
   const [clientComment, setClientComment] = useState("");
   const [adminNote, setAdminNote] = useState("");
+  const [markupPct, setMarkupPct] = useState<number>(+(DEFAULT_MARKUP_RATE * 100).toFixed(2));
+  const [investorId, setInvestorId] = useState<string | null>(null);
+
+  type GPhone = { phone: string; label: string; channels: ContactChannel[] };
+  type GEmail = { email: string; label: string };
+  type Guarantor = { fullName: string; comment: string; phones: GPhone[]; emails: GEmail[] };
+  const emptyGuarantor = (): Guarantor => ({
+    fullName: "",
+    comment: "",
+    phones: [{ phone: "", label: "", channels: ["phone"] }],
+    emails: [],
+  });
+  const [guarantors, setGuarantors] = useState<Guarantor[]>([]);
 
   useEffect(() => {
     const a = data?.application;
@@ -64,8 +84,8 @@ function AdminApplicationDetail() {
   }, [data?.application]);
 
   const calc = useMemo(
-    () => calcInstallment({ productPrice, downPayment, termMonths }),
-    [productPrice, downPayment, termMonths],
+    () => calcInstallment({ productPrice, downPayment, termMonths, markupRate: markupPct / 100 }),
+    [productPrice, downPayment, termMonths, markupPct],
   );
 
   const save = useMutation({
@@ -105,7 +125,35 @@ function AdminApplicationDetail() {
           adminNote: adminNote || null,
         },
       });
-      return approveFn({ data: { id } });
+      return approveFn({
+        data: {
+          id,
+          investorId,
+          markupRate: markupPct / 100,
+          guarantors:
+            guarantors.length > 0
+              ? guarantors
+                  .filter((g) => g.fullName.trim().length > 0)
+                  .map((g) => ({
+                    fullName: g.fullName.trim(),
+                    comment: g.comment.trim() || null,
+                    phones: g.phones
+                      .filter((p) => p.phone.trim().length > 0)
+                      .map((p) => ({
+                        phone: p.phone.trim(),
+                        label: p.label.trim() || autoLabelFromChannels(p.channels),
+                        channels: p.channels,
+                      })),
+                    emails: g.emails
+                      .filter((e) => e.email.trim().length > 0)
+                      .map((e) => ({
+                        email: e.email.trim(),
+                        label: e.label.trim() || null,
+                      })),
+                  }))
+              : undefined,
+        },
+      });
     },
     onSuccess: (r) => {
       toast.success("Заявка одобрена, рассрочка оформлена");
