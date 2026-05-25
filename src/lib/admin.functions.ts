@@ -1598,7 +1598,8 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
         term_months: calc.termMonths,
         start_date: startDate.toISOString().slice(0, 10),
         status: "active",
-      })
+        investor_id: data.investorId ?? null,
+      } as never)
       .select()
       .single();
     if (cErr) throw new Error(cErr.message);
