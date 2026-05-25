@@ -49,6 +49,7 @@ function InvestorDetail() {
   const [contribNote, setContribNote] = useState("");
   const [contribDate, setContribDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [contribTerm, setContribTerm] = useState<number>(0);
+  const [contribMode, setContribMode] = useState<"deposit" | "withdraw">("deposit");
   const [startDate, setStartDate] = useState<string>("");
   const [termMonths, setTermMonths] = useState<number>(0);
   const [capitalize, setCapitalize] = useState<boolean>(false);
