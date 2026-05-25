@@ -53,6 +53,24 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          default_markup_rate: number
+          id: boolean
+          updated_at: string
+        }
+        Insert: {
+          default_markup_rate?: number
+          id?: boolean
+          updated_at?: string
+        }
+        Update: {
+          default_markup_rate?: number
+          id?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_documents: {
         Row: {
           content_type: string | null
@@ -513,6 +531,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          markup_rate: number | null
           passport_issued_at: string | null
           passport_issued_by: string | null
           passport_number: string | null
@@ -530,6 +549,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          markup_rate?: number | null
           passport_issued_at?: string | null
           passport_issued_by?: string | null
           passport_number?: string | null
@@ -547,6 +567,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          markup_rate?: number | null
           passport_issued_at?: string | null
           passport_issued_by?: string | null
           passport_number?: string | null
