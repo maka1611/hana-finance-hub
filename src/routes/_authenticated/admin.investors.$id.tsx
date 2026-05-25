@@ -17,6 +17,13 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ArrowLeft, Briefcase, AlertTriangle, Plus } from "lucide-react";
 
+function addMonthsISO(startISO: string, months: number): string {
+  const [y, m, d] = startISO.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCMonth(dt.getUTCMonth() + months);
+  return dt.toISOString().slice(0, 10);
+}
+
 export const Route = createFileRoute("/_authenticated/admin/investors/$id")({
   component: InvestorDetail,
 });
@@ -40,6 +47,10 @@ function InvestorDetail() {
   const [active, setActive] = useState(true);
   const [contribAmount, setContribAmount] = useState<number>(0);
   const [contribNote, setContribNote] = useState("");
+  const [contribDate, setContribDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [contribTerm, setContribTerm] = useState<number>(0);
+  const [startDate, setStartDate] = useState<string>("");
+  const [termMonths, setTermMonths] = useState<number>(0);
 
   if (isLoading || !data) return <p className="text-sm text-muted-foreground">Загрузка...</p>;
 
@@ -52,6 +63,8 @@ function InvestorDetail() {
     setSharePct(Number(investor.profit_share_rate) * 100);
     setComment(investor.comment ?? "");
     setActive(investor.is_active);
+    setStartDate(investor.contract_start_date ?? "");
+    setTermMonths(investor.contract_term_months ?? 0);
     setEdit(true);
   };
 
@@ -67,6 +80,8 @@ function InvestorDetail() {
             comment: comment.trim() || null,
             profit_share_rate: sharePct / 100,
             is_active: active,
+            contract_start_date: startDate || null,
+            contract_term_months: termMonths > 0 ? termMonths : null,
           },
         },
       });
@@ -83,11 +98,19 @@ function InvestorDetail() {
     if (!contribAmount) return toast.error("Укажите сумму (положительную для пополнения, отрицательную для вывода)");
     try {
       await contribFn({
-        data: { investor_id: id, amount: contribAmount, note: contribNote || null },
+        data: {
+          investor_id: id,
+          amount: contribAmount,
+          note: contribNote || null,
+          operation_date: contribDate || null,
+          term_months: contribTerm > 0 ? contribTerm : null,
+        },
       });
       toast.success("Операция записана");
       setContribAmount(0);
       setContribNote("");
+      setContribTerm(0);
+      setContribDate(new Date().toISOString().slice(0, 10));
       qc.invalidateQueries({ queryKey: ["investor", id] });
       qc.invalidateQueries({ queryKey: ["investors"] });
     } catch (e) {
@@ -113,6 +136,16 @@ function InvestorDetail() {
             {" · "}доля {(Number(investor.profit_share_rate) * 100).toFixed(0)}%
             {!investor.is_active && <> · <span className="text-destructive">архив</span></>}
           </p>
+          {(investor.contract_start_date || investor.contract_term_months) && (
+            <p className="text-xs text-muted-foreground mt-1">
+              договор:{" "}
+              {investor.contract_start_date ? formatDate(investor.contract_start_date) : "—"}
+              {investor.contract_term_months ? <> · {investor.contract_term_months} мес</> : null}
+              {investor.contract_start_date && investor.contract_term_months ? (
+                <> · до {formatDate(addMonthsISO(investor.contract_start_date, investor.contract_term_months))}</>
+              ) : null}
+            </p>
+          )}
         </div>
         {!edit && <Button variant="outline" onClick={startEdit}>Редактировать</Button>}
       </div>
@@ -130,6 +163,17 @@ function InvestorDetail() {
             </div>
           </div>
           <div className="space-y-2"><Label>Комментарий</Label><Textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} /></div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Дата начала договора</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Срок договора, мес</Label>
+              <Input type="number" min={0} value={termMonths || ""}
+                onChange={(e) => setTermMonths(Number(e.target.value) || 0)} placeholder="например, 12" />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Switch checked={active} onCheckedChange={setActive} id="active" />
             <Label htmlFor="active" className="cursor-pointer">Активен</Label>
@@ -243,7 +287,7 @@ function InvestorDetail() {
             <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3">
               <Plus className="inline size-3 mr-1" /> Новая операция
             </div>
-            <div className="grid sm:grid-cols-[1fr_2fr_auto] gap-3 items-end">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
               <div className="space-y-1">
                 <Label className="text-xs">Сумма (+/-)</Label>
                 <Input
@@ -254,9 +298,30 @@ function InvestorDetail() {
                 />
               </div>
               <div className="space-y-1">
+                <Label className="text-xs">Дата операции</Label>
+                <Input type="date" value={contribDate} onChange={(e) => setContribDate(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Срок (мес)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={contribTerm || ""}
+                  onChange={(e) => setContribTerm(Number(e.target.value) || 0)}
+                  placeholder="опц."
+                />
+              </div>
+              <div className="space-y-1">
                 <Label className="text-xs">Комментарий</Label>
                 <Input value={contribNote} onChange={(e) => setContribNote(e.target.value)} />
               </div>
+            </div>
+            {contribTerm > 0 && contribDate && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Возврат до: <span className="font-semibold">{formatDate(addMonthsISO(contribDate, contribTerm))}</span>
+              </p>
+            )}
+            <div className="mt-3">
               <Button onClick={addContrib}>Записать</Button>
             </div>
           </div>
@@ -267,7 +332,13 @@ function InvestorDetail() {
               {contributions.map((c) => (
                 <div key={c.id} className="p-4 flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold">{formatDate(c.created_at)}</div>
+                    <div className="text-sm font-semibold">{formatDate(c.operation_date ?? c.created_at)}</div>
+                    {(c.term_months || c.due_date) && (
+                      <div className="text-[11px] text-muted-foreground">
+                        {c.term_months ? <>срок {c.term_months} мес</> : null}
+                        {c.due_date ? <> · возврат до {formatDate(c.due_date)}</> : null}
+                      </div>
+                    )}
                     {c.note && <div className="text-xs text-muted-foreground truncate">{c.note}</div>}
                   </div>
                   <div className={`font-bold ${Number(c.amount) >= 0 ? "text-emerald-600" : "text-destructive"}`}>
