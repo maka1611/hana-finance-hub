@@ -200,7 +200,11 @@ function InvestorDetail() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Вложено" value={formatMoney(summary.invested)} />
         <Stat label="Размещено" value={formatMoney(summary.placed)} />
-        <Stat label="Свободно" value={formatMoney(summary.free)} highlight />
+        <Stat
+          label={summary.capitalizeProfit ? "Свободно (с капитализацией)" : "Свободно"}
+          value={formatMoney(summary.free)}
+          highlight
+        />
         <Stat label="Просрочки" value={`${summary.overdueCount} · ${formatMoney(summary.overdueAmount)}`} />
         <Stat label="Общая наценка" value={formatMoney(summary.totalMarkup)} />
         <Stat label="Ожид. прибыль" value={formatMoney(summary.expectedProfit)} />
