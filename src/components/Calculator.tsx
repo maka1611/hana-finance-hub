@@ -1,11 +1,14 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import {
   calcInstallment,
   DEFAULT_MARKUP_RATE,
   formatMoney,
   MAX_TERM,
 } from "@/lib/installment";
+import { getEffectiveMarkupRate } from "@/lib/pricing.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,17 +18,28 @@ import { PaymentScheduleStrip } from "@/components/PaymentScheduleStrip";
 interface CalculatorProps {
   onSubmit?: (result: ReturnType<typeof calcInstallment>) => void;
   compact?: boolean;
+  markupRate?: number;
 }
 
-export function Calculator({ onSubmit, compact }: CalculatorProps) {
+export function Calculator({ onSubmit, compact, markupRate }: CalculatorProps) {
   const navigate = useNavigate();
   const [productPrice, setProductPrice] = useState<number>(50000);
   const [downPayment, setDownPayment] = useState<number>(20000);
   const [termMonths, setTermMonths] = useState<number>(12);
 
+  const rateFn = useServerFn(getEffectiveMarkupRate);
+  const { data: rateInfo } = useQuery({
+    queryKey: ["my-effective-markup-rate"],
+    queryFn: () => rateFn(),
+    enabled: markupRate === undefined,
+    staleTime: 60_000,
+  });
+  const effectiveRate =
+    markupRate ?? rateInfo?.rate ?? DEFAULT_MARKUP_RATE;
+
   const result = useMemo(
-    () => calcInstallment({ productPrice, downPayment, termMonths }),
-    [productPrice, downPayment, termMonths],
+    () => calcInstallment({ productPrice, downPayment, termMonths, markupRate: effectiveRate }),
+    [productPrice, downPayment, termMonths, effectiveRate],
   );
 
   const handleSubmit = () => {
@@ -128,7 +142,7 @@ export function Calculator({ onSubmit, compact }: CalculatorProps) {
                 Наценка / мес
               </div>
               <div className="font-bold mt-1">
-                {(DEFAULT_MARKUP_RATE * 100).toFixed(1)}%
+                {(effectiveRate * 100).toFixed(2)}%
               </div>
             </div>
           </div>
