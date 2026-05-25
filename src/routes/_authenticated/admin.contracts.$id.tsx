@@ -49,6 +49,20 @@ function AdminContractDetail() {
   if (isLoading || !data) return <p className="text-sm text-muted-foreground">Загрузка...</p>;
 
   const { contract, schedule, profile, payments } = data;
+  const currentInvestor = (investors ?? []).find(
+    (i) => i.id === (contract as { investor_id?: string | null }).investor_id,
+  );
+
+  const changeInvestor = async (val: string) => {
+    try {
+      await setInvFn({ data: { contract_id: id, investor_id: val || null } });
+      toast.success("Инвестор обновлён");
+      qc.invalidateQueries({ queryKey: ["admin-contract", id] });
+      qc.invalidateQueries({ queryKey: ["investors"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    }
+  };
 
   const handlePay = async (sid: string, amount: number) => {
     setBusy(sid);
