@@ -413,6 +413,7 @@ export type Database = {
       }
       investors: {
         Row: {
+          capitalize_profit: boolean
           comment: string | null
           contract_start_date: string | null
           contract_term_months: number | null
@@ -427,6 +428,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          capitalize_profit?: boolean
           comment?: string | null
           contract_start_date?: string | null
           contract_term_months?: number | null
@@ -441,6 +443,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          capitalize_profit?: boolean
           comment?: string | null
           contract_start_date?: string | null
           contract_term_months?: number | null

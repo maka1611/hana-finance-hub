@@ -57,6 +57,7 @@ function summarizeInvestor(
   contracts: ContractRow[],
   schedules: ScheduleRow[],
   payments: PaymentRow[],
+  capitalizeProfit: boolean = false,
 ) {
   const today = new Date().toISOString().slice(0, 10);
   const activeContracts = contracts.filter((c) => c.status !== "closed");
@@ -85,13 +86,16 @@ function summarizeInvestor(
     (s) => s.status === "overdue" || (s.status === "pending" && s.due_date < today),
   );
   const overdueAmount = overdueSchedules.reduce((s, x) => s + Number(x.amount), 0);
+  const free =
+    invested - placed + returnedPrincipal + (capitalizeProfit ? receivedProfit : 0);
   return {
     invested,
     placed,
-    free: invested - placed + returnedPrincipal,
+    free,
     totalMarkup,
     expectedProfit,
     receivedProfit,
+    capitalizeProfit,
     contractsCount: contracts.length,
     activeCount: activeContracts.length,
     overdueCount: overdueSchedules.length,
@@ -124,6 +128,7 @@ export const listInvestors = createServerFn({ method: "GET" })
         own,
         ss,
         ps,
+        Boolean((inv as { capitalize_profit?: boolean }).capitalize_profit),
       );
       return { ...inv, ...summary };
     });
@@ -175,6 +180,7 @@ export const getInvestor = createServerFn({ method: "POST" })
       cs,
       (schedules ?? []) as ScheduleRow[],
       (payments ?? []) as PaymentRow[],
+      Boolean((inv as { capitalize_profit?: boolean }).capitalize_profit),
     );
     const today = new Date().toISOString().slice(0, 10);
     const overdueSchedules = ((schedules ?? []) as ScheduleRow[]).filter(
@@ -243,6 +249,7 @@ export const getInvestorsAggregate = createServerFn({ method: "POST" })
         own,
         ss,
         ps,
+        Boolean((inv as { capitalize_profit?: boolean }).capitalize_profit),
       );
       totals.invested += s.invested;
       totals.placed += s.placed;
@@ -269,6 +276,7 @@ const InvestorInput = z.object({
   is_active: z.boolean().optional(),
   contract_start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   contract_term_months: z.number().int().min(1).max(600).optional().nullable(),
+  capitalize_profit: z.boolean().optional(),
 });
 
 export const createInvestor = createServerFn({ method: "POST" })
@@ -288,6 +296,7 @@ export const createInvestor = createServerFn({ method: "POST" })
         is_active: data.is_active ?? true,
         contract_start_date: data.contract_start_date || null,
         contract_term_months: data.contract_term_months ?? null,
+        capitalize_profit: data.capitalize_profit ?? false,
       } as never)
       .select()
       .single();

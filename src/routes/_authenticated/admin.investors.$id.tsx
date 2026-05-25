@@ -51,6 +51,7 @@ function InvestorDetail() {
   const [contribTerm, setContribTerm] = useState<number>(0);
   const [startDate, setStartDate] = useState<string>("");
   const [termMonths, setTermMonths] = useState<number>(0);
+  const [capitalize, setCapitalize] = useState<boolean>(false);
 
   if (isLoading || !data) return <p className="text-sm text-muted-foreground">Загрузка...</p>;
 
@@ -65,6 +66,7 @@ function InvestorDetail() {
     setActive(investor.is_active);
     setStartDate(investor.contract_start_date ?? "");
     setTermMonths(investor.contract_term_months ?? 0);
+    setCapitalize(Boolean((investor as { capitalize_profit?: boolean }).capitalize_profit));
     setEdit(true);
   };
 
@@ -82,6 +84,7 @@ function InvestorDetail() {
             is_active: active,
             contract_start_date: startDate || null,
             contract_term_months: termMonths > 0 ? termMonths : null,
+            capitalize_profit: capitalize,
           },
         },
       });
@@ -178,6 +181,15 @@ function InvestorDetail() {
             <Switch checked={active} onCheckedChange={setActive} id="active" />
             <Label htmlFor="active" className="cursor-pointer">Активен</Label>
           </div>
+          <div className="flex items-start gap-2">
+            <Switch checked={capitalize} onCheckedChange={setCapitalize} id="capitalize" />
+            <div className="space-y-0.5">
+              <Label htmlFor="capitalize" className="cursor-pointer">Капитализировать прибыль</Label>
+              <p className="text-[11px] text-muted-foreground">
+                Заработанная доля наценки добавляется в «Свободно» и доступна для нового размещения.
+              </p>
+            </div>
+          </div>
           <div className="flex gap-2">
             <Button onClick={saveEdit}>Сохранить</Button>
             <Button variant="outline" onClick={() => setEdit(false)}>Отмена</Button>
@@ -188,7 +200,11 @@ function InvestorDetail() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Вложено" value={formatMoney(summary.invested)} />
         <Stat label="Размещено" value={formatMoney(summary.placed)} />
-        <Stat label="Свободно" value={formatMoney(summary.free)} highlight />
+        <Stat
+          label={summary.capitalizeProfit ? "Свободно (с капитализацией)" : "Свободно"}
+          value={formatMoney(summary.free)}
+          highlight
+        />
         <Stat label="Просрочки" value={`${summary.overdueCount} · ${formatMoney(summary.overdueAmount)}`} />
         <Stat label="Общая наценка" value={formatMoney(summary.totalMarkup)} />
         <Stat label="Ожид. прибыль" value={formatMoney(summary.expectedProfit)} />

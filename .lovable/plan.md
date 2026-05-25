@@ -1,51 +1,36 @@
-## Цель
+## Что меняем
 
-Добавить в карточку инвестора возможность управлять сроком договора и фиксировать дату каждого пополнения средств.
+У каждого инвестора появится флаг **«Капитализировать прибыль»**. По умолчанию выключен — поведение «Свободно» остаётся прежним. Если включён — заработанная доля наценки сразу попадает в «Свободно» того же инвестора и её можно реинвестировать.
 
-## Что меняется
+## Формула
 
-### 1. База данных (миграция)
+- Сейчас: `Свободно = Вложено − Размещено + Возвращённое тело`
+- Если флаг включён: `Свободно = Вложено − Размещено + Возвращённое тело + Полученная прибыль`
 
-- Таблица `investors`:
-  - `contract_start_date date NULL` — дата начала договора
-  - `contract_term_months integer NULL` — базовый срок договора (мес.)
-- Таблица `investor_contributions`:
-  - `operation_date date NOT NULL DEFAULT current_date` — дата операции (отдельно от `created_at`)
-  - `term_months integer NULL` — срок этой транши (опционально, переопределяет базовый)
-  - `due_date date NULL` — рассчитываемая/указываемая дата возврата
+«Полученная прибыль» остаётся отдельным полем в карточке — это исторический итог, его не убираем.
 
-RLS: уже покрыты политикой `Staff manages contributions` / `Staff manages investors` — ничего менять не нужно.
+## База данных (миграция)
 
-### 2. Серверные функции (`src/lib/investors.functions.ts`)
+- Таблица `investors`: новое поле `capitalize_profit boolean not null default false`.
+- RLS не меняем.
 
-- Расширить `InvestorInput` полями `contract_start_date` и `contract_term_months`.
-- Расширить `addInvestorContribution`:
-  - принимает `operation_date` (по умолчанию сегодня)
-  - принимает `term_months` (опц.) — при наличии вычисляется `due_date = operation_date + term_months`
-- `getInvestor` уже возвращает все поля (`select *`), достаточно добавить расчёт «активного срока» на клиенте.
+## Серверная логика (`src/lib/investors.functions.ts`)
 
-### 3. UI карточки инвестора (`admin.investors.$id.tsx`)
+- `summarizeInvestor(...)` принимает дополнительный аргумент `capitalizeProfit: boolean` и при `true` добавляет `receivedProfit` к `free`.
+- В функциях `listInvestors`, `getInvestor`, `getInvestorsAggregate` пробрасываем `inv.capitalize_profit` в `summarizeInvestor`.
+- В `InvestorInput` (создание/редактирование) добавляем поле `capitalize_profit` (boolean, опционально, дефолт `false`).
+- Возвращаем флаг в данных карточки инвестора, чтобы UI мог отрисовать переключатель и текущее состояние.
 
-- Блок редактирования: два новых поля — «Дата начала договора» и «Срок договора, мес».
-- Шапка: показать «договор: <дата начала> — <дата окончания>, осталось N мес/дней» если заданы.
-- Вкладка «Пополнения»:
-  - Форма: добавить поле «Дата операции» (datepicker, по умолчанию сегодня) + «Срок (мес)» опционально, рядом подсказка с вычисленной датой возврата.
-  - Список: показывать дату операции (вместо `created_at`), при наличии срока — «возврат до <дата>».
+## UI
 
-### 4. Создание инвестора (`admin.investors.new.tsx`)
-
-- Добавить поля «Дата начала договора» и «Срок (мес)» в форму.
-
-## Технические детали
-
-- Datepicker — shadcn `Calendar` + `Popover` (используется в проекте).
-- Расчёт `due_date`: на сервере через `date-fns` или просто строкой `YYYY-MM-DD` + добавление месяцев в JS (проще — на клиенте показывать превью, на сервере хранить).
-- Старые записи `investor_contributions` получат `operation_date = current_date` по DEFAULT; при необходимости можно бэкфилить из `created_at` — добавим в миграцию `UPDATE` для существующих строк (`operation_date = created_at::date`).
-- Типы Supabase (`src/integrations/supabase/types.ts`) обновятся автоматически после применения миграции.
+- `src/routes/_authenticated/admin.investors.$id.tsx`: в блоке редактирования — `Switch` «Капитализировать прибыль» с пояснением. Состояние подгружается из инвестора, сохраняется вместе с остальными полями.
+- Над сводкой по инвестору рядом с «Свободно» небольшой бейдж «капитализация вкл.», когда флаг активен, чтобы было понятно, откуда там может быть прибыль.
+- `src/routes/_authenticated/admin.investors.new.tsx`: тот же переключатель в форме создания (по умолчанию выключен).
+- Общая сводка на `admin.investors.index.tsx` правок не требует — она уже суммирует `free` из `summarizeInvestor`.
 
 ## Файлы
 
-- новая миграция `supabase/migrations/...sql`
-- edit `src/lib/investors.functions.ts`
-- edit `src/routes/_authenticated/admin.investors.$id.tsx`
-- edit `src/routes/_authenticated/admin.investors.new.tsx`
+- Новая миграция в `supabase/migrations/...`
+- `src/lib/investors.functions.ts`
+- `src/routes/_authenticated/admin.investors.$id.tsx`
+- `src/routes/_authenticated/admin.investors.new.tsx`
