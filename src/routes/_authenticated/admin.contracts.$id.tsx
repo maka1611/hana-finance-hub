@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { adminGetContract, adminRecordPayment, adminUpdateContractStatus, adminDeleteContract } from "@/lib/admin.functions";
+import { listInvestorsLite, setContractInvestor } from "@/lib/investors.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,7 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Trash2, Briefcase } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/contracts/$id")({
   component: AdminContractDetail,
