@@ -40,6 +40,10 @@ function InvestorDetail() {
   const [active, setActive] = useState(true);
   const [contribAmount, setContribAmount] = useState<number>(0);
   const [contribNote, setContribNote] = useState("");
+  const [contribDate, setContribDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [contribTerm, setContribTerm] = useState<number>(0);
+  const [startDate, setStartDate] = useState<string>("");
+  const [termMonths, setTermMonths] = useState<number>(0);
 
   if (isLoading || !data) return <p className="text-sm text-muted-foreground">Загрузка...</p>;
 
@@ -52,6 +56,8 @@ function InvestorDetail() {
     setSharePct(Number(investor.profit_share_rate) * 100);
     setComment(investor.comment ?? "");
     setActive(investor.is_active);
+    setStartDate(investor.contract_start_date ?? "");
+    setTermMonths(investor.contract_term_months ?? 0);
     setEdit(true);
   };
 
@@ -67,6 +73,8 @@ function InvestorDetail() {
             comment: comment.trim() || null,
             profit_share_rate: sharePct / 100,
             is_active: active,
+            contract_start_date: startDate || null,
+            contract_term_months: termMonths > 0 ? termMonths : null,
           },
         },
       });
@@ -83,11 +91,19 @@ function InvestorDetail() {
     if (!contribAmount) return toast.error("Укажите сумму (положительную для пополнения, отрицательную для вывода)");
     try {
       await contribFn({
-        data: { investor_id: id, amount: contribAmount, note: contribNote || null },
+        data: {
+          investor_id: id,
+          amount: contribAmount,
+          note: contribNote || null,
+          operation_date: contribDate || null,
+          term_months: contribTerm > 0 ? contribTerm : null,
+        },
       });
       toast.success("Операция записана");
       setContribAmount(0);
       setContribNote("");
+      setContribTerm(0);
+      setContribDate(new Date().toISOString().slice(0, 10));
       qc.invalidateQueries({ queryKey: ["investor", id] });
       qc.invalidateQueries({ queryKey: ["investors"] });
     } catch (e) {
