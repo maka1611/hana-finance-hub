@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { calcInstallment, buildSchedule, DEFAULT_MARKUP_RATE, MAX_TERM } from "@/lib/installment";
+import { calcInstallment, buildSchedule, MAX_TERM } from "@/lib/installment";
 
 async function getActorInfo(userId: string) {
   const { data } = await supabaseAdmin
