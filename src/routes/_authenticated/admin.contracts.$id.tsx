@@ -180,6 +180,44 @@ function AdminContractDetail() {
         <Mini label="Итоговая цена" value={formatMoney(Number(contract.total_sale_price))} highlight />
       </div>
 
+      <div className="bg-card rounded-2xl ring-1 ring-border p-4 sm:p-5">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2 text-sm">
+            <Briefcase className="size-4 text-muted-foreground" />
+            <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Инвестор:</span>
+            {currentInvestor ? (
+              <Link
+                to="/admin/investors/$id"
+                params={{ id: currentInvestor.id }}
+                className="font-bold hover:text-primary underline-offset-4 hover:underline"
+              >
+                {currentInvestor.full_name}
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">— собственные средства —</span>
+            )}
+            {currentInvestor && (
+              <span className="text-xs text-muted-foreground">
+                · доля {(Number(currentInvestor.profit_share_rate) * 100).toFixed(0)}% ·
+                прибыль инвестора {formatMoney(Number(contract.markup_amount) * Number(currentInvestor.profit_share_rate))}
+              </span>
+            )}
+          </div>
+          <select
+            value={(contract as { investor_id?: string | null }).investor_id ?? ""}
+            onChange={(e) => changeInvestor(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">— без инвестора —</option>
+            {(investors ?? []).map((inv) => (
+              <option key={inv.id} value={inv.id}>
+                {inv.full_name} · свободно {formatMoney(inv.free)}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div>
         <h2 className="text-lg font-bold mb-4">График платежей</h2>
         <div className="bg-card rounded-2xl ring-1 ring-border divide-y divide-border overflow-hidden">
