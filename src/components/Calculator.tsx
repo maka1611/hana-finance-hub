@@ -81,7 +81,7 @@ export function Calculator({ onSubmit, compact }: CalculatorProps) {
                   Math.min(Number(e.target.value) || 0, productPrice),
                 )
               }
-              className="text-2xl md:text-3xl font-bold px-4 py-3 h-auto bg-background border-border rounded-xl shadow-none focus-visible:ring-2 focus-visible:ring-primary/30 no-spinner"
+              className="text-3xl md:text-4xl font-extrabold px-4 py-3 h-auto bg-background border-border rounded-xl shadow-none focus-visible:ring-2 focus-visible:ring-primary/30 no-spinner"
             />
             <Slider
               min={0}
