@@ -98,6 +98,7 @@ function AdminNewInstallment() {
     emails: [],
   });
   const [guarantors, setGuarantors] = useState<Guarantor[]>([]);
+  const [investorId, setInvestorId] = useState<string | null>(null);
 
   const readFile = (file: File): Promise<PhotoFile> =>
     new Promise((resolve, reject) => {
