@@ -15,6 +15,14 @@ async function assertStaff(userId: string) {
   if (!ok) throw new Error("Forbidden: staff role required");
 }
 
+function computeDueDate(startISO: string, termMonths: number | null): string | null {
+  if (!termMonths) return null;
+  const [y, m, d] = startISO.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCMonth(dt.getUTCMonth() + termMonths);
+  return dt.toISOString().slice(0, 10);
+}
+
 type ContractRow = {
   id: string;
   investor_id: string | null;
