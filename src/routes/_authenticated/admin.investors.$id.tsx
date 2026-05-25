@@ -129,6 +129,16 @@ function InvestorDetail() {
             {" · "}доля {(Number(investor.profit_share_rate) * 100).toFixed(0)}%
             {!investor.is_active && <> · <span className="text-destructive">архив</span></>}
           </p>
+          {(investor.contract_start_date || investor.contract_term_months) && (
+            <p className="text-xs text-muted-foreground mt-1">
+              договор:{" "}
+              {investor.contract_start_date ? formatDate(investor.contract_start_date) : "—"}
+              {investor.contract_term_months ? <> · {investor.contract_term_months} мес</> : null}
+              {investor.contract_start_date && investor.contract_term_months ? (
+                <> · до {formatDate(addMonthsISO(investor.contract_start_date, investor.contract_term_months))}</>
+              ) : null}
+            </p>
+          )}
         </div>
         {!edit && <Button variant="outline" onClick={startEdit}>Редактировать</Button>}
       </div>
@@ -146,6 +156,17 @@ function InvestorDetail() {
             </div>
           </div>
           <div className="space-y-2"><Label>Комментарий</Label><Textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} /></div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Дата начала договора</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Срок договора, мес</Label>
+              <Input type="number" min={0} value={termMonths || ""}
+                onChange={(e) => setTermMonths(Number(e.target.value) || 0)} placeholder="например, 12" />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Switch checked={active} onCheckedChange={setActive} id="active" />
             <Label htmlFor="active" className="cursor-pointer">Активен</Label>
