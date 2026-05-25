@@ -99,13 +99,22 @@ function InvestorDetail() {
   };
 
   const addContrib = async () => {
-    if (!contribAmount) return toast.error("Укажите сумму (положительную для пополнения, отрицательную для вывода)");
+    if (!contribAmount || contribAmount <= 0) return toast.error("Укажите положительную сумму");
+    const signed = contribMode === "withdraw" ? -Math.abs(contribAmount) : Math.abs(contribAmount);
+    if (contribMode === "withdraw" && Math.abs(contribAmount) > summary.free + 0.001) {
+      const ok = window.confirm(
+        `Сумма вывода (${formatMoney(Math.abs(contribAmount))}) больше «Свободно» (${formatMoney(summary.free)}). Всё равно записать?`,
+      );
+      if (!ok) return;
+    }
     try {
       await contribFn({
         data: {
           investor_id: id,
-          amount: contribAmount,
-          note: contribNote || null,
+          amount: signed,
+          note:
+            contribNote ||
+            (contribMode === "withdraw" ? "Вывод средств" : null),
           operation_date: contribDate || null,
           term_months: contribTerm > 0 ? contribTerm : null,
         },
@@ -115,6 +124,7 @@ function InvestorDetail() {
       setContribNote("");
       setContribTerm(0);
       setContribDate(new Date().toISOString().slice(0, 10));
+      setContribMode("deposit");
       qc.invalidateQueries({ queryKey: ["investor", id] });
       qc.invalidateQueries({ queryKey: ["investors"] });
     } catch (e) {
