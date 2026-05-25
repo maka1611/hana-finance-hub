@@ -32,10 +32,16 @@ function AdminContractDetail() {
   const recordFn = useServerFn(adminRecordPayment);
   const statusFn = useServerFn(adminUpdateContractStatus);
   const deleteFn = useServerFn(adminDeleteContract);
+  const investorsFn = useServerFn(listInvestorsLite);
+  const setInvFn = useServerFn(setContractInvestor);
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-contract", id],
     queryFn: () => fn({ data: { id } }),
+  });
+  const { data: investors } = useQuery({
+    queryKey: ["investors-lite"],
+    queryFn: () => investorsFn(),
   });
   const [busy, setBusy] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
