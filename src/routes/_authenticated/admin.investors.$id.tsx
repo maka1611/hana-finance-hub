@@ -287,7 +287,7 @@ function InvestorDetail() {
             <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3">
               <Plus className="inline size-3 mr-1" /> Новая операция
             </div>
-            <div className="grid sm:grid-cols-[1fr_2fr_auto] gap-3 items-end">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
               <div className="space-y-1">
                 <Label className="text-xs">Сумма (+/-)</Label>
                 <Input
@@ -298,9 +298,30 @@ function InvestorDetail() {
                 />
               </div>
               <div className="space-y-1">
+                <Label className="text-xs">Дата операции</Label>
+                <Input type="date" value={contribDate} onChange={(e) => setContribDate(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Срок (мес)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={contribTerm || ""}
+                  onChange={(e) => setContribTerm(Number(e.target.value) || 0)}
+                  placeholder="опц."
+                />
+              </div>
+              <div className="space-y-1">
                 <Label className="text-xs">Комментарий</Label>
                 <Input value={contribNote} onChange={(e) => setContribNote(e.target.value)} />
               </div>
+            </div>
+            {contribTerm > 0 && contribDate && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Возврат до: <span className="font-semibold">{formatDate(addMonthsISO(contribDate, contribTerm))}</span>
+              </p>
+            )}
+            <div className="mt-3">
               <Button onClick={addContrib}>Записать</Button>
             </div>
           </div>
@@ -311,7 +332,13 @@ function InvestorDetail() {
               {contributions.map((c) => (
                 <div key={c.id} className="p-4 flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold">{formatDate(c.created_at)}</div>
+                    <div className="text-sm font-semibold">{formatDate(c.operation_date ?? c.created_at)}</div>
+                    {(c.term_months || c.due_date) && (
+                      <div className="text-[11px] text-muted-foreground">
+                        {c.term_months ? <>срок {c.term_months} мес</> : null}
+                        {c.due_date ? <> · возврат до {formatDate(c.due_date)}</> : null}
+                      </div>
+                    )}
                     {c.note && <div className="text-xs text-muted-foreground truncate">{c.note}</div>}
                   </div>
                   <div className={`font-bold ${Number(c.amount) >= 0 ? "text-emerald-600" : "text-destructive"}`}>
