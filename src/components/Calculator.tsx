@@ -49,16 +49,14 @@ export function Calculator({ onSubmit, compact }: CalculatorProps) {
             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               Сумма товара
             </Label>
-            <div className="border-b border-border focus-within:border-primary transition-colors">
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={productPrice || ""}
-                onChange={(e) => setProductPrice(Number(e.target.value) || 0)}
-                className="text-3xl font-extrabold p-0 border-none focus-visible:ring-0 bg-transparent h-auto no-spinner"
-              />
-            </div>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={productPrice || ""}
+              onChange={(e) => setProductPrice(Number(e.target.value) || 0)}
+              className="text-3xl md:text-4xl font-extrabold px-4 py-3 h-auto bg-background border-border rounded-xl shadow-none focus-visible:ring-2 focus-visible:ring-primary/30 no-spinner"
+            />
           </div>
 
           <div className="space-y-3">
@@ -83,7 +81,7 @@ export function Calculator({ onSubmit, compact }: CalculatorProps) {
                   Math.min(Number(e.target.value) || 0, productPrice),
                 )
               }
-              className="text-xl font-bold p-0 border-none focus-visible:ring-0 bg-transparent h-auto"
+              className="text-2xl md:text-3xl font-bold px-4 py-3 h-auto bg-background border-border rounded-xl shadow-none focus-visible:ring-2 focus-visible:ring-primary/30 no-spinner"
             />
             <Slider
               min={0}
