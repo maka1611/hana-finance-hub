@@ -28,6 +28,29 @@ function InvestorsList() {
   if (isLoading || !data)
     return <p className="text-sm text-muted-foreground">Загрузка...</p>;
 
+  const totals = data.reduce(
+    (acc, inv) => {
+      acc.invested += inv.invested;
+      acc.placed += inv.placed;
+      acc.free += inv.free;
+      acc.totalMarkup += inv.totalMarkup;
+      acc.expectedProfit += inv.expectedProfit;
+      acc.receivedProfit += inv.receivedProfit;
+      acc.contractsCount += inv.contractsCount;
+      acc.activeCount += inv.activeCount;
+      acc.overdueCount += inv.overdueCount;
+      acc.overdueAmount += inv.overdueAmount;
+      if (inv.is_active) acc.activeInvestors += 1;
+      else acc.archivedInvestors += 1;
+      return acc;
+    },
+    {
+      invested: 0, placed: 0, free: 0, totalMarkup: 0, expectedProfit: 0,
+      receivedProfit: 0, contractsCount: 0, activeCount: 0,
+      overdueCount: 0, overdueAmount: 0, activeInvestors: 0, archivedInvestors: 0,
+    },
+  );
+
   const toggle = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -50,6 +73,33 @@ function InvestorsList() {
           <Button className="gap-2"><Plus className="size-4" /> Добавить инвестора</Button>
         </Link>
       </div>
+
+      {data.length > 0 && (
+        <div className="rounded-2xl bg-card ring-1 ring-border p-5">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h2 className="text-sm font-bold">
+              Общая сводка
+              <span className="text-muted-foreground font-normal ml-2">
+                · {data.length} инвестор(ов)
+                {totals.archivedInvestors > 0 && <> · {totals.activeInvestors} активн.</>}
+              </span>
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Stat label="Всего вложено" value={formatMoney(totals.invested)} />
+            <Stat label="Размещено" value={formatMoney(totals.placed)} />
+            <Stat label="Свободно" value={formatMoney(totals.free)} highlight />
+            <Stat label="Общая наценка" value={formatMoney(totals.totalMarkup)} />
+            <Stat label="Ожид. прибыль" value={formatMoney(totals.expectedProfit)} />
+            <Stat label="Получено прибыли" value={formatMoney(totals.receivedProfit)} />
+            <Stat label="Контрактов" value={`${totals.activeCount} акт / ${totals.contractsCount}`} />
+            <Stat
+              label="Просрочки"
+              value={`${totals.overdueCount} · ${formatMoney(totals.overdueAmount)}`}
+            />
+          </div>
+        </div>
+      )}
 
       {selected.size > 0 && agg && (
         <div className="rounded-2xl bg-card ring-1 ring-border p-5">
