@@ -389,9 +389,40 @@ export const adminRejectApplication = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const ApproveGuarantorSchema = z.object({
+  fullName: z.string().trim().min(1).max(200),
+  comment: z.string().trim().max(2000).optional().nullable(),
+  phones: z
+    .array(
+      z.object({
+        phone: z.string().trim().min(3).max(50).regex(/^[+\d\s()-]+$/),
+        label: z.string().trim().max(50).optional().nullable(),
+        channels: z.array(z.enum(["phone", "whatsapp", "telegram"])).optional(),
+      }),
+    )
+    .max(10)
+    .optional(),
+  emails: z
+    .array(
+      z.object({
+        email: z.string().trim().email().max(200),
+        label: z.string().trim().max(50).optional().nullable(),
+      }),
+    )
+    .max(10)
+    .optional(),
+});
+
+const ApproveSchema = z.object({
+  id: z.string().uuid(),
+  investorId: z.string().uuid().optional().nullable(),
+  markupRate: z.number().min(0).max(1).optional(),
+  guarantors: z.array(ApproveGuarantorSchema).max(10).optional(),
+});
+
 export const adminApproveApplication = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) => ApproveSchema.parse(input))
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
     const { data: app, error: appErr } = await supabaseAdmin
@@ -406,6 +437,7 @@ export const adminApproveApplication = createServerFn({ method: "POST" })
       productPrice: Number(app.product_price),
       downPayment: Number(app.down_payment),
       termMonths: app.term_months,
+      markupRate: data.markupRate,
     });
     const startDate = app.first_payment_date
       ? new Date(app.first_payment_date + "T00:00:00")
@@ -424,14 +456,15 @@ export const adminApproveApplication = createServerFn({ method: "POST" })
         product_price: app.product_price,
         down_payment: app.down_payment,
         principal: calc.principal,
-        markup_rate: DEFAULT_MARKUP_RATE,
+        markup_rate: calc.markupRate,
         markup_amount: calc.markupAmount,
         total_sale_price: calc.totalSalePrice,
         monthly_payment: calc.monthlyPayment,
         term_months: calc.termMonths,
         start_date: startDate.toISOString().slice(0, 10),
         status: "active",
-      })
+        investor_id: data.investorId ?? null,
+      } as never)
       .select()
       .single();
     if (cErr) throw new Error(cErr.message);
@@ -447,6 +480,44 @@ export const adminApproveApplication = createServerFn({ method: "POST" })
     }));
     const { error: schedErr } = await supabaseAdmin.from("payment_schedules").insert(schedule);
     if (schedErr) throw new Error(schedErr.message);
+
+    // Поручители
+    if (data.guarantors && data.guarantors.length > 0) {
+      for (const g of data.guarantors) {
+        const { data: gRow, error: gErr } = await supabaseAdmin
+          .from("contract_guarantors")
+          .insert({
+            contract_id: contract.id,
+            full_name: g.fullName,
+            comment: g.comment ?? null,
+          } as never)
+          .select("id")
+          .single();
+        if (gErr || !gRow) throw new Error(gErr?.message ?? "Не удалось добавить поручителя");
+        const gid = (gRow as { id: string }).id;
+        if (g.phones && g.phones.length > 0) {
+          const { error } = await supabaseAdmin.from("guarantor_phones").insert(
+            g.phones.map((p) => ({
+              guarantor_id: gid,
+              phone: p.phone,
+              label: p.label ?? null,
+              channels: p.channels ?? [],
+            })) as never,
+          );
+          if (error) throw new Error(error.message);
+        }
+        if (g.emails && g.emails.length > 0) {
+          const { error } = await supabaseAdmin.from("guarantor_emails").insert(
+            g.emails.map((e) => ({
+              guarantor_id: gid,
+              email: e.email,
+              label: e.label ?? null,
+            })) as never,
+          );
+          if (error) throw new Error(error.message);
+        }
+      }
+    }
 
     await supabaseAdmin
       .from("installment_applications")
@@ -468,6 +539,8 @@ export const adminApproveApplication = createServerFn({ method: "POST" })
         contractId: contract.id,
         clientId: app.client_id,
         totalSalePrice: calc.totalSalePrice,
+        investorId: data.investorId ?? null,
+        guarantorsCount: data.guarantors?.length ?? 0,
       },
     });
 
