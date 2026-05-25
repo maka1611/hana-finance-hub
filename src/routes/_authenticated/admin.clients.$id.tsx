@@ -14,6 +14,10 @@ import {
   adminGetClientSecret,
   adminResetClientPassword,
 } from "@/lib/admin.functions";
+import {
+  getEffectiveMarkupRateForUser,
+  adminSetUserMarkupRate,
+} from "@/lib/pricing.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +26,7 @@ import { formatMoney, formatDate } from "@/lib/installment";
 import { toast } from "sonner";
 import {
   ArrowLeft, Mail, Phone, Plus, Trash2, Star, Award,
-  CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink, X, KeyRound, Eye, EyeOff, Copy, RefreshCw,
+  CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink, X, KeyRound, Eye, EyeOff, Copy, RefreshCw, Percent,
 } from "lucide-react";
 import { ContactChannelToggles, roleLabelRu, type ContactChannel } from "@/components/admin/ContactChannels";
 
@@ -381,6 +385,8 @@ function ClientProfilePage() {
         )}
       </div>
 
+      <ClientMarkupRateCard clientId={id} />
+
       {/* Документы клиента */}
       <div className="grid md:grid-cols-2 gap-4">
         <DocumentCard
@@ -659,6 +665,109 @@ function DocumentCard({
         </Button>
       </div>
       <div className="space-y-3 pt-2 border-t border-border">{children}</div>
+    </div>
+  );
+}
+
+function ClientMarkupRateCard({ clientId }: { clientId: string }) {
+  const qc = useQueryClient();
+  const getRateFn = useServerFn(getEffectiveMarkupRateForUser);
+  const setRateFn = useServerFn(adminSetUserMarkupRate);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-client-rate", clientId],
+    queryFn: () => getRateFn({ data: { userId: clientId } }),
+  });
+
+  const [value, setValue] = useState("");
+  useEffect(() => {
+    if (data) {
+      setValue(data.personal == null ? "" : (data.personal * 100).toFixed(2));
+    }
+  }, [data]);
+
+  const save = useMutation({
+    mutationFn: (rate: number | null) =>
+      setRateFn({ data: { userId: clientId, rate } }),
+    onSuccess: () => {
+      toast.success("Ставка обновлена");
+      qc.invalidateQueries({ queryKey: ["admin-client-rate", clientId] });
+      qc.invalidateQueries({ queryKey: ["admin-user-rates"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
+  });
+
+  const handleSave = () => {
+    const trimmed = value.trim().replace(",", ".");
+    if (trimmed === "") {
+      save.mutate(null);
+      return;
+    }
+    const n = Number(trimmed);
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      toast.error("Введите % от 0 до 100");
+      return;
+    }
+    save.mutate(n / 100);
+  };
+
+  return (
+    <div className="bg-card rounded-2xl ring-1 ring-border p-6 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="font-bold inline-flex items-center gap-2">
+          <Percent className="size-4 text-primary" /> Персональная ставка
+        </h2>
+        {data && (
+          <span className="text-[11px] text-muted-foreground">
+            По умолчанию: {(data.defaultRate * 100).toFixed(2)}%
+          </span>
+        )}
+      </div>
+      {isLoading || !data ? (
+        <p className="text-sm text-muted-foreground">Загрузка...</p>
+      ) : (
+        <div className="space-y-3">
+          <div className="text-sm text-muted-foreground">
+            Действующая ставка клиента:{" "}
+            <span className="font-bold text-foreground">
+              {(data.rate * 100).toFixed(2)}%
+            </span>{" "}
+            {data.personal == null ? (
+              <span className="text-[11px]">(по умолчанию)</span>
+            ) : (
+              <span className="text-[11px]">(персональная)</span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Персональный %</Label>
+              <Input
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="напр. 4.5"
+                inputMode="decimal"
+                className="w-32"
+              />
+            </div>
+            <Button onClick={handleSave} disabled={save.isPending}>
+              <Save className="size-4" /> Сохранить
+            </Button>
+            {data.personal != null && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => save.mutate(null)}
+                disabled={save.isPending}
+              >
+                Сбросить к ставке по умолчанию
+              </Button>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Оставьте поле пустым и нажмите «Сохранить», чтобы использовать ставку по умолчанию.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
