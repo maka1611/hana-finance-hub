@@ -17,6 +17,13 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ArrowLeft, Briefcase, AlertTriangle, Plus } from "lucide-react";
 
+function addMonthsISO(startISO: string, months: number): string {
+  const [y, m, d] = startISO.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCMonth(dt.getUTCMonth() + months);
+  return dt.toISOString().slice(0, 10);
+}
+
 export const Route = createFileRoute("/_authenticated/admin/investors/$id")({
   component: InvestorDetail,
 });
