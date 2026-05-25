@@ -259,6 +259,8 @@ const InvestorInput = z.object({
   total_capital: z.number().min(0).max(1_000_000_000_000),
   profit_share_rate: z.number().min(0).max(1),
   is_active: z.boolean().optional(),
+  contract_start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  contract_term_months: z.number().int().min(1).max(600).optional().nullable(),
 });
 
 export const createInvestor = createServerFn({ method: "POST" })
@@ -276,6 +278,8 @@ export const createInvestor = createServerFn({ method: "POST" })
         total_capital: data.total_capital,
         profit_share_rate: data.profit_share_rate,
         is_active: data.is_active ?? true,
+        contract_start_date: data.contract_start_date || null,
+        contract_term_months: data.contract_term_months ?? null,
       } as never)
       .select()
       .single();
@@ -285,6 +289,12 @@ export const createInvestor = createServerFn({ method: "POST" })
         investor_id: (inv as { id: string }).id,
         amount: data.total_capital,
         note: "Начальный капитал",
+        operation_date: data.contract_start_date || new Date().toISOString().slice(0, 10),
+        term_months: data.contract_term_months ?? null,
+        due_date: computeDueDate(
+          data.contract_start_date || new Date().toISOString().slice(0, 10),
+          data.contract_term_months ?? null,
+        ),
       } as never);
     }
     return inv;
@@ -313,15 +323,22 @@ export const addInvestorContribution = createServerFn({ method: "POST" })
         investor_id: z.string().uuid(),
         amount: z.number().refine((n) => n !== 0, "Сумма не может быть 0"),
         note: z.string().trim().max(500).optional().nullable(),
+        operation_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+        term_months: z.number().int().min(1).max(600).optional().nullable(),
       })
       .parse(input),
   )
   .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
+    const opDate = data.operation_date || new Date().toISOString().slice(0, 10);
+    const dueDate = computeDueDate(opDate, data.term_months ?? null);
     const { error: cErr } = await supabaseAdmin.from("investor_contributions").insert({
       investor_id: data.investor_id,
       amount: data.amount,
       note: data.note || null,
+      operation_date: opDate,
+      term_months: data.term_months ?? null,
+      due_date: dueDate,
     } as never);
     if (cErr) throw new Error(cErr.message);
     // Обновляем total_capital
