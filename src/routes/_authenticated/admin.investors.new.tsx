@@ -25,6 +25,8 @@ function NewInvestor() {
   const [sharePct, setSharePct] = useState<number>(50);
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
+  const [startDate, setStartDate] = useState<string>("");
+  const [termMonths, setTermMonths] = useState<number>(0);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -40,6 +42,8 @@ function NewInvestor() {
           total_capital: capital,
           profit_share_rate: sharePct / 100,
           is_active: true,
+          contract_start_date: startDate || null,
+          contract_term_months: termMonths > 0 ? termMonths : null,
         },
       });
       toast.success("Инвестор добавлен");
@@ -110,6 +114,22 @@ function NewInvestor() {
         <div className="space-y-2">
           <Label>Комментарий</Label>
           <Textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} />
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Дата начала договора</Label>
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Срок договора, мес</Label>
+            <Input
+              type="number"
+              min={0}
+              value={termMonths || ""}
+              onChange={(e) => setTermMonths(Number(e.target.value) || 0)}
+              placeholder="например, 12"
+            />
+          </div>
         </div>
         <Button type="submit" disabled={loading} className="w-full sm:w-auto">
           {loading ? "Сохранение..." : "Добавить инвестора"}
