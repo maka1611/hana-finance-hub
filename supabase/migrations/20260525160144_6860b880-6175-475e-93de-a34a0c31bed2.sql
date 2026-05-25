@@ -1,0 +1,1 @@
+ALTER TABLE public.investors ADD COLUMN IF NOT EXISTS capitalize_profit boolean NOT NULL DEFAULT false;
