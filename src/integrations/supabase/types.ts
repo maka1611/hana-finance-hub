@@ -374,23 +374,32 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          due_date: string | null
           id: string
           investor_id: string
           note: string | null
+          operation_date: string
+          term_months: number | null
         }
         Insert: {
           amount: number
           created_at?: string
+          due_date?: string | null
           id?: string
           investor_id: string
           note?: string | null
+          operation_date?: string
+          term_months?: number | null
         }
         Update: {
           amount?: number
           created_at?: string
+          due_date?: string | null
           id?: string
           investor_id?: string
           note?: string | null
+          operation_date?: string
+          term_months?: number | null
         }
         Relationships: [
           {
@@ -405,6 +414,8 @@ export type Database = {
       investors: {
         Row: {
           comment: string | null
+          contract_start_date: string | null
+          contract_term_months: number | null
           created_at: string
           email: string | null
           full_name: string
@@ -417,6 +428,8 @@ export type Database = {
         }
         Insert: {
           comment?: string | null
+          contract_start_date?: string | null
+          contract_term_months?: number | null
           created_at?: string
           email?: string | null
           full_name: string
@@ -429,6 +442,8 @@ export type Database = {
         }
         Update: {
           comment?: string | null
+          contract_start_date?: string | null
+          contract_term_months?: number | null
           created_at?: string
           email?: string | null
           full_name?: string
