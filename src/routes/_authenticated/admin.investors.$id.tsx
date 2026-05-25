@@ -49,6 +49,7 @@ function InvestorDetail() {
   const [contribNote, setContribNote] = useState("");
   const [contribDate, setContribDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [contribTerm, setContribTerm] = useState<number>(0);
+  const [contribMode, setContribMode] = useState<"deposit" | "withdraw">("deposit");
   const [startDate, setStartDate] = useState<string>("");
   const [termMonths, setTermMonths] = useState<number>(0);
   const [capitalize, setCapitalize] = useState<boolean>(false);
@@ -98,13 +99,22 @@ function InvestorDetail() {
   };
 
   const addContrib = async () => {
-    if (!contribAmount) return toast.error("Укажите сумму (положительную для пополнения, отрицательную для вывода)");
+    if (!contribAmount || contribAmount <= 0) return toast.error("Укажите положительную сумму");
+    const signed = contribMode === "withdraw" ? -Math.abs(contribAmount) : Math.abs(contribAmount);
+    if (contribMode === "withdraw" && Math.abs(contribAmount) > summary.free + 0.001) {
+      const ok = window.confirm(
+        `Сумма вывода (${formatMoney(Math.abs(contribAmount))}) больше «Свободно» (${formatMoney(summary.free)}). Всё равно записать?`,
+      );
+      if (!ok) return;
+    }
     try {
       await contribFn({
         data: {
           investor_id: id,
-          amount: contribAmount,
-          note: contribNote || null,
+          amount: signed,
+          note:
+            contribNote ||
+            (contribMode === "withdraw" ? "Вывод средств" : null),
           operation_date: contribDate || null,
           term_months: contribTerm > 0 ? contribTerm : null,
         },
@@ -114,6 +124,7 @@ function InvestorDetail() {
       setContribNote("");
       setContribTerm(0);
       setContribDate(new Date().toISOString().slice(0, 10));
+      setContribMode("deposit");
       qc.invalidateQueries({ queryKey: ["investor", id] });
       qc.invalidateQueries({ queryKey: ["investors"] });
     } catch (e) {
@@ -300,45 +311,78 @@ function InvestorDetail() {
 
         <TabsContent value="contrib" className="mt-4 space-y-4">
           <div className="bg-card rounded-2xl ring-1 ring-border p-4 sm:p-5">
-            <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3">
-              <Plus className="inline size-3 mr-1" /> Новая операция
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+              <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                <Plus className="inline size-3 mr-1" /> Новая операция
+              </div>
+              <div className="inline-flex rounded-lg ring-1 ring-border overflow-hidden text-xs">
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 font-semibold transition-colors ${contribMode === "deposit" ? "bg-emerald-600 text-white" : "bg-card hover:bg-muted/50"}`}
+                  onClick={() => setContribMode("deposit")}
+                >
+                  + Пополнение
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 font-semibold transition-colors border-l border-border ${contribMode === "withdraw" ? "bg-destructive text-destructive-foreground" : "bg-card hover:bg-muted/50"}`}
+                  onClick={() => setContribMode("withdraw")}
+                >
+                  − Вывод
+                </button>
+              </div>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
               <div className="space-y-1">
-                <Label className="text-xs">Сумма (+/-)</Label>
+                <Label className="text-xs">
+                  Сумма {contribMode === "withdraw" ? "к выводу" : "пополнения"}
+                </Label>
                 <Input
                   type="number"
+                  min={0}
                   value={contribAmount || ""}
                   onChange={(e) => setContribAmount(Number(e.target.value) || 0)}
-                  placeholder="100000 или -50000"
+                  placeholder={contribMode === "withdraw" ? `до ${Math.max(0, summary.free).toFixed(0)}` : "100000"}
                 />
+                {contribMode === "withdraw" && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Свободно: {formatMoney(summary.free)}
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Дата операции</Label>
                 <Input type="date" value={contribDate} onChange={(e) => setContribDate(e.target.value)} />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Срок (мес)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={contribTerm || ""}
-                  onChange={(e) => setContribTerm(Number(e.target.value) || 0)}
-                  placeholder="опц."
-                />
-              </div>
+              {contribMode === "deposit" && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Срок (мес)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={contribTerm || ""}
+                    onChange={(e) => setContribTerm(Number(e.target.value) || 0)}
+                    placeholder="опц."
+                  />
+                </div>
+              )}
               <div className="space-y-1">
                 <Label className="text-xs">Комментарий</Label>
                 <Input value={contribNote} onChange={(e) => setContribNote(e.target.value)} />
               </div>
             </div>
-            {contribTerm > 0 && contribDate && (
+            {contribMode === "deposit" && contribTerm > 0 && contribDate && (
               <p className="text-xs text-muted-foreground mt-2">
                 Возврат до: <span className="font-semibold">{formatDate(addMonthsISO(contribDate, contribTerm))}</span>
               </p>
             )}
             <div className="mt-3">
-              <Button onClick={addContrib}>Записать</Button>
+              <Button
+                onClick={addContrib}
+                variant={contribMode === "withdraw" ? "destructive" : "default"}
+              >
+                {contribMode === "withdraw" ? "Вывести средства" : "Записать пополнение"}
+              </Button>
             </div>
           </div>
           {contributions.length === 0 ? (
