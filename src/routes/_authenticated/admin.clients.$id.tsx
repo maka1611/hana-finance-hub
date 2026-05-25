@@ -385,6 +385,8 @@ function ClientProfilePage() {
         )}
       </div>
 
+      <ClientMarkupRateCard clientId={id} />
+
       {/* Документы клиента */}
       <div className="grid md:grid-cols-2 gap-4">
         <DocumentCard
