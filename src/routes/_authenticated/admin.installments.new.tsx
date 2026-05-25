@@ -34,9 +34,14 @@ function AdminNewInstallment() {
   const navigate = useNavigate();
   const listFn = useServerFn(adminListClients);
   const createFn = useServerFn(adminCreateInstallment);
+  const investorsFn = useServerFn(listInvestorsLite);
   const { data: clients } = useQuery({
     queryKey: ["admin-clients"],
     queryFn: () => listFn(),
+  });
+  const { data: investors } = useQuery({
+    queryKey: ["investors-lite"],
+    queryFn: () => investorsFn(),
   });
 
   const [mode, setMode] = useState<Mode>("existing");
