@@ -1438,6 +1438,7 @@ const AdminCreateInstallmentSchema = z.object({
     .nullable(),
   clientComment: z.string().trim().max(2000).optional().nullable(),
   markupRate: z.number().min(0).max(1).optional(),
+  investorId: z.string().uuid().optional().nullable(),
   extraPhones: z
     .array(
       z.object({
@@ -1597,7 +1598,8 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
         term_months: calc.termMonths,
         start_date: startDate.toISOString().slice(0, 10),
         status: "active",
-      })
+        investor_id: data.investorId ?? null,
+      } as never)
       .select()
       .single();
     if (cErr) throw new Error(cErr.message);

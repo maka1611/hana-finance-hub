@@ -281,6 +281,7 @@ export type Database = {
           created_at: string
           down_payment: number
           id: string
+          investor_id: string | null
           markup_amount: number
           markup_rate: number
           monthly_payment: number
@@ -303,6 +304,7 @@ export type Database = {
           created_at?: string
           down_payment?: number
           id?: string
+          investor_id?: string | null
           markup_amount: number
           markup_rate?: number
           monthly_payment: number
@@ -325,6 +327,7 @@ export type Database = {
           created_at?: string
           down_payment?: number
           id?: string
+          investor_id?: string | null
           markup_amount?: number
           markup_rate?: number
           monthly_payment?: number
@@ -337,6 +340,85 @@ export type Database = {
           status?: Database["public"]["Enums"]["contract_status"]
           term_months?: number
           total_sale_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_contracts_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investor_contributions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          investor_id: string
+          note: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          investor_id: string
+          note?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          investor_id?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_contributions_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investors: {
+        Row: {
+          comment: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string | null
+          profit_share_rate: number
+          total_capital: number
+          updated_at: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          profit_share_rate?: number
+          total_capital?: number
+          updated_at?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          profit_share_rate?: number
+          total_capital?: number
           updated_at?: string
         }
         Relationships: []

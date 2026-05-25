@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { adminGetContract, adminRecordPayment, adminUpdateContractStatus, adminDeleteContract } from "@/lib/admin.functions";
+import { listInvestorsLite, setContractInvestor } from "@/lib/investors.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,7 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Trash2, Briefcase } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/contracts/$id")({
   component: AdminContractDetail,
@@ -31,10 +32,16 @@ function AdminContractDetail() {
   const recordFn = useServerFn(adminRecordPayment);
   const statusFn = useServerFn(adminUpdateContractStatus);
   const deleteFn = useServerFn(adminDeleteContract);
+  const investorsFn = useServerFn(listInvestorsLite);
+  const setInvFn = useServerFn(setContractInvestor);
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-contract", id],
     queryFn: () => fn({ data: { id } }),
+  });
+  const { data: investors } = useQuery({
+    queryKey: ["investors-lite"],
+    queryFn: () => investorsFn(),
   });
   const [busy, setBusy] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -42,6 +49,20 @@ function AdminContractDetail() {
   if (isLoading || !data) return <p className="text-sm text-muted-foreground">Загрузка...</p>;
 
   const { contract, schedule, profile, payments } = data;
+  const currentInvestor = (investors ?? []).find(
+    (i) => i.id === (contract as { investor_id?: string | null }).investor_id,
+  );
+
+  const changeInvestor = async (val: string) => {
+    try {
+      await setInvFn({ data: { contract_id: id, investor_id: val || null } });
+      toast.success("Инвестор обновлён");
+      qc.invalidateQueries({ queryKey: ["admin-contract", id] });
+      qc.invalidateQueries({ queryKey: ["investors"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    }
+  };
 
   const handlePay = async (sid: string, amount: number) => {
     setBusy(sid);
@@ -157,6 +178,44 @@ function AdminContractDetail() {
           value={`${(Number(contract.markup_rate) * Number(contract.term_months) * 100).toFixed(1)}%`}
         />
         <Mini label="Итоговая цена" value={formatMoney(Number(contract.total_sale_price))} highlight />
+      </div>
+
+      <div className="bg-card rounded-2xl ring-1 ring-border p-4 sm:p-5">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2 text-sm">
+            <Briefcase className="size-4 text-muted-foreground" />
+            <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Инвестор:</span>
+            {currentInvestor ? (
+              <Link
+                to="/admin/investors/$id"
+                params={{ id: currentInvestor.id }}
+                className="font-bold hover:text-primary underline-offset-4 hover:underline"
+              >
+                {currentInvestor.full_name}
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">— собственные средства —</span>
+            )}
+            {currentInvestor && (
+              <span className="text-xs text-muted-foreground">
+                · доля {(Number(currentInvestor.profit_share_rate) * 100).toFixed(0)}% ·
+                прибыль инвестора {formatMoney(Number(contract.markup_amount) * Number(currentInvestor.profit_share_rate))}
+              </span>
+            )}
+          </div>
+          <select
+            value={(contract as { investor_id?: string | null }).investor_id ?? ""}
+            onChange={(e) => changeInvestor(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">— без инвестора —</option>
+            {(investors ?? []).map((inv) => (
+              <option key={inv.id} value={inv.id}>
+                {inv.full_name} · свободно {formatMoney(inv.free)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div>

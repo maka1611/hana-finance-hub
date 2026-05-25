@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type FormEvent } from "react";
 import { adminListClients, adminCreateInstallment } from "@/lib/admin.functions";
+import { listInvestorsLite } from "@/lib/investors.functions";
 import { calcInstallment, formatMoney, MAX_TERM, DEFAULT_MARKUP_RATE } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,9 +34,14 @@ function AdminNewInstallment() {
   const navigate = useNavigate();
   const listFn = useServerFn(adminListClients);
   const createFn = useServerFn(adminCreateInstallment);
+  const investorsFn = useServerFn(listInvestorsLite);
   const { data: clients } = useQuery({
     queryKey: ["admin-clients"],
     queryFn: () => listFn(),
+  });
+  const { data: investors } = useQuery({
+    queryKey: ["investors-lite"],
+    queryFn: () => investorsFn(),
   });
 
   const [mode, setMode] = useState<Mode>("existing");
@@ -92,6 +98,7 @@ function AdminNewInstallment() {
     emails: [],
   });
   const [guarantors, setGuarantors] = useState<Guarantor[]>([]);
+  const [investorId, setInvestorId] = useState<string | null>(null);
 
   const readFile = (file: File): Promise<PhotoFile> =>
     new Promise((resolve, reject) => {
@@ -154,6 +161,7 @@ function AdminNewInstallment() {
           firstPaymentDate,
           clientComment: comment || null,
           markupRate: markupPct / 100,
+          investorId: investorId,
           extraPhones:
             mode === "new"
               ? phones
@@ -613,6 +621,62 @@ function AdminNewInstallment() {
         <div className="space-y-2">
           <Label>Комментарий <span className="text-muted-foreground font-normal">(необязательно)</span></Label>
           <Textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} />
+        </div>
+
+        <div className="h-px bg-border" />
+
+        <div className="space-y-3">
+          <h2 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+            Инвестор <span className="font-normal normal-case tracking-normal text-[11px]">(необязательно)</span>
+          </h2>
+          {(investors ?? []).length === 0 ? (
+            <p className="text-[11px] text-muted-foreground">
+              Список инвесторов пуст. Добавить можно в разделе «Инвесторы».
+            </p>
+          ) : (
+            <>
+              <select
+                value={investorId ?? ""}
+                onChange={(e) => setInvestorId(e.target.value || null)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">— Без инвестора (собственные средства) —</option>
+                {(investors ?? []).map((inv) => (
+                  <option key={inv.id} value={inv.id}>
+                    {inv.full_name} · свободно {formatMoney(inv.free)} · доля {(Number(inv.profit_share_rate) * 100).toFixed(0)}%
+                  </option>
+                ))}
+              </select>
+              {investorId && (() => {
+                const inv = (investors ?? []).find((x) => x.id === investorId);
+                if (!inv) return null;
+                const afterPlacement = inv.free - calc.principal;
+                const investorProfit = calc.markupAmount * Number(inv.profit_share_rate);
+                const ourProfit = calc.markupAmount - investorProfit;
+                return (
+                  <div className="rounded-xl bg-muted/30 ring-1 ring-border p-3 grid sm:grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">У инвестора останется</div>
+                      <div className={`font-extrabold text-sm ${afterPlacement < 0 ? "text-destructive" : ""}`}>
+                        {formatMoney(afterPlacement)}
+                      </div>
+                      {afterPlacement < 0 && (
+                        <div className="text-[10px] text-destructive">Превышает свободные средства</div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Прибыль инвестора</div>
+                      <div className="font-extrabold text-sm">{formatMoney(investorProfit)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Наша прибыль</div>
+                      <div className="font-extrabold text-sm">{formatMoney(ourProfit)}</div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          )}
         </div>
 
         <div className="h-px bg-border" />

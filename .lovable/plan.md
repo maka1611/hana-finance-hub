@@ -1,83 +1,75 @@
 
-## 1. Локализация интерфейса на русский
+# План: модуль инвесторов
 
-Пройти по всем экранам и заменить оставшиеся английские строки (метки, бейджи, заголовки), сохранив бренд `NoorPay` латиницей.
+## 1. База данных (миграция)
 
-Точки, где сейчас есть английский:
-- `tierLabels` в `app.profile.tsx` и `admin.clients.$id.tsx`: `Bronze / Silver / Gold / Platinum` → «Бронза / Серебро / Золото / Платина».
-- Бейджи статусов (`pending / active / closed / paid / overdue` и т.п.), плейсхолдеры `Search…`, любые `Save / Cancel / Loading…`, оставшиеся в админских таблицах и формах.
-- Тосты и сообщения об ошибках — перевести единым стилем.
+**Таблица `investors`** — справочник инвесторов:
+- `full_name`, `phone`, `email`, `comment`
+- `total_capital` (numeric) — сколько денег внёс инвестор
+- `profit_share_rate` (numeric, 0..1) — % от нашей наценки, который получает инвестор (например 0.5 = 50% от заработка с клиента)
+- `is_active` (bool)
 
-Подход: пройти по `src/routes/_authenticated/**` и `src/components/admin|client/**`, заменить строки на русские. Бренд и `email` оставить как есть.
+**Таблица `investor_contributions`** (опц.) — журнал пополнений/выводов средств инвестора (сумма, дата, комментарий). Нужна, чтобы видеть историю и точно считать остаток.
 
-## 2. Убрать дубль кнопки «Подать заявку» у пользователя
+**Поле в `installment_contracts`**:
+- `investor_id` (uuid, nullable) — какой инвестор финансирует контракт.
 
-Сейчас она встречается:
-- в боковом меню `ClientSidebar.tsx` (зелёная CTA сверху),
-- на дашборде `app.index.tsx` (отдельная кнопка над карточками),
-- на странице `/app/new` (заголовок).
+(Поддержка нескольких инвесторов на один контракт через junction-таблицу `contract_investors` со столбцом `share` — добавлю позже по запросу; сейчас один инвестор на контракт = проще и достаточно для всех требуемых отчётов.)
 
-Оставить только CTA в сайдбаре. На дашборде убрать дублирующую кнопку, вместо неё — компактная ссылка «Подать новую заявку» в карточке «Заявки на рассмотрении» (или совсем убрать, если пусто). На прочих страницах второстепенных CTA не добавлять.
+**RLS**: всё доступно только staff (`is_staff(auth.uid())`).
 
-## 3. Постоянно видимый временный пароль в профиле клиента (для админов)
+**Производные показатели (через SQL view/функции)** по инвестору:
+- Вложено = `total_capital` (или сумма contributions).
+- Размещено = сумма `principal` активных контрактов инвестора.
+- Остаток свободных средств = вложено − размещено.
+- Ожидаемая прибыль = сумма `markup_amount` × `profit_share_rate`.
+- Получено выплат = сумма `payments.amount` по контрактам инвестора (распределённая на тело/наценку, доля × наценка).
+- Просрочки = `payment_schedules` со `status='pending'` и `due_date < today` по контрактам инвестора.
 
-Сейчас временный пароль показывается одним тостом в `admin.installments.new.tsx` и теряется.
+## 2. Server functions (`src/lib/investors.functions.ts`)
 
-Изменения:
-- Миграция: добавить колонку `profiles.initial_password text` (nullable). RLS уже ограничивает чтение `profiles` владельцем + `is_staff`, так что поле видно только админам и самому пользователю. Чтобы не светить владельцу, сделаем отдельную таблицу `client_secrets(user_id pk, initial_password text, updated_at)` с RLS «SELECT/UPDATE только `is_staff`».
-- `adminCreateInstallment`: при создании нового клиента записывать `tempPassword` в `client_secrets`.
-- Новая server-fn `adminResetClientPassword(userId)`: генерирует новый пароль, вызывает `supabaseAdmin.auth.admin.updateUserById`, обновляет `client_secrets`, логирует в `admin_audit_log`.
-- `admin.clients.$id.tsx`: блок «Доступ клиента» — поле с паролем (по умолчанию скрыт точками, кнопки «Показать», «Скопировать», «Сбросить пароль»). Если значения нет — кнопка «Сгенерировать новый пароль».
-- Тост после создания рассрочки заменить на короткий: «Клиент создан. Пароль доступен в профиле клиента» + кнопка-ссылка «Открыть профиль».
+- `listInvestors()` — список со сводкой по каждому (вложено, размещено, остаток, прибыль, число контрактов, число просрочек).
+- `getInvestor(id)` — карточка инвестора + список его контрактов + расписание просрочек + история contributions.
+- `getInvestorsAggregate(ids[])` — сводные показатели по выбранным инвесторам (для сравнения / суммы).
+- `createInvestor`, `updateInvestor`, `archiveInvestor`.
+- `addContribution(investor_id, amount, note)`.
 
-## 4. Смена пароля пользователем в разделе «Профиль»
+Все защищены `requireSupabaseAuth` + проверка staff.
 
-В `app/profile` добавить карточку «Безопасность»: поля «Новый пароль» / «Повтор пароля», валидация (мин. 8 символов, совпадение). Кнопка вызывает `supabase.auth.updateUser({ password })` на клиенте. По успеху — тост, очистка полей.
+## 3. UI — админка
 
-## 5. Несколько поручителей при оформлении рассрочки
+**Новые роуты:**
+- `/admin/investors` — список инвесторов: ФИО, контакты, вложено, размещено, **остаток**, доля прибыли, число контрактов, просрочки. Множественный выбор чекбоксами → панель «Сводка по выбранным» (агрегаты).
+- `/admin/investors/new` — форма создания.
+- `/admin/investors/$id` — карточка:
+  - Финансы: вложено / размещено / свободно / ожидаемая прибыль / полученная прибыль.
+  - Вкладки: **Контракты** (этого инвестора), **Просрочки** (только по его клиентам), **Пополнения**, **Платежи**.
+- В `AdminSidebar` добавить пункт «Инвесторы» (иконка `Briefcase`).
 
-Поручитель — отдельный человек (не auth-пользователь), привязанный к договору. У каждого: ФИО, комментарий, список телефонов (label + каналы) и список email-адресов.
+**Оформление рассрочки (`admin.installments.new.tsx`)**:
+- Новый Select «Инвестор» (опционально, но с подсказкой об остатке свободных средств).
+- Валидация: `principal` контракта ≤ свободные средства инвестора (мягкое предупреждение, не блок).
+- Показ: «После оформления у инвестора останется X ₽», «Доля прибыли инвестора: Y ₽».
 
-Миграция, новые таблицы:
-- `contract_guarantors(id, contract_id fk, full_name, comment, created_at)`
-- `guarantor_phones(id, guarantor_id fk, phone, label, channels text[])`
-- `guarantor_emails(id, guarantor_id fk, email, label)`
+**Контракт `admin.contracts.$id.tsx`**:
+- Блок «Инвестор»: имя + ссылка на карточку + его доля прибыли по этому контракту.
+- Возможность сменить инвестора.
 
-RLS: SELECT/INSERT/UPDATE/DELETE только `is_staff(auth.uid())`. Клиент договора поручителей не видит (по требованию можно открыть на SELECT владельцу договора — уточнить отдельно, по умолчанию — только staff).
+**Общая аналитика `admin.analytics.tsx`**:
+- Фильтр по инвестору (мультиселект).
+- Карточки: всего вложено инвесторами, размещено, свободно, наша чистая прибыль (наценка − доли инвесторов), прибыль инвесторов.
 
-UI в `admin.installments.new.tsx`: после блока товара — секция «Поручители» с кнопкой «+ Добавить поручителя». Каждый поручитель — карточка с полями ФИО, комментарий, повторяющимися строками телефонов (через `ContactChannelToggles`) и email-ов, кнопкой «Удалить».
+## 4. Файлы для создания/правки
 
-Сервер: расширить `AdminCreateInstallmentSchema` массивом `guarantors`, в `adminCreateInstallment` после создания договора пакетно вставить поручителей и их контакты.
+- `supabase/migrations/<timestamp>_investors.sql` — таблицы + RLS.
+- `src/lib/investors.functions.ts` — серверные функции.
+- `src/routes/_authenticated/admin.investors.index.tsx`
+- `src/routes/_authenticated/admin.investors.new.tsx`
+- `src/routes/_authenticated/admin.investors.$id.tsx`
+- Правки: `AdminSidebar.tsx`, `admin.installments.new.tsx`, `admin.contracts.$id.tsx`, `admin.analytics.tsx`, `admin.functions.ts` (если нужно подтянуть контракты с investor_id).
 
-Отображение: на странице договора `admin.contracts.$id.tsx` добавить блок «Поручители» (список с возможностью править/удалять отдельной mutation `adminUpdateGuarantors` — в этой итерации только просмотр + удаление, редактирование контактов оставим на следующий шаг, чтобы не раздувать задачу).
+## Уточнения
 
-## Тех. детали миграций
-
-```sql
-create table public.client_secrets (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  initial_password text not null,
-  updated_at timestamptz not null default now()
-);
-alter table public.client_secrets enable row level security;
-create policy "Staff reads client secrets" on public.client_secrets
-  for select using (is_staff(auth.uid()));
-create policy "Staff writes client secrets" on public.client_secrets
-  for all using (is_staff(auth.uid())) with check (is_staff(auth.uid()));
-
-create table public.contract_guarantors (...);
-create table public.guarantor_phones (...);
-create table public.guarantor_emails (...);
--- RLS: only is_staff(auth.uid())
-```
-
-## Файлы, которые буду менять
-
-- Новые миграции (`client_secrets`, `contract_guarantors`, `guarantor_phones`, `guarantor_emails`).
-- `src/lib/admin.functions.ts` — сохранение пароля, новые fn `adminResetClientPassword`, `adminGetClientSecret`, расширение `adminCreateInstallment` поручителями, `adminListGuarantors`, `adminDeleteGuarantor`.
-- `src/routes/_authenticated/admin.installments.new.tsx` — блок поручителей, изменение тоста.
-- `src/routes/_authenticated/admin.clients.$id.tsx` — блок «Доступ клиента» с паролем.
-- `src/routes/_authenticated/admin.contracts.$id.tsx` — блок «Поручители».
-- `src/routes/_authenticated/app.profile.tsx` — карточка «Безопасность» + замена `tierLabels`.
-- `src/routes/_authenticated/app.index.tsx` — удалить дублирующий CTA.
-- Точечные переводы в админских страницах и `ui` компонентах.
+1. Один инвестор на контракт или сразу разрешить разделение между несколькими (с долями)? — Предлагаю **один** на старте; разделение добавим, когда понадобится.
+2. Считаем доход инвестора **от полной наценки контракта** (начисляется сразу при оформлении) или **по факту полученных платежей** от клиента? — Предлагаю показывать оба: «Ожидаемая прибыль» и «Полученная прибыль».
+3. Нужны ли личные кабинеты для инвесторов (логин/пароль), или это пока только справочник для админа? — По умолчанию **только админский справочник**.
