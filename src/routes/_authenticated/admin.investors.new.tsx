@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ArrowLeft, Briefcase } from "lucide-react";
 
@@ -27,6 +28,7 @@ function NewInvestor() {
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState<string>("");
   const [termMonths, setTermMonths] = useState<number>(0);
+  const [capitalize, setCapitalize] = useState<boolean>(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -44,6 +46,7 @@ function NewInvestor() {
           is_active: true,
           contract_start_date: startDate || null,
           contract_term_months: termMonths > 0 ? termMonths : null,
+          capitalize_profit: capitalize,
         },
       });
       toast.success("Инвестор добавлен");
@@ -129,6 +132,15 @@ function NewInvestor() {
               onChange={(e) => setTermMonths(Number(e.target.value) || 0)}
               placeholder="например, 12"
             />
+          </div>
+        </div>
+        <div className="flex items-start gap-2">
+          <Switch checked={capitalize} onCheckedChange={setCapitalize} id="capitalize-new" />
+          <div className="space-y-0.5">
+            <Label htmlFor="capitalize-new" className="cursor-pointer">Капитализировать прибыль</Label>
+            <p className="text-[11px] text-muted-foreground">
+              Заработанная доля наценки будет автоматически добавляться в «Свободно» и доступна для нового размещения.
+            </p>
           </div>
         </div>
         <Button type="submit" disabled={loading} className="w-full sm:w-auto">
