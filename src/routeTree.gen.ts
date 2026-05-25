@@ -32,6 +32,7 @@ import { Route as AuthenticatedAdminClientsIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminApplicationsIndexRouteImport } from './routes/_authenticated/admin.applications.index'
 import { Route as AuthenticatedAppInstallmentsIdRouteImport } from './routes/_authenticated/app.installments.$id'
 import { Route as AuthenticatedAdminInvestorsNewRouteImport } from './routes/_authenticated/admin.investors.new'
+import { Route as AuthenticatedAdminInvestorsIdRouteImport } from './routes/_authenticated/admin.investors.$id'
 import { Route as AuthenticatedAdminInstallmentsNewRouteImport } from './routes/_authenticated/admin.installments.new'
 import { Route as AuthenticatedAdminContractsIdRouteImport } from './routes/_authenticated/admin.contracts.$id'
 import { Route as AuthenticatedAdminClientsIdRouteImport } from './routes/_authenticated/admin.clients.$id'
@@ -161,6 +162,12 @@ const AuthenticatedAdminInvestorsNewRoute =
     path: '/investors/new',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminInvestorsIdRoute =
+  AuthenticatedAdminInvestorsIdRouteImport.update({
+    id: '/investors/$id',
+    path: '/investors/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminInstallmentsNewRoute =
   AuthenticatedAdminInstallmentsNewRouteImport.update({
     id: '/installments/new',
@@ -206,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/admin/clients/$id': typeof AuthenticatedAdminClientsIdRoute
   '/admin/contracts/$id': typeof AuthenticatedAdminContractsIdRoute
   '/admin/installments/new': typeof AuthenticatedAdminInstallmentsNewRoute
+  '/admin/investors/$id': typeof AuthenticatedAdminInvestorsIdRoute
   '/admin/investors/new': typeof AuthenticatedAdminInvestorsNewRoute
   '/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
   '/admin/applications/': typeof AuthenticatedAdminApplicationsIndexRoute
@@ -231,6 +239,7 @@ export interface FileRoutesByTo {
   '/admin/clients/$id': typeof AuthenticatedAdminClientsIdRoute
   '/admin/contracts/$id': typeof AuthenticatedAdminContractsIdRoute
   '/admin/installments/new': typeof AuthenticatedAdminInstallmentsNewRoute
+  '/admin/investors/$id': typeof AuthenticatedAdminInvestorsIdRoute
   '/admin/investors/new': typeof AuthenticatedAdminInvestorsNewRoute
   '/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
   '/admin/applications': typeof AuthenticatedAdminApplicationsIndexRoute
@@ -261,6 +270,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/clients/$id': typeof AuthenticatedAdminClientsIdRoute
   '/_authenticated/admin/contracts/$id': typeof AuthenticatedAdminContractsIdRoute
   '/_authenticated/admin/installments/new': typeof AuthenticatedAdminInstallmentsNewRoute
+  '/_authenticated/admin/investors/$id': typeof AuthenticatedAdminInvestorsIdRoute
   '/_authenticated/admin/investors/new': typeof AuthenticatedAdminInvestorsNewRoute
   '/_authenticated/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
   '/_authenticated/admin/applications/': typeof AuthenticatedAdminApplicationsIndexRoute
@@ -291,6 +301,7 @@ export interface FileRouteTypes {
     | '/admin/clients/$id'
     | '/admin/contracts/$id'
     | '/admin/installments/new'
+    | '/admin/investors/$id'
     | '/admin/investors/new'
     | '/app/installments/$id'
     | '/admin/applications/'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/admin/clients/$id'
     | '/admin/contracts/$id'
     | '/admin/installments/new'
+    | '/admin/investors/$id'
     | '/admin/investors/new'
     | '/app/installments/$id'
     | '/admin/applications'
@@ -345,6 +357,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/clients/$id'
     | '/_authenticated/admin/contracts/$id'
     | '/_authenticated/admin/installments/new'
+    | '/_authenticated/admin/investors/$id'
     | '/_authenticated/admin/investors/new'
     | '/_authenticated/app/installments/$id'
     | '/_authenticated/admin/applications/'
@@ -525,6 +538,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminInvestorsNewRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/investors/$id': {
+      id: '/_authenticated/admin/investors/$id'
+      path: '/investors/$id'
+      fullPath: '/admin/investors/$id'
+      preLoaderRoute: typeof AuthenticatedAdminInvestorsIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/installments/new': {
       id: '/_authenticated/admin/installments/new'
       path: '/installments/new'
@@ -582,6 +602,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminApplicationsIdRoute: typeof AuthenticatedAdminApplicationsIdRoute
   AuthenticatedAdminContractsIdRoute: typeof AuthenticatedAdminContractsIdRoute
   AuthenticatedAdminInstallmentsNewRoute: typeof AuthenticatedAdminInstallmentsNewRoute
+  AuthenticatedAdminInvestorsIdRoute: typeof AuthenticatedAdminInvestorsIdRoute
   AuthenticatedAdminInvestorsNewRoute: typeof AuthenticatedAdminInvestorsNewRoute
   AuthenticatedAdminApplicationsIndexRoute: typeof AuthenticatedAdminApplicationsIndexRoute
   AuthenticatedAdminContractsIndexRoute: typeof AuthenticatedAdminContractsIndexRoute
@@ -599,6 +620,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminContractsIdRoute: AuthenticatedAdminContractsIdRoute,
   AuthenticatedAdminInstallmentsNewRoute:
     AuthenticatedAdminInstallmentsNewRoute,
+  AuthenticatedAdminInvestorsIdRoute: AuthenticatedAdminInvestorsIdRoute,
   AuthenticatedAdminInvestorsNewRoute: AuthenticatedAdminInvestorsNewRoute,
   AuthenticatedAdminApplicationsIndexRoute:
     AuthenticatedAdminApplicationsIndexRoute,
