@@ -161,6 +161,7 @@ function AdminNewInstallment() {
           firstPaymentDate,
           clientComment: comment || null,
           markupRate: markupPct / 100,
+          investorId: investorId,
           extraPhones:
             mode === "new"
               ? phones
