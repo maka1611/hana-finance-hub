@@ -32,6 +32,7 @@ import { Route as AuthenticatedAdminInvestorsIndexRouteImport } from './routes/_
 import { Route as AuthenticatedAdminContractsIndexRouteImport } from './routes/_authenticated/admin.contracts.index'
 import { Route as AuthenticatedAdminClientsIndexRouteImport } from './routes/_authenticated/admin.clients.index'
 import { Route as AuthenticatedAdminApplicationsIndexRouteImport } from './routes/_authenticated/admin.applications.index'
+import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as AuthenticatedAppInstallmentsIdRouteImport } from './routes/_authenticated/app.installments.$id'
 import { Route as AuthenticatedAdminInvestorsNewRouteImport } from './routes/_authenticated/admin.investors.new'
 import { Route as AuthenticatedAdminInvestorsIdRouteImport } from './routes/_authenticated/admin.investors.$id'
@@ -164,6 +165,12 @@ const AuthenticatedAdminApplicationsIndexRoute =
     path: '/applications/',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const LovableEmailQueueProcessRoute =
+  LovableEmailQueueProcessRouteImport.update({
+    id: '/lovable/email/queue/process',
+    path: '/lovable/email/queue/process',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAppInstallmentsIdRoute =
   AuthenticatedAppInstallmentsIdRouteImport.update({
     id: '/installments/$id',
@@ -232,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/admin/investors/$id': typeof AuthenticatedAdminInvestorsIdRoute
   '/admin/investors/new': typeof AuthenticatedAdminInvestorsNewRoute
   '/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/admin/applications/': typeof AuthenticatedAdminApplicationsIndexRoute
   '/admin/clients/': typeof AuthenticatedAdminClientsIndexRoute
   '/admin/contracts/': typeof AuthenticatedAdminContractsIndexRoute
@@ -260,6 +268,7 @@ export interface FileRoutesByTo {
   '/admin/investors/$id': typeof AuthenticatedAdminInvestorsIdRoute
   '/admin/investors/new': typeof AuthenticatedAdminInvestorsNewRoute
   '/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/admin/applications': typeof AuthenticatedAdminApplicationsIndexRoute
   '/admin/clients': typeof AuthenticatedAdminClientsIndexRoute
   '/admin/contracts': typeof AuthenticatedAdminContractsIndexRoute
@@ -293,6 +302,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/investors/$id': typeof AuthenticatedAdminInvestorsIdRoute
   '/_authenticated/admin/investors/new': typeof AuthenticatedAdminInvestorsNewRoute
   '/_authenticated/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/_authenticated/admin/applications/': typeof AuthenticatedAdminApplicationsIndexRoute
   '/_authenticated/admin/clients/': typeof AuthenticatedAdminClientsIndexRoute
   '/_authenticated/admin/contracts/': typeof AuthenticatedAdminContractsIndexRoute
@@ -326,6 +336,7 @@ export interface FileRouteTypes {
     | '/admin/investors/$id'
     | '/admin/investors/new'
     | '/app/installments/$id'
+    | '/lovable/email/queue/process'
     | '/admin/applications/'
     | '/admin/clients/'
     | '/admin/contracts/'
@@ -354,6 +365,7 @@ export interface FileRouteTypes {
     | '/admin/investors/$id'
     | '/admin/investors/new'
     | '/app/installments/$id'
+    | '/lovable/email/queue/process'
     | '/admin/applications'
     | '/admin/clients'
     | '/admin/contracts'
@@ -386,6 +398,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/investors/$id'
     | '/_authenticated/admin/investors/new'
     | '/_authenticated/app/installments/$id'
+    | '/lovable/email/queue/process'
     | '/_authenticated/admin/applications/'
     | '/_authenticated/admin/clients/'
     | '/_authenticated/admin/contracts/'
@@ -399,6 +412,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -564,6 +578,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminApplicationsIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/lovable/email/queue/process': {
+      id: '/lovable/email/queue/process'
+      path: '/lovable/email/queue/process'
+      fullPath: '/lovable/email/queue/process'
+      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/app/installments/$id': {
       id: '/_authenticated/app/installments/$id'
       path: '/installments/$id'
@@ -715,17 +736,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
