@@ -174,14 +174,27 @@ export const getMyInvestorDashboard = createServerFn({ method: "GET" })
     const avgMonthlyYieldPct =
       capital > 0 ? (receivedProfit / monthsActive / capital) * 100 : 0;
 
-    // Контракты без данных клиента
+    // Контракты без данных клиента + разбивка прибыли инвестора
+    const paidAmtByContract = new Map<string, number>();
+    for (const p of ps) {
+      paidAmtByContract.set(
+        p.contract_id,
+        (paidAmtByContract.get(p.contract_id) ?? 0) + Number(p.amount),
+      );
+    }
     const anonymizedContracts = cs.map((c) => {
       const own = ss.filter((s) => s.contract_id === c.id);
       const paid = own.filter((s) => s.status === "paid").length;
+      const ms = contractMarkupShare.get(c.id) ?? 0;
+      const principal = Number(c.principal);
+      const investorProfitTotal = Number(c.markup_amount) * shareRate;
+      const paidAmt = paidAmtByContract.get(c.id) ?? 0;
+      const investorReceivedProfit = paidAmt * ms * shareRate;
+      const investorReceivedPrincipal = paidAmt * (1 - ms);
       return {
         id: c.id,
         productName: c.product_name,
-        principal: Number(c.principal),
+        principal,
         markupAmount: Number(c.markup_amount),
         totalSalePrice: Number(c.total_sale_price),
         monthlyPayment: Number(c.monthly_payment),
@@ -191,6 +204,13 @@ export const getMyInvestorDashboard = createServerFn({ method: "GET" })
         clientCode: `Клиент #${c.client_id.slice(0, 4)}`,
         paidCount: paid,
         totalCount: own.length || c.term_months,
+        investorPrincipal: principal,
+        investorProfitTotal,
+        investorReceivedProfit,
+        investorRemainingProfit: Math.max(0, investorProfitTotal - investorReceivedProfit),
+        investorReceivedPrincipal,
+        investorRemainingPrincipal: Math.max(0, principal - investorReceivedPrincipal),
+        investorPayoutTotal: principal + investorProfitTotal,
       };
     });
 
@@ -203,14 +223,50 @@ export const getMyInvestorDashboard = createServerFn({ method: "GET" })
       .filter((s) => s.due_date <= horizonISO || s.due_date < today)
       .map((s) => {
         const c = byContract.get(s.contract_id)!;
+        const ms = contractMarkupShare.get(s.contract_id) ?? 0;
+        const amt = Number(s.amount);
+        const principalPart = amt * (1 - ms);
+        const investorProfit = amt * ms * shareRate;
         return {
           id: s.id,
           dueDate: s.due_date,
-          amount: Number(s.amount),
+          amount: amt,
           status: s.status,
           overdue: s.status === "overdue" || s.due_date < today,
           productName: c?.product_name ?? "—",
           contractId: s.contract_id,
+          principalPart,
+          investorProfit,
+          investorCashflow: principalPart + investorProfit,
+        };
+      });
+
+    // Прогноз по месяцам — на основании всего графика
+    const monthMap = new Map<
+      string,
+      { investorPrincipal: number; investorProfit: number }
+    >();
+    for (const s of ss) {
+      const month = s.due_date.slice(0, 7);
+      const ms = contractMarkupShare.get(s.contract_id) ?? 0;
+      const amt = Number(s.amount);
+      const row = monthMap.get(month) ?? { investorPrincipal: 0, investorProfit: 0 };
+      row.investorPrincipal += amt * (1 - ms);
+      row.investorProfit += amt * ms * shareRate;
+      monthMap.set(month, row);
+    }
+    let cumulative = 0;
+    const monthlyProjection = [...monthMap.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([month, v]) => {
+        const total = v.investorPrincipal + v.investorProfit;
+        cumulative += total;
+        return {
+          month,
+          investorPrincipal: v.investorPrincipal,
+          investorProfit: v.investorProfit,
+          investorTotal: total,
+          cumulativeTotal: cumulative,
         };
       });
 
@@ -221,6 +277,8 @@ export const getMyInvestorDashboard = createServerFn({ method: "GET" })
       kind: "contract" | "payment" | "contribution";
       title: string;
       amount?: number;
+      investorProfit?: number;
+      investorPrincipal?: number;
     };
     const feed: Feed[] = [];
     for (const c of cs) {
@@ -235,12 +293,16 @@ export const getMyInvestorDashboard = createServerFn({ method: "GET" })
     for (const p of ps) {
       const c = byContract.get(p.contract_id);
       if (!c) continue;
+      const ms = contractMarkupShare.get(c.id) ?? 0;
+      const amt = Number(p.amount);
       feed.push({
         id: `p-${p.id}`,
         at: p.paid_at,
         kind: "payment",
         title: `Платёж по «${c.product_name}»`,
-        amount: Number(p.amount),
+        amount: amt,
+        investorProfit: amt * ms * shareRate,
+        investorPrincipal: amt * (1 - ms),
       });
     }
     for (const co of contributions ?? []) {
@@ -280,9 +342,16 @@ export const getMyInvestorDashboard = createServerFn({ method: "GET" })
         overdueCount: overdueSched.length,
         overdueAmount,
         activeCount: activeContracts.length,
+        expectedProfitTotal,
+        principalReturnedToDate: returnedPrincipal,
+        principalRemaining,
+        profitRemaining,
+        totalPayout,
+        progressPct,
       },
       contracts: anonymizedContracts,
       upcoming,
+      monthlyProjection,
       contributions: (contributions ?? []) as Array<{
         id: string;
         amount: number | string;
