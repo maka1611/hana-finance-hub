@@ -422,3 +422,52 @@ function Flow({
     </div>
   );
 }
+
+function ProfitCard({
+  label,
+  expected,
+  received,
+  tone,
+  accent,
+}: {
+  label: string;
+  expected: number;
+  received: number;
+  tone?: "investor";
+  accent?: boolean;
+}) {
+  const pct = expected > 0 ? Math.min(100, (received / expected) * 100) : 0;
+  return (
+    <div
+      className={`rounded-xl p-4 ${
+        accent ? "bg-primary/5 ring-1 ring-primary/30" : "bg-muted/30 ring-1 ring-border"
+      }`}
+    >
+      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+        {label}
+      </div>
+      <div
+        className={`text-2xl font-extrabold ${
+          tone === "investor" ? "text-amber-600" : accent ? "text-primary" : ""
+        }`}
+      >
+        {formatMoney(expected)}
+      </div>
+      <div className="text-xs text-muted-foreground mt-1">ожидается всего</div>
+      <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div
+          className={`h-full ${
+            tone === "investor" ? "bg-amber-500" : "bg-emerald-600"
+          }`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-xs mt-2">
+        <span className="text-emerald-600 font-semibold">
+          получено {formatMoney(received)}
+        </span>
+        <span className="text-muted-foreground">{pct.toFixed(0)}%</span>
+      </div>
+    </div>
+  );
+}
