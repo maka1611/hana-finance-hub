@@ -22,6 +22,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppNewRouteImport } from './routes/_authenticated/app.new'
+import { Route as AuthenticatedAppInvestorRouteImport } from './routes/_authenticated/app.investor'
 import { Route as AuthenticatedAppCalculatorRouteImport } from './routes/_authenticated/app.calculator'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as AuthenticatedAdminPricingRouteImport } from './routes/_authenticated/admin.pricing'
@@ -109,6 +110,12 @@ const AuthenticatedAppNewRoute = AuthenticatedAppNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppInvestorRoute =
+  AuthenticatedAppInvestorRouteImport.update({
+    id: '/investor',
+    path: '/investor',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppCalculatorRoute =
   AuthenticatedAppCalculatorRouteImport.update({
     id: '/calculator',
@@ -255,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/admin/pricing': typeof AuthenticatedAdminPricingRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/app/calculator': typeof AuthenticatedAppCalculatorRoute
+  '/app/investor': typeof AuthenticatedAppInvestorRoute
   '/app/new': typeof AuthenticatedAppNewRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -288,6 +296,7 @@ export interface FileRoutesByTo {
   '/admin/pricing': typeof AuthenticatedAdminPricingRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/app/calculator': typeof AuthenticatedAppCalculatorRoute
+  '/app/investor': typeof AuthenticatedAppInvestorRoute
   '/app/new': typeof AuthenticatedAppNewRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -326,6 +335,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/pricing': typeof AuthenticatedAdminPricingRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/app/calculator': typeof AuthenticatedAppCalculatorRoute
+  '/_authenticated/app/investor': typeof AuthenticatedAppInvestorRoute
   '/_authenticated/app/new': typeof AuthenticatedAppNewRoute
   '/_authenticated/app/profile': typeof AuthenticatedAppProfileRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -364,6 +374,7 @@ export interface FileRouteTypes {
     | '/admin/pricing'
     | '/admin/users'
     | '/app/calculator'
+    | '/app/investor'
     | '/app/new'
     | '/app/profile'
     | '/lovable/email/suppression'
@@ -397,6 +408,7 @@ export interface FileRouteTypes {
     | '/admin/pricing'
     | '/admin/users'
     | '/app/calculator'
+    | '/app/investor'
     | '/app/new'
     | '/app/profile'
     | '/lovable/email/suppression'
@@ -434,6 +446,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/pricing'
     | '/_authenticated/admin/users'
     | '/_authenticated/app/calculator'
+    | '/_authenticated/app/investor'
     | '/_authenticated/app/new'
     | '/_authenticated/app/profile'
     | '/lovable/email/suppression'
@@ -560,6 +573,13 @@ declare module '@tanstack/react-router' {
       path: '/new'
       fullPath: '/app/new'
       preLoaderRoute: typeof AuthenticatedAppNewRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/investor': {
+      id: '/_authenticated/app/investor'
+      path: '/investor'
+      fullPath: '/app/investor'
+      preLoaderRoute: typeof AuthenticatedAppInvestorRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/calculator': {
@@ -778,6 +798,7 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppCalculatorRoute: typeof AuthenticatedAppCalculatorRoute
+  AuthenticatedAppInvestorRoute: typeof AuthenticatedAppInvestorRoute
   AuthenticatedAppNewRoute: typeof AuthenticatedAppNewRoute
   AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
@@ -787,6 +808,7 @@ interface AuthenticatedAppRouteChildren {
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppCalculatorRoute: AuthenticatedAppCalculatorRoute,
+  AuthenticatedAppInvestorRoute: AuthenticatedAppInvestorRoute,
   AuthenticatedAppNewRoute: AuthenticatedAppNewRoute,
   AuthenticatedAppProfileRoute: AuthenticatedAppProfileRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
