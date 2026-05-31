@@ -32,7 +32,9 @@ function InvestorPortalPage() {
 
   const { investor, summary, contracts, upcoming, contributions, feed } = data;
   const { monthlyProjection } = data;
-  const annualYield = summary.avgMonthlyYieldPct * 12;
+  const displayedYield = summary.displayedAvgMonthlyYieldPct ?? summary.avgMonthlyYieldPct;
+  const annualYield = displayedYield * 12;
+  const isForecast = !!summary.yieldIsForecast;
   const upcomingTotalAmount = upcoming.reduce((s, u) => s + u.amount, 0);
   const upcomingTotalPrincipal = upcoming.reduce((s, u) => s + u.principalPart, 0);
   const upcomingTotalProfit = upcoming.reduce((s, u) => s + u.investorProfit, 0);
@@ -89,9 +91,13 @@ function InvestorPortalPage() {
         />
         <SummaryCard
           icon={<TrendingUp className="h-4 w-4 text-emerald-600" />}
-          label="Доходность / мес"
-          value={`${summary.avgMonthlyYieldPct.toFixed(2)}%`}
-          hint={`≈ ${annualYield.toFixed(1)}% годовых · договоров: ${summary.activeCount}`}
+          label={isForecast ? "Доходность / мес (прогноз)" : "Доходность / мес"}
+          value={`${displayedYield.toFixed(2)}%`}
+          hint={
+            isForecast
+              ? `≈ ${annualYield.toFixed(1)}% годовых по графику · фактическая появится после первых платежей · договоров: ${summary.activeCount}`
+              : `≈ ${annualYield.toFixed(1)}% годовых · договоров: ${summary.activeCount}`
+          }
         />
       </div>
 

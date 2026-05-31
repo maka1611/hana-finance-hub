@@ -174,6 +174,19 @@ export const getMyInvestorDashboard = createServerFn({ method: "GET" })
     const avgMonthlyYieldPct =
       capital > 0 ? (receivedProfit / monthsActive / capital) * 100 : 0;
 
+    // Прогнозная средняя месячная доходность по графику (для случаев, когда
+    // фактических платежей ещё не было, чтобы не показывать инвестору 0%).
+    const scheduleMonthsSet = new Set<string>();
+    for (const s of ss) scheduleMonthsSet.add(s.due_date.slice(0, 7));
+    const scheduleMonths = Math.max(1, scheduleMonthsSet.size);
+    const expectedAvgMonthlyYieldPct =
+      capital > 0 ? (expectedProfitTotal / scheduleMonths / capital) * 100 : 0;
+    const hasReceivedProfit = receivedProfit > 0;
+    const displayedAvgMonthlyYieldPct = hasReceivedProfit
+      ? avgMonthlyYieldPct
+      : expectedAvgMonthlyYieldPct;
+    const yieldIsForecast = !hasReceivedProfit && expectedProfitTotal > 0;
+
     // Контракты без данных клиента + разбивка прибыли инвестора
     const paidAmtByContract = new Map<string, number>();
     for (const p of ps) {
@@ -339,6 +352,9 @@ export const getMyInvestorDashboard = createServerFn({ method: "GET" })
         expectedProfit,
         receivedProfit,
         avgMonthlyYieldPct,
+        expectedAvgMonthlyYieldPct,
+        displayedAvgMonthlyYieldPct,
+        yieldIsForecast,
         overdueCount: overdueSched.length,
         overdueAmount,
         activeCount: activeContracts.length,
