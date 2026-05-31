@@ -20,17 +20,30 @@ import {
   ShieldCheck,
   LogOut,
   Calculator as CalculatorIcon,
+  TrendingUp,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-const items = [
+const baseItems = [
   { title: "Обзор", url: "/app", icon: LayoutDashboard, exact: true },
   { title: "Калькулятор", url: "/app/calculator", icon: CalculatorIcon, exact: false },
   { title: "Мои рассрочки", url: "/app/installments", icon: List, exact: false },
   { title: "Профиль", url: "/app/profile", icon: User, exact: false },
 ];
 
-export function ClientSidebar({ isStaff }: { isStaff: boolean }) {
+export function ClientSidebar({
+  isStaff,
+  isInvestor = false,
+}: {
+  isStaff: boolean;
+  isInvestor?: boolean;
+}) {
+  const items = isInvestor
+    ? [
+        ...baseItems,
+        { title: "Инвестор", url: "/app/investor", icon: TrendingUp, exact: false },
+      ]
+    : baseItems;
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (r) => r.location.pathname });
