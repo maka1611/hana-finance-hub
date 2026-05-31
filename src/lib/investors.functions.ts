@@ -416,3 +416,29 @@ export const listInvestorsLite = createServerFn({ method: "GET" })
       free: Number(inv.total_capital) - (placedMap.get(inv.id) ?? 0),
     }));
   });
+
+export const listClientsForInvestor = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertStaff(context.userId);
+    const [{ data: profiles }, { data: investors }] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("id,full_name,email,phone")
+        .order("full_name", { ascending: true }),
+      supabaseAdmin.from("investors").select("email"),
+    ]);
+    const taken = new Set(
+      ((investors ?? []) as Array<{ email: string | null }>)
+        .map((i) => (i.email ?? "").trim().toLowerCase())
+        .filter(Boolean),
+    );
+    return ((profiles ?? []) as Array<{ id: string; full_name: string | null; email: string | null; phone: string | null }>)
+      .map((p) => ({
+        id: p.id,
+        full_name: p.full_name ?? "",
+        email: p.email ?? "",
+        phone: p.phone ?? "",
+        already_investor: !!p.email && taken.has(p.email.trim().toLowerCase()),
+      }));
+  });

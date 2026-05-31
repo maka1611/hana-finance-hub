@@ -1,15 +1,24 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
-import { createInvestor } from "@/lib/investors.functions";
+import { createInvestor, listClientsForInvestor } from "@/lib/investors.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { toast } from "sonner";
-import { ArrowLeft, Briefcase } from "lucide-react";
+import { ArrowLeft, Briefcase, Check, ChevronsUpDown, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/investors/new")({
   component: NewInvestor,
@@ -19,6 +28,11 @@ function NewInvestor() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const fn = useServerFn(createInvestor);
+  const loadClients = useServerFn(listClientsForInvestor);
+  const { data: clients } = useQuery({
+    queryKey: ["clients-for-investor"],
+    queryFn: () => loadClients(),
+  });
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -29,6 +43,22 @@ function NewInvestor() {
   const [startDate, setStartDate] = useState<string>("");
   const [termMonths, setTermMonths] = useState<number>(0);
   const [capitalize, setCapitalize] = useState<boolean>(false);
+  const [pickedClientId, setPickedClientId] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const pickedClient = clients?.find((c) => c.id === pickedClientId) ?? null;
+
+  const applyClient = (c: { id: string; full_name: string; email: string; phone: string }) => {
+    setPickedClientId(c.id);
+    if (c.full_name) setFullName(c.full_name);
+    if (c.email) setEmail(c.email);
+    if (c.phone) setPhone(c.phone);
+    setPickerOpen(false);
+  };
+
+  const clearClient = () => {
+    setPickedClientId(null);
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -75,6 +105,74 @@ function NewInvestor() {
       </div>
 
       <form onSubmit={submit} className="space-y-5 bg-card rounded-2xl ring-1 ring-border p-5 sm:p-6">
+        <div className="space-y-2">
+          <Label>Выбрать из существующих клиентов</Label>
+          <div className="flex items-center gap-2">
+            <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  className="flex-1 justify-between font-normal"
+                >
+                  <span className="truncate text-left">
+                    {pickedClient
+                      ? `${pickedClient.full_name || "Без имени"}${pickedClient.email ? ` · ${pickedClient.email}` : ""}`
+                      : "Не выбран — заполнить вручную"}
+                  </span>
+                  <ChevronsUpDown className="size-4 opacity-50 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-[min(560px,90vw)]" align="start">
+                <Command
+                  filter={(value, search) =>
+                    value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+                  }
+                >
+                  <CommandInput placeholder="Поиск по имени, email или телефону..." />
+                  <CommandList>
+                    <CommandEmpty>Клиенты не найдены</CommandEmpty>
+                    <CommandGroup>
+                      {(clients ?? []).map((c) => (
+                        <CommandItem
+                          key={c.id}
+                          value={`${c.full_name} ${c.email} ${c.phone}`}
+                          disabled={c.already_investor}
+                          onSelect={() => !c.already_investor && applyClient(c)}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-sm truncate">{c.full_name || "Без имени"}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              {c.email || "—"}
+                              {c.phone ? ` · ${c.phone}` : ""}
+                            </div>
+                          </div>
+                          {c.already_investor ? (
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+                              уже инвестор
+                            </span>
+                          ) : pickedClientId === c.id ? (
+                            <Check className="size-4 shrink-0" />
+                          ) : null}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {pickedClient && (
+              <Button type="button" variant="ghost" size="icon" onClick={clearClient} title="Сбросить">
+                <X className="size-4" />
+              </Button>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Поля ФИО, email и телефон заполнятся автоматически. Связь установится по email после сохранения.
+          </p>
+        </div>
         <div className="space-y-2">
           <Label>ФИО *</Label>
           <Input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
