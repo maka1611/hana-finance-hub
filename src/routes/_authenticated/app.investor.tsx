@@ -83,12 +83,24 @@ function InvestorPortalPage() {
             </div>
           </CardContent>
         </Card>
-        <SummaryCard
-          icon={<Coins className="h-4 w-4 text-emerald-600" />}
-          label="Итого после всех платежей"
-          value={fmt(summary.totalPayout)}
-          hint={`Капитал + прибыль · возврат тела ещё: ${fmt(summary.principalRemaining)}`}
-        />
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+              <Coins className="h-4 w-4 text-emerald-600" />
+              Вы получите всего
+            </div>
+            <div className="text-xl font-extrabold mt-1">
+              {fmt(summary.totalPayout)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
+              <div>Возврат капитала: <b>{fmt(summary.capital)}</b></div>
+              <div>Чистая прибыль: <b className="text-emerald-700">+{fmt(summary.expectedProfitTotal)}</b></div>
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-2 border-t border-border pt-1.5">
+              Уже получено: {fmt(summary.principalReturnedToDate + summary.receivedProfit)} · Осталось: {fmt(summary.principalRemaining + summary.profitRemaining)}
+            </div>
+          </CardContent>
+        </Card>
         <SummaryCard
           icon={<TrendingUp className="h-4 w-4 text-emerald-600" />}
           label={isForecast ? "Доходность / мес (прогноз)" : "Доходность / мес"}
