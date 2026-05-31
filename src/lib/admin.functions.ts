@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { DEFAULT_MARKUP_RATE, calcInstallment, buildSchedule, MAX_TERM } from "@/lib/installment";
+import { notifyInvestorOfFundedContract } from "@/lib/email/server-send.server";
 
 async function assertStaff(userId: string) {
   const { data, error } = await supabaseAdmin
