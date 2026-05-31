@@ -1742,6 +1742,10 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
       },
     });
 
+    if (data.investorId) {
+      await notifyInvestorOfFundedContract(contract.id);
+    }
+
     return { contractId: contract.id, clientId, tempPassword };
   });
 
