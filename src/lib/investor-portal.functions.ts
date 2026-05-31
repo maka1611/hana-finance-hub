@@ -115,12 +115,15 @@ export const getMyInvestorDashboard = createServerFn({ method: "GET" })
     let receivedProfit = 0;
     let returnedPrincipal = 0;
     const byContract = new Map(cs.map((c) => [c.id, c]));
+    const contractMarkupShare = new Map<string, number>();
+    for (const c of cs) {
+      const total = Number(c.principal) + Number(c.markup_amount);
+      contractMarkupShare.set(c.id, total > 0 ? Number(c.markup_amount) / total : 0);
+    }
     for (const p of ps) {
       const c = byContract.get(p.contract_id);
       if (!c) continue;
-      const total = Number(c.principal) + Number(c.markup_amount);
-      if (total <= 0) continue;
-      const markupShare = Number(c.markup_amount) / total;
+      const markupShare = contractMarkupShare.get(c.id) ?? 0;
       const amt = Number(p.amount);
       receivedProfit += amt * markupShare * shareRate;
       returnedPrincipal += amt * (1 - markupShare);
@@ -130,6 +133,29 @@ export const getMyInvestorDashboard = createServerFn({ method: "GET" })
       (s) => s.status === "overdue" || (s.status === "pending" && s.due_date < today),
     );
     const overdueAmount = overdueSched.reduce((s, x) => s + Number(x.amount), 0);
+
+    // Профит по графику: будущий и общий
+    let principalRemaining = 0;
+    let profitRemaining = 0;
+    let profitScheduledTotal = 0;
+    for (const s of ss) {
+      const ms = contractMarkupShare.get(s.contract_id) ?? 0;
+      const amt = Number(s.amount);
+      const principalPart = amt * (1 - ms);
+      const profitPart = amt * ms * shareRate;
+      profitScheduledTotal += profitPart;
+      if (s.status !== "paid") {
+        principalRemaining += principalPart;
+        profitRemaining += profitPart;
+      }
+    }
+    const expectedProfitTotal = profitScheduledTotal;
+    const totalPayout =
+      returnedPrincipal + receivedProfit + principalRemaining + profitRemaining;
+    const progressPct =
+      expectedProfitTotal > 0
+        ? Math.min(100, (receivedProfit / expectedProfitTotal) * 100)
+        : 0;
 
     // Средняя месячная доходность от капитала
     const startISO = (inv as { contract_start_date?: string | null }).contract_start_date
