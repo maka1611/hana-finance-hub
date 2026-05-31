@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { calcInstallment, buildSchedule, DEFAULT_MARKUP_RATE } from "@/lib/installment";
 
 const CreateSchema = z.object({
@@ -43,7 +44,10 @@ export const createInstallment = createServerFn({ method: "POST" })
         .eq("id", userId);
     }
 
-    const { data: contract, error } = await supabase
+    // Контракт и график создаём через сервисный клиент: финансовые поля
+    // не должны быть редактируемы со стороны клиента (RLS INSERT-политика
+    // снята). client_id жёстко привязан к авторизованному пользователю.
+    const { data: contract, error } = await supabaseAdmin
       .from("installment_contracts")
       .insert({
         client_id: userId,
@@ -78,7 +82,7 @@ export const createInstallment = createServerFn({ method: "POST" })
       amount: s.amount,
       status: "pending" as const,
     }));
-    const { error: schedErr } = await supabase.from("payment_schedules").insert(schedule);
+    const { error: schedErr } = await supabaseAdmin.from("payment_schedules").insert(schedule);
     if (schedErr) throw new Error(schedErr.message);
     return { id: contract.id };
   });
