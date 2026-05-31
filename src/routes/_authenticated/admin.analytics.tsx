@@ -88,6 +88,116 @@ function AnalyticsPage() {
 
       <div className="bg-card rounded-2xl ring-1 ring-border p-6">
         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">
+          Структура капитала
+        </h2>
+        <div className="grid md:grid-cols-4 gap-6">
+          <Flow label="Свои средства" value={data.capital.own} />
+          <Flow label="Средства инвесторов" value={data.capital.investor} />
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">
+              Доля инвесторов
+            </div>
+            <div className="text-2xl font-extrabold">
+              {data.capital.investorShare.toFixed(1)}%
+            </div>
+            <div className="h-2 bg-muted rounded-full mt-3 overflow-hidden">
+              <div
+                className="h-full bg-primary"
+                style={{ width: `${Math.min(100, data.capital.investorShare)}%` }}
+              />
+            </div>
+          </div>
+          <Flow
+            label="Активных инвесторов"
+            value={data.investorsActive}
+            prefix=""
+            suffix={` из ${data.investorsTotal}`}
+          />
+        </div>
+      </div>
+
+      <div className="bg-card rounded-2xl ring-1 ring-border p-6">
+        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">
+          Прибыль — раскладка
+        </h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <ProfitCard
+            label="Наша прибыль (свои средства)"
+            expected={data.profitExpected.own}
+            received={data.profitCollected.own}
+          />
+          <ProfitCard
+            label="Наша прибыль (со средств инвесторов)"
+            expected={data.profitExpected.companyFromInvestor}
+            received={data.profitCollected.companyFromInvestor}
+          />
+          <ProfitCard
+            label="Итого наша прибыль"
+            expected={data.profitExpected.companyTotal}
+            received={data.profitCollected.companyTotal}
+            accent
+          />
+          <ProfitCard
+            label="Прибыль инвесторов"
+            expected={data.profitExpected.investors}
+            received={data.profitCollected.investors}
+            tone="investor"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground mt-4">
+          «Получено» — фактически собранная наценка, рассчитанная пропорционально доле наценки в каждом контракте.
+        </p>
+      </div>
+
+      {data.topInvestors.length > 0 && (
+        <div className="bg-card rounded-2xl ring-1 ring-border p-6">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">
+            Топ инвесторов
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-b border-border">
+                  <th className="py-2 pr-4">Инвестор</th>
+                  <th className="py-2 pr-4 text-right">Капитал</th>
+                  <th className="py-2 pr-4 text-right">Доля</th>
+                  <th className="py-2 pr-4 text-right">Ожид. прибыль</th>
+                  <th className="py-2 pr-4 text-right">Получено</th>
+                  <th className="py-2 text-right">Наша прибыль с него</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.topInvestors.map((inv) => (
+                  <tr key={inv.id} className="border-b border-border/50">
+                    <td className="py-2 pr-4 font-medium">
+                      {inv.name}
+                      {!inv.isActive && (
+                        <span className="ml-2 text-[10px] uppercase text-muted-foreground">
+                          неактивен
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-4 text-right">{formatMoney(inv.capital)}</td>
+                    <td className="py-2 pr-4 text-right">
+                      {(inv.shareRate * 100).toFixed(0)}%
+                    </td>
+                    <td className="py-2 pr-4 text-right">{formatMoney(inv.expectedProfit)}</td>
+                    <td className="py-2 pr-4 text-right text-emerald-600">
+                      {formatMoney(inv.receivedProfit)}
+                    </td>
+                    <td className="py-2 text-right font-semibold">
+                      {formatMoney(inv.companyProfit)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-card rounded-2xl ring-1 ring-border p-6">
+        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">
           Денежные потоки
         </h2>
         <div className="grid md:grid-cols-3 gap-6">
@@ -307,6 +417,55 @@ function Flow({
       </div>
       <div className={`text-2xl font-extrabold ${tone === "danger" ? "text-destructive" : ""}`}>
         {display}
+      </div>
+    </div>
+  );
+}
+
+function ProfitCard({
+  label,
+  expected,
+  received,
+  tone,
+  accent,
+}: {
+  label: string;
+  expected: number;
+  received: number;
+  tone?: "investor";
+  accent?: boolean;
+}) {
+  const pct = expected > 0 ? Math.min(100, (received / expected) * 100) : 0;
+  return (
+    <div
+      className={`rounded-xl p-4 ${
+        accent ? "bg-primary/5 ring-1 ring-primary/30" : "bg-muted/30 ring-1 ring-border"
+      }`}
+    >
+      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+        {label}
+      </div>
+      <div
+        className={`text-2xl font-extrabold ${
+          tone === "investor" ? "text-amber-600" : accent ? "text-primary" : ""
+        }`}
+      >
+        {formatMoney(expected)}
+      </div>
+      <div className="text-xs text-muted-foreground mt-1">ожидается всего</div>
+      <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div
+          className={`h-full ${
+            tone === "investor" ? "bg-amber-500" : "bg-emerald-600"
+          }`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-xs mt-2">
+        <span className="text-emerald-600 font-semibold">
+          получено {formatMoney(received)}
+        </span>
+        <span className="text-muted-foreground">{pct.toFixed(0)}%</span>
       </div>
     </div>
   );

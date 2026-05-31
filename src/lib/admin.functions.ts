@@ -73,17 +73,121 @@ export const adminStats = createServerFn({ method: "GET" })
     const [contracts, schedules, payments, clients] = await Promise.all([
       supabaseAdmin
         .from("installment_contracts")
-        .select("status,total_sale_price,principal,markup_amount"),
+        .select("id,status,total_sale_price,principal,markup_amount,investor_id"),
       supabaseAdmin.from("payment_schedules").select("status,amount,due_date"),
-      supabaseAdmin.from("payments").select("amount,paid_at"),
+      supabaseAdmin.from("payments").select("amount,paid_at,contract_id"),
       supabaseAdmin.from("profiles").select("id"),
     ]);
+    const { data: investorsRaw } = await supabaseAdmin
+      .from("investors")
+      .select("id,full_name,total_capital,profit_share_rate,is_active");
+    const investors = (investorsRaw ?? []) as Array<{
+      id: string;
+      full_name: string;
+      total_capital: number | string;
+      profit_share_rate: number | string;
+      is_active: boolean;
+    }>;
+    const invById = new Map(investors.map((i) => [i.id, i]));
     const today = new Date().toISOString().slice(0, 10);
     const weekEnd = new Date();
     weekEnd.setDate(weekEnd.getDate() + 7);
     const weekStr = weekEnd.toISOString().slice(0, 10);
-    const cs = contracts.data ?? [];
+    const cs = (contracts.data ?? []) as Array<{
+      id: string;
+      status: string;
+      total_sale_price: number | string;
+      principal: number | string;
+      markup_amount: number | string;
+      investor_id: string | null;
+    }>;
     const ss = schedules.data ?? [];
+    const ps = (payments.data ?? []) as Array<{
+      amount: number | string;
+      paid_at: string;
+      contract_id: string;
+    }>;
+
+    // payments grouped by contract
+    const paidByContract = new Map<string, number>();
+    for (const p of ps) {
+      paidByContract.set(
+        p.contract_id,
+        (paidByContract.get(p.contract_id) ?? 0) + Number(p.amount),
+      );
+    }
+
+    // capital & profit split
+    let capitalOwn = 0;
+    let capitalInvestor = 0;
+    let profitOwnExp = 0;
+    let profitCompanyFromInvExp = 0;
+    let profitInvestorsExp = 0;
+    let profitOwnGot = 0;
+    let profitCompanyFromInvGot = 0;
+    let profitInvestorsGot = 0;
+
+    const perInvestor = new Map<
+      string,
+      { expected: number; received: number; companyProfit: number }
+    >();
+
+    for (const c of cs) {
+      const principal = Number(c.principal);
+      const markup = Number(c.markup_amount);
+      const total = principal + markup;
+      const markupShare = total > 0 ? markup / total : 0;
+      const paid = paidByContract.get(c.id) ?? 0;
+      const receivedMarkup = paid * markupShare;
+      if (c.investor_id && invById.has(c.investor_id)) {
+        const rate = Number(invById.get(c.investor_id)!.profit_share_rate);
+        capitalInvestor += principal;
+        const invExp = markup * rate;
+        const compExp = markup * (1 - rate);
+        const invGot = receivedMarkup * rate;
+        const compGot = receivedMarkup * (1 - rate);
+        profitInvestorsExp += invExp;
+        profitCompanyFromInvExp += compExp;
+        profitInvestorsGot += invGot;
+        profitCompanyFromInvGot += compGot;
+        const cur = perInvestor.get(c.investor_id) ?? {
+          expected: 0,
+          received: 0,
+          companyProfit: 0,
+        };
+        cur.expected += invExp;
+        cur.received += invGot;
+        cur.companyProfit += compExp;
+        perInvestor.set(c.investor_id, cur);
+      } else {
+        capitalOwn += principal;
+        profitOwnExp += markup;
+        profitOwnGot += receivedMarkup;
+      }
+    }
+
+    const totalCapital = capitalOwn + capitalInvestor;
+    const topInvestors = investors
+      .map((inv) => {
+        const stat = perInvestor.get(inv.id) ?? {
+          expected: 0,
+          received: 0,
+          companyProfit: 0,
+        };
+        return {
+          id: inv.id,
+          name: inv.full_name,
+          isActive: inv.is_active,
+          capital: Number(inv.total_capital),
+          shareRate: Number(inv.profit_share_rate),
+          expectedProfit: stat.expected,
+          receivedProfit: stat.received,
+          companyProfit: stat.companyProfit,
+        };
+      })
+      .sort((a, b) => b.expectedProfit - a.expectedProfit)
+      .slice(0, 10);
+
     return {
       contractsTotal: cs.length,
       contractsActive: cs.filter((c) => c.status === "active").length,
@@ -92,7 +196,7 @@ export const adminStats = createServerFn({ method: "GET" })
       portfolio: cs.reduce((s, c) => s + Number(c.principal) + Number(c.markup_amount), 0),
       totalSold: cs.reduce((s, c) => s + Number(c.total_sale_price), 0),
       totalMarkup: cs.reduce((s, c) => s + Number(c.markup_amount), 0),
-      paymentsCollected: (payments.data ?? []).reduce((s, p) => s + Number(p.amount), 0),
+      paymentsCollected: ps.reduce((s, p) => s + Number(p.amount), 0),
       clientsCount: (clients.data ?? []).length,
       duesToday: ss
         .filter((s) => s.status === "pending" && s.due_date === today)
@@ -103,6 +207,27 @@ export const adminStats = createServerFn({ method: "GET" })
       overdueAmount: ss
         .filter((s) => s.status === "overdue" || (s.status === "pending" && s.due_date < today))
         .reduce((s, x) => s + Number(x.amount), 0),
+      capital: {
+        own: capitalOwn,
+        investor: capitalInvestor,
+        total: totalCapital,
+        investorShare: totalCapital > 0 ? (capitalInvestor / totalCapital) * 100 : 0,
+      },
+      profitExpected: {
+        own: profitOwnExp,
+        companyFromInvestor: profitCompanyFromInvExp,
+        investors: profitInvestorsExp,
+        companyTotal: profitOwnExp + profitCompanyFromInvExp,
+      },
+      profitCollected: {
+        own: profitOwnGot,
+        companyFromInvestor: profitCompanyFromInvGot,
+        investors: profitInvestorsGot,
+        companyTotal: profitOwnGot + profitCompanyFromInvGot,
+      },
+      investorsActive: investors.filter((i) => i.is_active).length,
+      investorsTotal: investors.length,
+      topInvestors,
     };
   });
 
