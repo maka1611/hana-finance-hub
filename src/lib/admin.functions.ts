@@ -253,6 +253,14 @@ type AnalyticsRow = {
   markup: number;
   due: number;
   contracts: number;
+  capitalOwn: number;
+  capitalInvestor: number;
+  profitOwnExp: number;
+  profitCompanyFromInvExp: number;
+  profitInvestorsExp: number;
+  profitOwnGot: number;
+  profitCompanyFromInvGot: number;
+  profitInvestorsGot: number;
 };
 
 async function fetchAllRows<T>(
@@ -318,22 +326,25 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
 
     const [contracts, payments, schedules] = await Promise.all([
       fetchAllRows<{
+        id: string;
         created_at: string;
         total_sale_price: number | string;
         markup_amount: number | string;
+        principal: number | string;
+        investor_id: string | null;
       }>((from, to) => {
         const q = supabaseAdmin
           .from("installment_contracts")
-          .select("created_at,total_sale_price,markup_amount")
+          .select("id,created_at,total_sale_price,markup_amount,principal,investor_id")
           .order("created_at", { ascending: true });
         return (startIso ? q.gte("created_at", startIso) : q)
           .lt("created_at", endExclusiveIso)
           .range(from, to);
       }),
-      fetchAllRows<{ paid_at: string; amount: number | string }>((from, to) => {
+      fetchAllRows<{ paid_at: string; amount: number | string; contract_id: string }>((from, to) => {
         const q = supabaseAdmin
           .from("payments")
-          .select("paid_at,amount")
+          .select("paid_at,amount,contract_id")
           .order("paid_at", { ascending: true });
         return (startIso ? q.gte("paid_at", startIso) : q)
           .lt("paid_at", endExclusiveIso)
@@ -349,6 +360,52 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
           .range(from, to);
       }),
     ]);
+
+    // Load metadata for ALL contracts referenced by payments (payments in range
+    // can belong to contracts created outside the range) + investors.
+    const paymentContractIds = [...new Set(payments.map((p) => p.contract_id))];
+    const inRangeIds = new Set(contracts.map((c) => c.id));
+    const missingIds = paymentContractIds.filter((id) => !inRangeIds.has(id));
+    type ContractMeta = {
+      id: string;
+      markup_amount: number | string;
+      principal: number | string;
+      investor_id: string | null;
+    };
+    const extraContracts: ContractMeta[] = [];
+    if (missingIds.length) {
+      const { data: extra } = await supabaseAdmin
+        .from("installment_contracts")
+        .select("id,markup_amount,principal,investor_id")
+        .in("id", missingIds);
+      if (extra) extraContracts.push(...(extra as ContractMeta[]));
+    }
+    const contractMeta = new Map<
+      string,
+      { markupShare: number; investorId: string | null }
+    >();
+    for (const c of contracts) {
+      const total = Number(c.principal) + Number(c.markup_amount);
+      contractMeta.set(c.id, {
+        markupShare: total > 0 ? Number(c.markup_amount) / total : 0,
+        investorId: c.investor_id,
+      });
+    }
+    for (const c of extraContracts) {
+      const total = Number(c.principal) + Number(c.markup_amount);
+      contractMeta.set(c.id, {
+        markupShare: total > 0 ? Number(c.markup_amount) / total : 0,
+        investorId: c.investor_id,
+      });
+    }
+    const { data: invRaw } = await supabaseAdmin
+      .from("investors")
+      .select("id,profit_share_rate");
+    const investorRate = new Map(
+      ((invRaw ?? []) as Array<{ id: string; profit_share_rate: number | string }>).map(
+        (i) => [i.id, Number(i.profit_share_rate)],
+      ),
+    );
 
     const allDates = [
       ...contracts.map((row) => new Date(row.created_at)),
@@ -372,28 +429,12 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
         cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
       ) {
         const key = monthKey(cursor);
-        rows.set(key, {
-          key,
-          label: cursor.toLocaleDateString("ru-RU", { month: "short", year: "2-digit" }),
-          sales: 0,
-          payments: 0,
-          markup: 0,
-          due: 0,
-          contracts: 0,
-        });
+        rows.set(key, emptyRow(key, cursor.toLocaleDateString("ru-RU", { month: "short", year: "2-digit" })));
       }
     } else {
       for (let cursor = rangeStart; cursor <= rangeEnd; cursor = addDays(cursor, 1)) {
         const key = dateKey(cursor);
-        rows.set(key, {
-          key,
-          label: cursor.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" }),
-          sales: 0,
-          payments: 0,
-          markup: 0,
-          due: 0,
-          contracts: 0,
-        });
+        rows.set(key, emptyRow(key, cursor.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" })));
       }
     }
 
@@ -405,13 +446,36 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
     for (const contract of contracts) {
       const row = rows.get(keyFor(contract.created_at));
       if (!row) continue;
+      const principal = Number(contract.principal);
+      const markup = Number(contract.markup_amount);
       row.sales += Number(contract.total_sale_price);
-      row.markup += Number(contract.markup_amount);
+      row.markup += markup;
       row.contracts += 1;
+      if (contract.investor_id && investorRate.has(contract.investor_id)) {
+        const rate = investorRate.get(contract.investor_id)!;
+        row.capitalInvestor += principal;
+        row.profitInvestorsExp += markup * rate;
+        row.profitCompanyFromInvExp += markup * (1 - rate);
+      } else {
+        row.capitalOwn += principal;
+        row.profitOwnExp += markup;
+      }
     }
     for (const payment of payments) {
       const row = rows.get(keyFor(payment.paid_at));
-      if (row) row.payments += Number(payment.amount);
+      if (!row) continue;
+      const amount = Number(payment.amount);
+      row.payments += amount;
+      const meta = contractMeta.get(payment.contract_id);
+      if (!meta) continue;
+      const receivedMarkup = amount * meta.markupShare;
+      if (meta.investorId && investorRate.has(meta.investorId)) {
+        const rate = investorRate.get(meta.investorId)!;
+        row.profitInvestorsGot += receivedMarkup * rate;
+        row.profitCompanyFromInvGot += receivedMarkup * (1 - rate);
+      } else {
+        row.profitOwnGot += receivedMarkup;
+      }
     }
     for (const schedule of schedules) {
       const row = rows.get(keyFor(schedule.due_date, true));
@@ -419,23 +483,64 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
     }
 
     const chart = [...rows.values()];
+    const initTotals = {
+      sales: 0,
+      payments: 0,
+      markup: 0,
+      due: 0,
+      contracts: 0,
+      capitalOwn: 0,
+      capitalInvestor: 0,
+      profitOwnExp: 0,
+      profitCompanyFromInvExp: 0,
+      profitInvestorsExp: 0,
+      profitOwnGot: 0,
+      profitCompanyFromInvGot: 0,
+      profitInvestorsGot: 0,
+    };
     return {
       granularity,
       from: dateKey(rangeStart),
       to: dateKey(rangeEnd),
       chart,
-      totals: chart.reduce(
-        (total, row) => ({
-          sales: total.sales + row.sales,
-          payments: total.payments + row.payments,
-          markup: total.markup + row.markup,
-          due: total.due + row.due,
-          contracts: total.contracts + row.contracts,
-        }),
-        { sales: 0, payments: 0, markup: 0, due: 0, contracts: 0 },
-      ),
+      totals: chart.reduce((t, r) => {
+        t.sales += r.sales;
+        t.payments += r.payments;
+        t.markup += r.markup;
+        t.due += r.due;
+        t.contracts += r.contracts;
+        t.capitalOwn += r.capitalOwn;
+        t.capitalInvestor += r.capitalInvestor;
+        t.profitOwnExp += r.profitOwnExp;
+        t.profitCompanyFromInvExp += r.profitCompanyFromInvExp;
+        t.profitInvestorsExp += r.profitInvestorsExp;
+        t.profitOwnGot += r.profitOwnGot;
+        t.profitCompanyFromInvGot += r.profitCompanyFromInvGot;
+        t.profitInvestorsGot += r.profitInvestorsGot;
+        return t;
+      }, initTotals),
     };
   });
+
+function emptyRow(key: string, label: string): AnalyticsRow {
+  return {
+    key,
+    label,
+    sales: 0,
+    payments: 0,
+    markup: 0,
+    due: 0,
+    contracts: 0,
+    capitalOwn: 0,
+    capitalInvestor: 0,
+    profitOwnExp: 0,
+    profitCompanyFromInvExp: 0,
+    profitInvestorsExp: 0,
+    profitOwnGot: 0,
+    profitCompanyFromInvGot: 0,
+    profitInvestorsGot: 0,
+  };
+}
 
 export const adminListClients = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

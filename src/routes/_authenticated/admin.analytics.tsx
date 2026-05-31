@@ -274,6 +274,59 @@ function AnalyticsPage() {
           <Flow label="Договоры" value={series?.totals.contracts ?? 0} prefix="" suffix=" шт." />
         </div>
 
+        <div className="rounded-xl ring-1 ring-border bg-muted/20 p-4 mb-6">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
+            Капитал в обороте за период (новые контракты)
+          </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            <Flow label="Свои средства" value={series?.totals.capitalOwn ?? 0} />
+            <Flow label="Средства инвесторов" value={series?.totals.capitalInvestor ?? 0} />
+            <Flow
+              label="Всего размещено"
+              value={(series?.totals.capitalOwn ?? 0) + (series?.totals.capitalInvestor ?? 0)}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-xl ring-1 ring-border bg-muted/20 p-4 mb-6">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
+            Прибыль за период
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <ProfitCard
+              label="Наша (свои средства)"
+              expected={series?.totals.profitOwnExp ?? 0}
+              received={series?.totals.profitOwnGot ?? 0}
+            />
+            <ProfitCard
+              label="Наша (со средств инвесторов)"
+              expected={series?.totals.profitCompanyFromInvExp ?? 0}
+              received={series?.totals.profitCompanyFromInvGot ?? 0}
+            />
+            <ProfitCard
+              label="Итого наша"
+              expected={
+                (series?.totals.profitOwnExp ?? 0) +
+                (series?.totals.profitCompanyFromInvExp ?? 0)
+              }
+              received={
+                (series?.totals.profitOwnGot ?? 0) +
+                (series?.totals.profitCompanyFromInvGot ?? 0)
+              }
+              accent
+            />
+            <ProfitCard
+              label="Инвесторам"
+              expected={series?.totals.profitInvestorsExp ?? 0}
+              received={series?.totals.profitInvestorsGot ?? 0}
+              tone="investor"
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-3">
+            «Ожидается» — наценка по контрактам, открытым в выбранном периоде. «Получено» — наценка, фактически собранная платежами в этом же периоде (по любым контрактам).
+          </p>
+        </div>
+
         {seriesLoading || !series ? (
           <div className="h-80 rounded-2xl bg-muted animate-pulse" />
         ) : (
