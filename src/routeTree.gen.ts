@@ -14,12 +14,15 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppNewRouteImport } from './routes/_authenticated/app.new'
+import { Route as AuthenticatedAppInvestorRouteImport } from './routes/_authenticated/app.investor'
 import { Route as AuthenticatedAppCalculatorRouteImport } from './routes/_authenticated/app.calculator'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as AuthenticatedAdminPricingRouteImport } from './routes/_authenticated/admin.pricing'
@@ -32,6 +35,8 @@ import { Route as AuthenticatedAdminInvestorsIndexRouteImport } from './routes/_
 import { Route as AuthenticatedAdminContractsIndexRouteImport } from './routes/_authenticated/admin.contracts.index'
 import { Route as AuthenticatedAdminClientsIndexRouteImport } from './routes/_authenticated/admin.clients.index'
 import { Route as AuthenticatedAdminApplicationsIndexRouteImport } from './routes/_authenticated/admin.applications.index'
+import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
+import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as AuthenticatedAppInstallmentsIdRouteImport } from './routes/_authenticated/app.installments.$id'
 import { Route as AuthenticatedAdminInvestorsNewRouteImport } from './routes/_authenticated/admin.investors.new'
@@ -65,6 +70,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
+  id: '/email/unsubscribe',
+  path: '/email/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   id: '/app',
   path: '/app',
@@ -85,6 +95,11 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
+  id: '/lovable/email/suppression',
+  path: '/lovable/email/suppression',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAppProfileRoute = AuthenticatedAppProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -95,6 +110,12 @@ const AuthenticatedAppNewRoute = AuthenticatedAppNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppInvestorRoute =
+  AuthenticatedAppInvestorRouteImport.update({
+    id: '/investor',
+    path: '/investor',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppCalculatorRoute =
   AuthenticatedAppCalculatorRouteImport.update({
     id: '/calculator',
@@ -165,6 +186,18 @@ const AuthenticatedAdminApplicationsIndexRoute =
     path: '/applications/',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const LovableEmailTransactionalSendRoute =
+  LovableEmailTransactionalSendRouteImport.update({
+    id: '/lovable/email/transactional/send',
+    path: '/lovable/email/transactional/send',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const LovableEmailTransactionalPreviewRoute =
+  LovableEmailTransactionalPreviewRouteImport.update({
+    id: '/lovable/email/transactional/preview',
+    path: '/lovable/email/transactional/preview',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const LovableEmailQueueProcessRoute =
   LovableEmailQueueProcessRouteImport.update({
     id: '/lovable/email/queue/process',
@@ -221,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/app': typeof AuthenticatedAppRouteWithChildren
+  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
@@ -228,8 +262,10 @@ export interface FileRoutesByFullPath {
   '/admin/pricing': typeof AuthenticatedAdminPricingRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/app/calculator': typeof AuthenticatedAppCalculatorRoute
+  '/app/investor': typeof AuthenticatedAppInvestorRoute
   '/app/new': typeof AuthenticatedAppNewRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
+  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/admin/applications/$id': typeof AuthenticatedAdminApplicationsIdRoute
@@ -240,6 +276,8 @@ export interface FileRoutesByFullPath {
   '/admin/investors/new': typeof AuthenticatedAdminInvestorsNewRoute
   '/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
+  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/admin/applications/': typeof AuthenticatedAdminApplicationsIndexRoute
   '/admin/clients/': typeof AuthenticatedAdminClientsIndexRoute
   '/admin/contracts/': typeof AuthenticatedAdminContractsIndexRoute
@@ -251,14 +289,17 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/pricing': typeof AuthenticatedAdminPricingRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/app/calculator': typeof AuthenticatedAppCalculatorRoute
+  '/app/investor': typeof AuthenticatedAppInvestorRoute
   '/app/new': typeof AuthenticatedAppNewRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
+  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/admin/applications/$id': typeof AuthenticatedAdminApplicationsIdRoute
@@ -269,6 +310,8 @@ export interface FileRoutesByTo {
   '/admin/investors/new': typeof AuthenticatedAdminInvestorsNewRoute
   '/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
+  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/admin/applications': typeof AuthenticatedAdminApplicationsIndexRoute
   '/admin/clients': typeof AuthenticatedAdminClientsIndexRoute
   '/admin/contracts': typeof AuthenticatedAdminContractsIndexRoute
@@ -284,6 +327,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/_authenticated/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/_authenticated/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
@@ -291,8 +335,10 @@ export interface FileRoutesById {
   '/_authenticated/admin/pricing': typeof AuthenticatedAdminPricingRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/app/calculator': typeof AuthenticatedAppCalculatorRoute
+  '/_authenticated/app/investor': typeof AuthenticatedAppInvestorRoute
   '/_authenticated/app/new': typeof AuthenticatedAppNewRoute
   '/_authenticated/app/profile': typeof AuthenticatedAppProfileRoute
+  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/admin/applications/$id': typeof AuthenticatedAdminApplicationsIdRoute
@@ -303,6 +349,8 @@ export interface FileRoutesById {
   '/_authenticated/admin/investors/new': typeof AuthenticatedAdminInvestorsNewRoute
   '/_authenticated/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
+  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/_authenticated/admin/applications/': typeof AuthenticatedAdminApplicationsIndexRoute
   '/_authenticated/admin/clients/': typeof AuthenticatedAdminClientsIndexRoute
   '/_authenticated/admin/contracts/': typeof AuthenticatedAdminContractsIndexRoute
@@ -318,6 +366,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin'
     | '/app'
+    | '/email/unsubscribe'
     | '/admin/analytics'
     | '/admin/audit'
     | '/admin/clients'
@@ -325,8 +374,10 @@ export interface FileRouteTypes {
     | '/admin/pricing'
     | '/admin/users'
     | '/app/calculator'
+    | '/app/investor'
     | '/app/new'
     | '/app/profile'
+    | '/lovable/email/suppression'
     | '/admin/'
     | '/app/'
     | '/admin/applications/$id'
@@ -337,6 +388,8 @@ export interface FileRouteTypes {
     | '/admin/investors/new'
     | '/app/installments/$id'
     | '/lovable/email/queue/process'
+    | '/lovable/email/transactional/preview'
+    | '/lovable/email/transactional/send'
     | '/admin/applications/'
     | '/admin/clients/'
     | '/admin/contracts/'
@@ -348,14 +401,17 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/email/unsubscribe'
     | '/admin/analytics'
     | '/admin/audit'
     | '/admin/payments'
     | '/admin/pricing'
     | '/admin/users'
     | '/app/calculator'
+    | '/app/investor'
     | '/app/new'
     | '/app/profile'
+    | '/lovable/email/suppression'
     | '/admin'
     | '/app'
     | '/admin/applications/$id'
@@ -366,6 +422,8 @@ export interface FileRouteTypes {
     | '/admin/investors/new'
     | '/app/installments/$id'
     | '/lovable/email/queue/process'
+    | '/lovable/email/transactional/preview'
+    | '/lovable/email/transactional/send'
     | '/admin/applications'
     | '/admin/clients'
     | '/admin/contracts'
@@ -380,6 +438,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_authenticated/admin'
     | '/_authenticated/app'
+    | '/email/unsubscribe'
     | '/_authenticated/admin/analytics'
     | '/_authenticated/admin/audit'
     | '/_authenticated/admin/clients'
@@ -387,8 +446,10 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/pricing'
     | '/_authenticated/admin/users'
     | '/_authenticated/app/calculator'
+    | '/_authenticated/app/investor'
     | '/_authenticated/app/new'
     | '/_authenticated/app/profile'
+    | '/lovable/email/suppression'
     | '/_authenticated/admin/'
     | '/_authenticated/app/'
     | '/_authenticated/admin/applications/$id'
@@ -399,6 +460,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/investors/new'
     | '/_authenticated/app/installments/$id'
     | '/lovable/email/queue/process'
+    | '/lovable/email/transactional/preview'
+    | '/lovable/email/transactional/send'
     | '/_authenticated/admin/applications/'
     | '/_authenticated/admin/clients/'
     | '/_authenticated/admin/contracts/'
@@ -412,7 +475,11 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
+  LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
+  LovableEmailTransactionalSendRoute: typeof LovableEmailTransactionalSendRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -452,6 +519,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/email/unsubscribe': {
+      id: '/email/unsubscribe'
+      path: '/email/unsubscribe'
+      fullPath: '/email/unsubscribe'
+      preLoaderRoute: typeof EmailUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/app': {
       id: '/_authenticated/app'
       path: '/app'
@@ -480,6 +554,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/lovable/email/suppression': {
+      id: '/lovable/email/suppression'
+      path: '/lovable/email/suppression'
+      fullPath: '/lovable/email/suppression'
+      preLoaderRoute: typeof LovableEmailSuppressionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/app/profile': {
       id: '/_authenticated/app/profile'
       path: '/profile'
@@ -492,6 +573,13 @@ declare module '@tanstack/react-router' {
       path: '/new'
       fullPath: '/app/new'
       preLoaderRoute: typeof AuthenticatedAppNewRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/investor': {
+      id: '/_authenticated/app/investor'
+      path: '/investor'
+      fullPath: '/app/investor'
+      preLoaderRoute: typeof AuthenticatedAppInvestorRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/calculator': {
@@ -577,6 +665,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/applications/'
       preLoaderRoute: typeof AuthenticatedAdminApplicationsIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/lovable/email/transactional/send': {
+      id: '/lovable/email/transactional/send'
+      path: '/lovable/email/transactional/send'
+      fullPath: '/lovable/email/transactional/send'
+      preLoaderRoute: typeof LovableEmailTransactionalSendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/transactional/preview': {
+      id: '/lovable/email/transactional/preview'
+      path: '/lovable/email/transactional/preview'
+      fullPath: '/lovable/email/transactional/preview'
+      preLoaderRoute: typeof LovableEmailTransactionalPreviewRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/lovable/email/queue/process': {
       id: '/lovable/email/queue/process'
@@ -696,6 +798,7 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppCalculatorRoute: typeof AuthenticatedAppCalculatorRoute
+  AuthenticatedAppInvestorRoute: typeof AuthenticatedAppInvestorRoute
   AuthenticatedAppNewRoute: typeof AuthenticatedAppNewRoute
   AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
@@ -705,6 +808,7 @@ interface AuthenticatedAppRouteChildren {
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppCalculatorRoute: AuthenticatedAppCalculatorRoute,
+  AuthenticatedAppInvestorRoute: AuthenticatedAppInvestorRoute,
   AuthenticatedAppNewRoute: AuthenticatedAppNewRoute,
   AuthenticatedAppProfileRoute: AuthenticatedAppProfileRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
@@ -736,7 +840,11 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
+  LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
+  LovableEmailTransactionalSendRoute: LovableEmailTransactionalSendRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

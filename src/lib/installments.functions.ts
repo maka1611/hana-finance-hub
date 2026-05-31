@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { calcInstallment, buildSchedule, DEFAULT_MARKUP_RATE } from "@/lib/installment";
+import { notifyInvestorOfFundedContract } from "@/lib/email/server-send.server";
 
 const CreateSchema = z.object({
   productName: z.string().min(1).max(200),
@@ -84,6 +85,10 @@ export const createInstallment = createServerFn({ method: "POST" })
     }));
     const { error: schedErr } = await supabaseAdmin.from("payment_schedules").insert(schedule);
     if (schedErr) throw new Error(schedErr.message);
+    // Уведомление инвестору (если контракт назначен) — best-effort.
+    if ((contract as { investor_id?: string | null }).investor_id) {
+      await notifyInvestorOfFundedContract(contract.id);
+    }
     return { id: contract.id };
   });
 

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { notifyInvestorOfFundedContract } from "@/lib/email/server-send.server";
 
 async function assertStaff(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -386,6 +387,9 @@ export const setContractInvestor = createServerFn({ method: "POST" })
       .update({ investor_id: data.investor_id } as never)
       .eq("id", data.contract_id);
     if (error) throw new Error(error.message);
+    if (data.investor_id) {
+      await notifyInvestorOfFundedContract(data.contract_id);
+    }
     return { ok: true };
   });
 

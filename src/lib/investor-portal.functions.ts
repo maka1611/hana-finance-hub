@@ -1,0 +1,271 @@
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+async function resolveMyInvestor(userId: string) {
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("email")
+    .eq("id", userId)
+    .maybeSingle();
+  const email = profile?.email?.toLowerCase();
+  if (!email) return null;
+  const { data: investor } = await supabaseAdmin
+    .from("investors")
+    .select("*")
+    .eq("is_active", true)
+    .ilike("email", email)
+    .maybeSingle();
+  return investor ?? null;
+}
+
+/** Lightweight flag used by the layout to decide whether to show the
+ *  "Инвестор" sidebar item. */
+export const getMyInvestorFlag = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const inv = await resolveMyInvestor(context.userId);
+    return { isInvestor: !!inv };
+  });
+
+export const getMyInvestorDashboard = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const inv = await resolveMyInvestor(context.userId);
+    if (!inv) throw new Error("Not an investor");
+
+    const investorId = (inv as { id: string }).id;
+    const shareRate = Number((inv as { profit_share_rate: number }).profit_share_rate);
+    const capital = Number((inv as { total_capital: number }).total_capital);
+    const capitalize = Boolean(
+      (inv as { capitalize_profit?: boolean }).capitalize_profit,
+    );
+
+    const [{ data: contracts }, { data: contributions }] = await Promise.all([
+      supabaseAdmin
+        .from("installment_contracts")
+        .select(
+          "id,client_id,product_name,principal,markup_amount,total_sale_price,monthly_payment,term_months,start_date,status,created_at",
+        )
+        .eq("investor_id", investorId)
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("investor_contributions")
+        .select("*")
+        .eq("investor_id", investorId)
+        .order("created_at", { ascending: false }),
+    ]);
+
+    const cs = (contracts ?? []) as Array<{
+      id: string;
+      client_id: string;
+      product_name: string;
+      principal: number | string;
+      markup_amount: number | string;
+      total_sale_price: number | string;
+      monthly_payment: number | string;
+      term_months: number;
+      start_date: string;
+      status: string;
+      created_at: string;
+    }>;
+
+    const contractIds = cs.map((c) => c.id);
+    const [{ data: schedules }, { data: payments }] = await Promise.all([
+      contractIds.length
+        ? supabaseAdmin
+            .from("payment_schedules")
+            .select("id,contract_id,seq,due_date,amount,status")
+            .in("contract_id", contractIds)
+            .order("due_date", { ascending: true })
+        : Promise.resolve({ data: [] }),
+      contractIds.length
+        ? supabaseAdmin
+            .from("payments")
+            .select("id,contract_id,amount,paid_at,method")
+            .in("contract_id", contractIds)
+            .order("paid_at", { ascending: false })
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    type Sched = {
+      id: string;
+      contract_id: string;
+      seq: number;
+      due_date: string;
+      amount: number | string;
+      status: string;
+    };
+    type Pay = {
+      id: string;
+      contract_id: string;
+      amount: number | string;
+      paid_at: string;
+      method: string | null;
+    };
+    const ss = (schedules ?? []) as Sched[];
+    const ps = (payments ?? []) as Pay[];
+
+    const today = new Date().toISOString().slice(0, 10);
+    const activeContracts = cs.filter((c) => c.status !== "closed");
+    const placed = activeContracts.reduce((s, c) => s + Number(c.principal), 0);
+    const totalMarkup = cs.reduce((s, c) => s + Number(c.markup_amount), 0);
+    const expectedProfit = totalMarkup * shareRate;
+
+    let receivedProfit = 0;
+    let returnedPrincipal = 0;
+    const byContract = new Map(cs.map((c) => [c.id, c]));
+    for (const p of ps) {
+      const c = byContract.get(p.contract_id);
+      if (!c) continue;
+      const total = Number(c.principal) + Number(c.markup_amount);
+      if (total <= 0) continue;
+      const markupShare = Number(c.markup_amount) / total;
+      const amt = Number(p.amount);
+      receivedProfit += amt * markupShare * shareRate;
+      returnedPrincipal += amt * (1 - markupShare);
+    }
+    const free = capital - placed + returnedPrincipal + (capitalize ? receivedProfit : 0);
+    const overdueSched = ss.filter(
+      (s) => s.status === "overdue" || (s.status === "pending" && s.due_date < today),
+    );
+    const overdueAmount = overdueSched.reduce((s, x) => s + Number(x.amount), 0);
+
+    // Средняя месячная доходность от капитала
+    const startISO = (inv as { contract_start_date?: string | null }).contract_start_date
+      ?? (cs.length ? cs[cs.length - 1].created_at.slice(0, 10) : null);
+    let monthsActive = 1;
+    if (startISO) {
+      const start = new Date(startISO);
+      const now = new Date();
+      monthsActive = Math.max(
+        1,
+        (now.getFullYear() - start.getFullYear()) * 12 +
+          (now.getMonth() - start.getMonth()) +
+          (now.getDate() >= start.getDate() ? 0 : -1) + 1,
+      );
+    }
+    const avgMonthlyYieldPct =
+      capital > 0 ? (receivedProfit / monthsActive / capital) * 100 : 0;
+
+    // Контракты без данных клиента
+    const anonymizedContracts = cs.map((c) => {
+      const own = ss.filter((s) => s.contract_id === c.id);
+      const paid = own.filter((s) => s.status === "paid").length;
+      return {
+        id: c.id,
+        productName: c.product_name,
+        principal: Number(c.principal),
+        markupAmount: Number(c.markup_amount),
+        totalSalePrice: Number(c.total_sale_price),
+        monthlyPayment: Number(c.monthly_payment),
+        termMonths: c.term_months,
+        startDate: c.start_date,
+        status: c.status,
+        clientCode: `Клиент #${c.client_id.slice(0, 4)}`,
+        paidCount: paid,
+        totalCount: own.length || c.term_months,
+      };
+    });
+
+    // График ближайших 90 дней + просрочки
+    const horizon = new Date();
+    horizon.setDate(horizon.getDate() + 90);
+    const horizonISO = horizon.toISOString().slice(0, 10);
+    const upcoming = ss
+      .filter((s) => s.status === "pending" || s.status === "overdue")
+      .filter((s) => s.due_date <= horizonISO || s.due_date < today)
+      .map((s) => {
+        const c = byContract.get(s.contract_id)!;
+        return {
+          id: s.id,
+          dueDate: s.due_date,
+          amount: Number(s.amount),
+          status: s.status,
+          overdue: s.status === "overdue" || s.due_date < today,
+          productName: c?.product_name ?? "—",
+          contractId: s.contract_id,
+        };
+      });
+
+    // Лента событий
+    type Feed = {
+      id: string;
+      at: string;
+      kind: "contract" | "payment" | "contribution";
+      title: string;
+      amount?: number;
+    };
+    const feed: Feed[] = [];
+    for (const c of cs) {
+      feed.push({
+        id: `c-${c.id}`,
+        at: c.created_at,
+        kind: "contract",
+        title: `Новая рассрочка «${c.product_name}»`,
+        amount: Number(c.principal),
+      });
+    }
+    for (const p of ps) {
+      const c = byContract.get(p.contract_id);
+      if (!c) continue;
+      feed.push({
+        id: `p-${p.id}`,
+        at: p.paid_at,
+        kind: "payment",
+        title: `Платёж по «${c.product_name}»`,
+        amount: Number(p.amount),
+      });
+    }
+    for (const co of contributions ?? []) {
+      const row = co as {
+        id: string;
+        created_at: string;
+        amount: number;
+        note?: string | null;
+      };
+      feed.push({
+        id: `i-${row.id}`,
+        at: row.created_at,
+        kind: "contribution",
+        title:
+          Number(row.amount) >= 0
+            ? `Взнос капитала${row.note ? `: ${row.note}` : ""}`
+            : `Вывод средств${row.note ? `: ${row.note}` : ""}`,
+        amount: Number(row.amount),
+      });
+    }
+    feed.sort((a, b) => (a.at < b.at ? 1 : -1));
+
+    return {
+      investor: {
+        fullName: (inv as { full_name: string }).full_name,
+        profitShareRate: shareRate,
+        capitalizeProfit: capitalize,
+        capital,
+      },
+      summary: {
+        capital,
+        placed,
+        free,
+        expectedProfit,
+        receivedProfit,
+        avgMonthlyYieldPct,
+        overdueCount: overdueSched.length,
+        overdueAmount,
+        activeCount: activeContracts.length,
+      },
+      contracts: anonymizedContracts,
+      upcoming,
+      contributions: (contributions ?? []) as Array<{
+        id: string;
+        amount: number | string;
+        operation_date: string;
+        due_date: string | null;
+        term_months: number | null;
+        note: string | null;
+        created_at: string;
+      }>,
+      feed: feed.slice(0, 50),
+    };
+  });
