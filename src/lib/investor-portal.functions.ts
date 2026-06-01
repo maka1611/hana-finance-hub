@@ -117,7 +117,7 @@ export const submitInvestorApplication = createServerFn({ method: "POST" })
         email: z.string().trim().email().max(255).optional().or(z.literal("")),
         phone: z.string().trim().max(64).optional().or(z.literal("")),
         amount: z.number().positive().max(1_000_000_000),
-        desiredMonthlyRate: z.number().min(0).max(100),
+        desiredMonthlyRate: z.number().positive().max(100),
         termMonths: z.number().int().min(1).max(120).optional().nullable(),
         comment: z.string().trim().max(2000).optional().or(z.literal("")),
       })
