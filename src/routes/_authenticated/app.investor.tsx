@@ -167,7 +167,6 @@ function ApplyForm({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState<string>(minAmount > 0 ? String(minAmount) : "");
-  const [rate, setRate] = useState<string>("3");
   const [term, setTerm] = useState<string>("12");
   const [comment, setComment] = useState("");
 
