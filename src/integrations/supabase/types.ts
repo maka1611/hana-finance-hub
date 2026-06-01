@@ -609,31 +609,135 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_carryovers: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          from_schedule_id: string
+          id: string
+          mode: string
+          note: string | null
+          to_schedule_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          from_schedule_id: string
+          id?: string
+          mode: string
+          note?: string | null
+          to_schedule_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          from_schedule_id?: string
+          id?: string
+          mode?: string
+          note?: string | null
+          to_schedule_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_carryovers_from_schedule_id_fkey"
+            columns: ["from_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "payment_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_carryovers_to_schedule_id_fkey"
+            columns: ["to_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "payment_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_schedule_history: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          comment: string | null
+          id: string
+          new_due_date: string
+          old_due_date: string
+          reason: string | null
+          schedule_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          comment?: string | null
+          id?: string
+          new_due_date: string
+          old_due_date: string
+          reason?: string | null
+          schedule_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          comment?: string | null
+          id?: string
+          new_due_date?: string
+          old_due_date?: string
+          reason?: string | null
+          schedule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_schedule_history_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "payment_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_schedules: {
         Row: {
           amount: number
+          carried_in: number
+          carried_out: number
+          carried_to_schedule_id: string | null
           contract_id: string
           created_at: string
           due_date: string
           id: string
+          original_due_date: string | null
+          paid_amount: number
           seq: number
           status: Database["public"]["Enums"]["payment_status"]
         }
         Insert: {
           amount: number
+          carried_in?: number
+          carried_out?: number
+          carried_to_schedule_id?: string | null
           contract_id: string
           created_at?: string
           due_date: string
           id?: string
+          original_due_date?: string | null
+          paid_amount?: number
           seq: number
           status?: Database["public"]["Enums"]["payment_status"]
         }
         Update: {
           amount?: number
+          carried_in?: number
+          carried_out?: number
+          carried_to_schedule_id?: string | null
           contract_id?: string
           created_at?: string
           due_date?: string
           id?: string
+          original_due_date?: string | null
+          paid_amount?: number
           seq?: number
           status?: Database["public"]["Enums"]["payment_status"]
         }
@@ -653,6 +757,7 @@ export type Database = {
           contract_id: string
           id: string
           method: string | null
+          note: string | null
           paid_at: string
           schedule_id: string | null
         }
@@ -661,6 +766,7 @@ export type Database = {
           contract_id: string
           id?: string
           method?: string | null
+          note?: string | null
           paid_at?: string
           schedule_id?: string | null
         }
@@ -669,6 +775,7 @@ export type Database = {
           contract_id?: string
           id?: string
           method?: string | null
+          note?: string | null
           paid_at?: string
           schedule_id?: string | null
         }
@@ -861,7 +968,14 @@ export type Database = {
       app_role: "client" | "manager" | "admin" | "owner"
       application_status: "pending" | "approved" | "rejected"
       contract_status: "pending" | "active" | "closed" | "overdue"
-      payment_status: "pending" | "paid" | "overdue"
+      payment_status:
+        | "pending"
+        | "paid"
+        | "overdue"
+        | "partial"
+        | "carried_over"
+        | "rescheduled"
+        | "closed_manual"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -992,7 +1106,15 @@ export const Constants = {
       app_role: ["client", "manager", "admin", "owner"],
       application_status: ["pending", "approved", "rejected"],
       contract_status: ["pending", "active", "closed", "overdue"],
-      payment_status: ["pending", "paid", "overdue"],
+      payment_status: [
+        "pending",
+        "paid",
+        "overdue",
+        "partial",
+        "carried_over",
+        "rescheduled",
+        "closed_manual",
+      ],
     },
   },
 } as const
