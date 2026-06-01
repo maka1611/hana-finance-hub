@@ -678,7 +678,33 @@ export const adminGetContract = createServerFn({ method: "POST" })
       .select("*")
       .eq("id", c.data.client_id)
       .single();
-    return { contract: c.data, schedule: s.data ?? [], payments: p.data ?? [], profile: prof };
+    const scheduleIds = (s.data ?? []).map((r) => r.id);
+    let history: unknown[] = [];
+    let carryovers: unknown[] = [];
+    if (scheduleIds.length > 0) {
+      const [h, co] = await Promise.all([
+        supabaseAdmin
+          .from("payment_schedule_history")
+          .select("*")
+          .in("schedule_id", scheduleIds)
+          .order("changed_at", { ascending: false }),
+        supabaseAdmin
+          .from("payment_carryovers")
+          .select("*")
+          .in("from_schedule_id", scheduleIds)
+          .order("created_at", { ascending: false }),
+      ]);
+      history = h.data ?? [];
+      carryovers = co.data ?? [];
+    }
+    return {
+      contract: c.data,
+      schedule: s.data ?? [],
+      payments: p.data ?? [],
+      profile: prof,
+      history,
+      carryovers,
+    };
   });
 
 export const adminRecordPayment = createServerFn({ method: "POST" })
@@ -689,6 +715,7 @@ export const adminRecordPayment = createServerFn({ method: "POST" })
         scheduleId: z.string().uuid(),
         amount: z.number().positive(),
         method: z.string().min(1).max(50).default("cash"),
+        note: z.string().max(500).optional().nullable(),
       })
       .parse(input),
   )
@@ -700,16 +727,30 @@ export const adminRecordPayment = createServerFn({ method: "POST" })
       .eq("id", data.scheduleId)
       .single();
     if (sErr) throw new Error(sErr.message);
+    const due =
+      Number(sched.amount) + Number(sched.carried_in ?? 0) - Number(sched.carried_out ?? 0);
+    const alreadyPaid = Number(sched.paid_amount ?? 0);
+    const remaining = Math.max(0, due - alreadyPaid);
+    if (remaining <= 0) {
+      throw new Error("По этому платежу уже нет остатка");
+    }
+    const applied = Math.min(remaining, data.amount);
     const { error: pErr } = await supabaseAdmin.from("payments").insert({
       contract_id: sched.contract_id,
       schedule_id: sched.id,
-      amount: data.amount,
+      amount: applied,
       method: data.method,
+      note: data.note ?? null,
     });
     if (pErr) throw new Error(pErr.message);
+    const newPaid = alreadyPaid + applied;
+    const fullyPaid = newPaid + 0.0001 >= due;
     await supabaseAdmin
       .from("payment_schedules")
-      .update({ status: "paid" })
+      .update({
+        paid_amount: newPaid,
+        status: fullyPaid ? "paid" : "partial",
+      })
       .eq("id", data.scheduleId);
     // check if all paid -> close contract
     const { data: remaining } = await supabaseAdmin
@@ -727,8 +768,217 @@ export const adminRecordPayment = createServerFn({ method: "POST" })
       action: "payment.record",
       entityType: "contract",
       entityId: sched.contract_id,
-      summary: `Принят платёж ${data.amount} ₽`,
-      details: { scheduleId: data.scheduleId, amount: data.amount, method: data.method },
+      summary: `Принят платёж ${applied} ₽${fullyPaid ? "" : " (частично)"}`,
+      details: { scheduleId: data.scheduleId, amount: applied, method: data.method, note: data.note ?? null, partial: !fullyPaid },
+    });
+    return { ok: true };
+  });
+
+// === Reschedule payment date ===
+export const adminReschedulePayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        scheduleId: z.string().uuid(),
+        newDueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        reason: z.string().min(1).max(200),
+        comment: z.string().max(1000).optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { data: sched, error } = await supabaseAdmin
+      .from("payment_schedules")
+      .select("*")
+      .eq("id", data.scheduleId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (sched.status === "paid" || sched.status === "closed_manual") {
+      throw new Error("Нельзя перенести закрытый платёж");
+    }
+    const oldDate = sched.due_date as string;
+    await supabaseAdmin.from("payment_schedule_history").insert({
+      schedule_id: data.scheduleId,
+      old_due_date: oldDate,
+      new_due_date: data.newDueDate,
+      reason: data.reason,
+      comment: data.comment ?? null,
+      changed_by: context.userId,
+    });
+    const newStatus =
+      sched.status === "partial" ? "partial" : "rescheduled";
+    await supabaseAdmin
+      .from("payment_schedules")
+      .update({
+        due_date: data.newDueDate,
+        original_due_date: sched.original_due_date ?? oldDate,
+        status: newStatus,
+      })
+      .eq("id", data.scheduleId);
+    await logAction({
+      actorId: context.userId,
+      action: "payment.reschedule",
+      entityType: "contract",
+      entityId: sched.contract_id,
+      summary: `Перенос даты платежа №${sched.seq}: ${oldDate} → ${data.newDueDate}`,
+      details: { scheduleId: data.scheduleId, oldDate, newDate: data.newDueDate, reason: data.reason },
+    });
+    return { ok: true };
+  });
+
+// === Carry over remainder ===
+export const adminCarryOverRemainder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        scheduleId: z.string().uuid(),
+        mode: z.enum(["next", "distribute", "keep"]),
+        note: z.string().max(500).optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { data: sched, error } = await supabaseAdmin
+      .from("payment_schedules")
+      .select("*")
+      .eq("id", data.scheduleId)
+      .single();
+    if (error) throw new Error(error.message);
+    const due =
+      Number(sched.amount) + Number(sched.carried_in ?? 0) - Number(sched.carried_out ?? 0);
+    const remainder = Math.max(0, due - Number(sched.paid_amount ?? 0));
+    if (remainder <= 0) throw new Error("Остатка нет");
+
+    if (data.mode === "keep") {
+      // Просто фиксируем запись истории — статус оставляем partial
+      await supabaseAdmin.from("payment_carryovers").insert({
+        from_schedule_id: sched.id,
+        to_schedule_id: null,
+        amount: remainder,
+        mode: "keep",
+        note: data.note ?? null,
+        created_by: context.userId,
+      });
+      await supabaseAdmin
+        .from("payment_schedules")
+        .update({ status: "partial" })
+        .eq("id", sched.id);
+    } else if (data.mode === "next") {
+      // Найти следующий неоплаченный платёж по контракту
+      const { data: nextRows } = await supabaseAdmin
+        .from("payment_schedules")
+        .select("*")
+        .eq("contract_id", sched.contract_id)
+        .gt("seq", sched.seq)
+        .not("status", "in", "(paid,closed_manual)")
+        .order("seq", { ascending: true })
+        .limit(1);
+      const next = (nextRows ?? [])[0];
+      if (!next) throw new Error("Нет следующего платежа для переноса");
+      await supabaseAdmin
+        .from("payment_schedules")
+        .update({
+          carried_in: Number(next.carried_in ?? 0) + remainder,
+        })
+        .eq("id", next.id);
+      await supabaseAdmin
+        .from("payment_schedules")
+        .update({
+          carried_out: Number(sched.carried_out ?? 0) + remainder,
+          carried_to_schedule_id: next.id,
+          status: "carried_over",
+        })
+        .eq("id", sched.id);
+      await supabaseAdmin.from("payment_carryovers").insert({
+        from_schedule_id: sched.id,
+        to_schedule_id: next.id,
+        amount: remainder,
+        mode: "next",
+        note: data.note ?? null,
+        created_by: context.userId,
+      });
+    } else {
+      // distribute: поровну между всеми будущими неоплаченными
+      const { data: futureRows } = await supabaseAdmin
+        .from("payment_schedules")
+        .select("*")
+        .eq("contract_id", sched.contract_id)
+        .gt("seq", sched.seq)
+        .not("status", "in", "(paid,closed_manual)")
+        .order("seq", { ascending: true });
+      const targets = futureRows ?? [];
+      if (targets.length === 0) throw new Error("Нет будущих платежей для распределения");
+      const share = remainder / targets.length;
+      const carryRows: Array<{ from_schedule_id: string; to_schedule_id: string; amount: number; mode: string; note: string | null; created_by: string }> = [];
+      for (const t of targets) {
+        await supabaseAdmin
+          .from("payment_schedules")
+          .update({ carried_in: Number(t.carried_in ?? 0) + share })
+          .eq("id", t.id);
+        carryRows.push({
+          from_schedule_id: sched.id,
+          to_schedule_id: t.id,
+          amount: share,
+          mode: "distribute",
+          note: data.note ?? null,
+          created_by: context.userId,
+        });
+      }
+      await supabaseAdmin
+        .from("payment_schedules")
+        .update({
+          carried_out: Number(sched.carried_out ?? 0) + remainder,
+          status: "carried_over",
+        })
+        .eq("id", sched.id);
+      await supabaseAdmin.from("payment_carryovers").insert(carryRows);
+    }
+
+    await logAction({
+      actorId: context.userId,
+      action: "payment.carryover",
+      entityType: "contract",
+      entityId: sched.contract_id,
+      summary: `Перенос остатка ${remainder.toFixed(2)} ₽ (${data.mode})`,
+      details: { scheduleId: sched.id, mode: data.mode, amount: remainder, note: data.note ?? null },
+    });
+    return { ok: true };
+  });
+
+// === Close schedule manually ===
+export const adminCloseScheduleManually = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        scheduleId: z.string().uuid(),
+        note: z.string().max(500).optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { data: sched, error } = await supabaseAdmin
+      .from("payment_schedules")
+      .select("*")
+      .eq("id", data.scheduleId)
+      .single();
+    if (error) throw new Error(error.message);
+    await supabaseAdmin
+      .from("payment_schedules")
+      .update({ status: "closed_manual" })
+      .eq("id", data.scheduleId);
+    await logAction({
+      actorId: context.userId,
+      action: "payment.close_manual",
+      entityType: "contract",
+      entityId: sched.contract_id,
+      summary: `Платёж №${sched.seq} закрыт вручную`,
+      details: { scheduleId: sched.id, note: data.note ?? null },
     });
     return { ok: true };
   });
