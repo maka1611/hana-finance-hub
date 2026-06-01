@@ -679,8 +679,8 @@ export const adminGetContract = createServerFn({ method: "POST" })
       .eq("id", c.data.client_id)
       .single();
     const scheduleIds = (s.data ?? []).map((r) => r.id);
-    let history: unknown[] = [];
-    let carryovers: unknown[] = [];
+    let history: Array<Record<string, unknown>> = [];
+    let carryovers: Array<Record<string, unknown>> = [];
     if (scheduleIds.length > 0) {
       const [h, co] = await Promise.all([
         supabaseAdmin
@@ -694,8 +694,8 @@ export const adminGetContract = createServerFn({ method: "POST" })
           .in("from_schedule_id", scheduleIds)
           .order("created_at", { ascending: false }),
       ]);
-      history = h.data ?? [];
-      carryovers = co.data ?? [];
+      history = (h.data ?? []) as Array<Record<string, unknown>>;
+      carryovers = (co.data ?? []) as Array<Record<string, unknown>>;
     }
     return {
       contract: c.data,
@@ -753,11 +753,11 @@ export const adminRecordPayment = createServerFn({ method: "POST" })
       })
       .eq("id", data.scheduleId);
     // check if all paid -> close contract
-    const { data: remaining } = await supabaseAdmin
+    const { data: remainingRows } = await supabaseAdmin
       .from("payment_schedules")
       .select("status")
       .eq("contract_id", sched.contract_id);
-    if ((remaining ?? []).every((r) => r.status === "paid")) {
+    if ((remainingRows ?? []).every((r) => r.status === "paid" || r.status === "closed_manual")) {
       await supabaseAdmin
         .from("installment_contracts")
         .update({ status: "closed" })
