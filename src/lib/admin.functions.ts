@@ -754,7 +754,12 @@ export const adminRecordPayment = createServerFn({ method: "POST" })
     if (remaining <= 0) {
       throw new Error("По этому платежу уже нет остатка");
     }
-    const applied = Math.min(remaining, data.amount);
+    if (data.amount > remaining + 0.0001) {
+      throw new Error(
+        `Сумма платежа (${data.amount} ₽) превышает остаток к оплате (${remaining.toFixed(2)} ₽)`,
+      );
+    }
+    const applied = data.amount;
     const { error: pErr } = await supabaseAdmin.from("payments").insert({
       contract_id: sched.contract_id,
       schedule_id: sched.id,

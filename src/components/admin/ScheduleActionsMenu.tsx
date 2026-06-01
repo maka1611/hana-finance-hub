@@ -188,7 +188,12 @@ export function ScheduleActionsMenu({
               Отмена
             </Button>
             <Button
-              disabled={busy || !payAmount || Number(payAmount) <= 0}
+              disabled={
+                busy ||
+                !payAmount ||
+                Number(payAmount) <= 0 ||
+                Number(payAmount) > remaining + 0.0001
+              }
               onClick={() =>
                 wrap(async () => {
                   await recordFn({
