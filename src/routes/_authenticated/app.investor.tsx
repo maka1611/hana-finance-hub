@@ -1,11 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { getMyInvestorDashboard } from "@/lib/investor-portal.functions";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  getInvestorPortalState,
+  getMyInvestorDashboard,
+  submitInvestorApplication,
+} from "@/lib/investor-portal.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Wallet, AlertTriangle, PiggyBank, Bell, CalendarClock, Coins, BarChart3 } from "lucide-react";
+import { TrendingUp, Wallet, AlertTriangle, Bell, CalendarClock, Coins, BarChart3, Lock, Send, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/app/investor")({
   component: InvestorPortalPage,
@@ -15,6 +25,295 @@ const fmt = (n: number) =>
   new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n) + " ₽";
 
 function InvestorPortalPage() {
+  const stateFn = useServerFn(getInvestorPortalState);
+  const { data: state, isLoading: stateLoading } = useQuery({
+    queryKey: ["investor-portal-state"],
+    queryFn: () => stateFn(),
+  });
+
+  if (stateLoading || !state) {
+    return <div className="text-muted-foreground">Загрузка…</div>;
+  }
+
+  if (state.isInvestor) {
+    return <InvestorDashboard />;
+  }
+
+  if (!state.settings.enabled) {
+    return <InvestmentsClosed />;
+  }
+
+  if (state.latestApplication && state.latestApplication.status === "pending") {
+    return <ApplicationStatus app={state.latestApplication} />;
+  }
+
+  return (
+    <ApplyForm
+      minAmount={state.settings.minAmount}
+      profile={state.profile}
+      lastApp={state.latestApplication}
+    />
+  );
+}
+
+function InvestmentsClosed() {
+  return (
+    <div className="max-w-xl mx-auto py-12">
+      <Card className="border-amber-200 bg-amber-50/40">
+        <CardContent className="py-10 text-center space-y-3">
+          <Lock className="h-10 w-10 mx-auto text-amber-700" />
+          <h1 className="text-2xl font-extrabold tracking-tight">
+            Инвестиции пока не принимаются
+          </h1>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Приём заявок временно закрыт. Загляните позже — мы откроем форму, как только появятся свободные места.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ApplicationStatus({
+  app,
+}: {
+  app: {
+    id: string;
+    full_name: string;
+    amount: number | string;
+    desired_monthly_rate: number | string;
+    term_months: number | null;
+    status: string;
+    admin_note: string | null;
+    created_at: string;
+  };
+}) {
+  const status = app.status;
+  const Icon =
+    status === "approved" ? CheckCircle2 : status === "rejected" ? XCircle : Clock;
+  const title =
+    status === "approved"
+      ? "Заявка одобрена"
+      : status === "rejected"
+        ? "Заявка отклонена"
+        : "Заявка на рассмотрении";
+  const tone =
+    status === "approved"
+      ? "text-emerald-700"
+      : status === "rejected"
+        ? "text-red-700"
+        : "text-amber-700";
+
+  return (
+    <div className="max-w-xl mx-auto py-10 space-y-4">
+      <Card>
+        <CardContent className="py-8 text-center space-y-3">
+          <Icon className={`h-10 w-10 mx-auto ${tone}`} />
+          <h1 className="text-2xl font-extrabold tracking-tight">{title}</h1>
+          <p className="text-sm text-muted-foreground">
+            Мы получили вашу заявку{" "}
+            {new Date(app.created_at).toLocaleDateString("ru-RU")} и свяжемся с вами.
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Детали заявки</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm space-y-2">
+          <Row label="Имя" value={app.full_name} />
+          <Row label="Сумма" value={fmt(Number(app.amount))} />
+          <Row
+            label="Желаемая доходность"
+            value={`${Number(app.desired_monthly_rate).toFixed(2)}% / мес`}
+          />
+          {app.term_months && <Row label="Срок" value={`${app.term_months} мес`} />}
+          {app.admin_note && (
+            <div className="pt-2 border-t border-border/60 text-xs">
+              <div className="text-muted-foreground mb-1">Комментарий менеджера</div>
+              <div>{app.admin_note}</div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-semibold">{value}</span>
+    </div>
+  );
+}
+
+function ApplyForm({
+  minAmount,
+  profile,
+  lastApp,
+}: {
+  minAmount: number;
+  profile: { full_name: string | null; email: string | null; phone: string | null } | null;
+  lastApp: {
+    status: string;
+    admin_note: string | null;
+  } | null;
+}) {
+  const qc = useQueryClient();
+  const submitFn = useServerFn(submitInvestorApplication);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [amount, setAmount] = useState<string>(minAmount > 0 ? String(minAmount) : "");
+  const [rate, setRate] = useState<string>("3");
+  const [term, setTerm] = useState<string>("12");
+  const [comment, setComment] = useState("");
+
+  useEffect(() => {
+    if (profile) {
+      setFullName((v) => v || profile.full_name || "");
+      setEmail((v) => v || profile.email || "");
+      setPhone((v) => v || profile.phone || "");
+    }
+  }, [profile]);
+
+  const mut = useMutation({
+    mutationFn: () =>
+      submitFn({
+        data: {
+          fullName: fullName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          amount: Number(amount),
+          desiredMonthlyRate: Number(rate),
+          termMonths: term ? Number(term) : null,
+          comment: comment.trim(),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Заявка отправлена. Мы свяжемся с вами.");
+      qc.invalidateQueries({ queryKey: ["investor-portal-state"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось отправить заявку"),
+  });
+
+  const amountNum = Number(amount);
+  const rateNum = Number(rate);
+  const valid =
+    fullName.trim().length >= 2 &&
+    Number.isFinite(amountNum) &&
+    amountNum >= minAmount &&
+    amountNum > 0 &&
+    Number.isFinite(rateNum) &&
+    rateNum >= 0;
+
+  return (
+    <div className="max-w-2xl mx-auto py-8 space-y-6">
+      <div>
+        <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+          Кабинет инвестора
+        </div>
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mt-1">
+          Подать заявку на инвестиции
+        </h1>
+        <p className="text-sm text-muted-foreground mt-2">
+          Заполните форму — мы рассмотрим заявку и свяжемся с вами для подписания договора.
+        </p>
+        {minAmount > 0 && (
+          <div className="text-sm mt-2">
+            Минимальная сумма: <b>{fmt(minAmount)}</b>
+          </div>
+        )}
+      </div>
+
+      {lastApp && lastApp.status === "rejected" && (
+        <Card className="border-red-200 bg-red-50/40">
+          <CardContent className="py-4 text-sm">
+            <div className="font-semibold text-red-800 mb-1">Прошлая заявка отклонена</div>
+            {lastApp.admin_note && <div className="text-muted-foreground">{lastApp.admin_note}</div>}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardContent className="py-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>ФИО *</Label>
+              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Телефон</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Email</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Сумма инвестиции, ₽ *</Label>
+              <Input
+                type="number"
+                min={minAmount || 0}
+                step="1000"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+              {minAmount > 0 && amountNum > 0 && amountNum < minAmount && (
+                <div className="text-xs text-red-600">
+                  Меньше минимальной суммы ({fmt(minAmount)})
+                </div>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Желаемая доходность, % в месяц *</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                step="0.1"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Желаемый срок, мес</Label>
+              <Input
+                type="number"
+                min={1}
+                max={120}
+                step="1"
+                value={term}
+                onChange={(e) => setTerm(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Комментарий</Label>
+              <Textarea
+                rows={3}
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Дополнительные пожелания, источник средств, удобное время связи…"
+              />
+            </div>
+          </div>
+          <Button
+            className="w-full"
+            disabled={!valid || mut.isPending}
+            onClick={() => mut.mutate()}
+          >
+            <Send className="h-4 w-4 mr-2" />
+            {mut.isPending ? "Отправка…" : "Отправить заявку"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function InvestorDashboard() {
   const fn = useServerFn(getMyInvestorDashboard);
   const { data, isLoading, error } = useQuery({
     queryKey: ["my-investor-dashboard"],

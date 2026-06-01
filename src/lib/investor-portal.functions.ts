@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { z } from "zod";
 
 async function resolveMyInvestor(userId: string) {
   const { data: profile } = await supabaseAdmin
@@ -19,6 +20,29 @@ async function resolveMyInvestor(userId: string) {
   return investor ?? null;
 }
 
+async function readInvestmentSettings() {
+  const { data } = await supabaseAdmin
+    .from("app_settings")
+    .select("investments_enabled, investments_min_amount")
+    .eq("id", true)
+    .maybeSingle();
+  return {
+    enabled: Boolean(data?.investments_enabled ?? false),
+    minAmount: Number(data?.investments_min_amount ?? 0),
+  };
+}
+
+async function assertStaff(userId: string) {
+  const { data } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  const ok = (data ?? []).some(
+    (r) => r.role === "manager" || r.role === "admin" || r.role === "owner",
+  );
+  if (!ok) throw new Error("Forbidden: staff role required");
+}
+
 /** Lightweight flag used by the layout to decide whether to show the
  *  "Инвестор" sidebar item. */
 export const getMyInvestorFlag = createServerFn({ method: "GET" })
@@ -26,6 +50,162 @@ export const getMyInvestorFlag = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const inv = await resolveMyInvestor(context.userId);
     return { isInvestor: !!inv };
+  });
+
+/** State for the "Кабинет инвестора" page: detects whether the current user
+ *  is a registered investor, whether investing is open, the min amount and
+ *  the user's most recent application (if any). */
+export const getInvestorPortalState = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const [inv, settings, { data: app }, { data: profile }] = await Promise.all([
+      resolveMyInvestor(context.userId),
+      readInvestmentSettings(),
+      supabaseAdmin
+        .from("investor_applications")
+        .select("id, full_name, email, phone, amount, desired_monthly_rate, term_months, comment, status, admin_note, created_at, reviewed_at")
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("profiles")
+        .select("full_name, email, phone")
+        .eq("id", context.userId)
+        .maybeSingle(),
+    ]);
+    return {
+      isInvestor: !!inv,
+      settings,
+      latestApplication: app ?? null,
+      profile: profile ?? null,
+    };
+  });
+
+export const submitInvestorApplication = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        fullName: z.string().trim().min(2).max(255),
+        email: z.string().trim().email().max(255).optional().or(z.literal("")),
+        phone: z.string().trim().max(64).optional().or(z.literal("")),
+        amount: z.number().positive().max(1_000_000_000),
+        desiredMonthlyRate: z.number().min(0).max(100),
+        termMonths: z.number().int().min(1).max(120).optional().nullable(),
+        comment: z.string().trim().max(2000).optional().or(z.literal("")),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const settings = await readInvestmentSettings();
+    if (!settings.enabled) {
+      throw new Error("Приём инвестиций сейчас закрыт");
+    }
+    if (data.amount < settings.minAmount) {
+      throw new Error(
+        `Минимальная сумма для подачи заявки: ${settings.minAmount}`,
+      );
+    }
+    // Block duplicate pending applications
+    const { data: existing } = await supabaseAdmin
+      .from("investor_applications")
+      .select("id")
+      .eq("user_id", context.userId)
+      .eq("status", "pending")
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      throw new Error("У вас уже есть заявка на рассмотрении");
+    }
+    const { data: inserted, error } = await supabaseAdmin
+      .from("investor_applications")
+      .insert({
+        user_id: context.userId,
+        full_name: data.fullName,
+        email: data.email || null,
+        phone: data.phone || null,
+        amount: data.amount,
+        desired_monthly_rate: data.desiredMonthlyRate,
+        term_months: data.termMonths ?? null,
+        comment: data.comment || null,
+        status: "pending",
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { ok: true, id: inserted.id };
+  });
+
+// ---------- Admin ----------
+
+export const adminGetInvestmentSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertStaff(context.userId);
+    return readInvestmentSettings();
+  });
+
+export const adminSetInvestmentSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        enabled: z.boolean(),
+        minAmount: z.number().min(0).max(1_000_000_000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { error } = await supabaseAdmin
+      .from("app_settings")
+      .update({
+        investments_enabled: data.enabled,
+        investments_min_amount: data.minAmount,
+      })
+      .eq("id", true);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminListInvestorApplications = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertStaff(context.userId);
+    const { data, error } = await supabaseAdmin
+      .from("investor_applications")
+      .select("id, user_id, full_name, email, phone, amount, desired_monthly_rate, term_months, comment, status, admin_note, created_at, reviewed_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return { applications: data ?? [] };
+  });
+
+export const adminUpdateInvestorApplication = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        status: z.enum(["pending", "approved", "rejected"]),
+        adminNote: z.string().trim().max(2000).optional().or(z.literal("")),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { error } = await supabaseAdmin
+      .from("investor_applications")
+      .update({
+        status: data.status,
+        admin_note: data.adminNote || null,
+        reviewed_by: context.userId,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const getMyInvestorDashboard = createServerFn({ method: "GET" })

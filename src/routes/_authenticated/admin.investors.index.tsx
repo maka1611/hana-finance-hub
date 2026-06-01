@@ -1,12 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { listInvestors, getInvestorsAggregate } from "@/lib/investors.functions";
+import {
+  adminGetInvestmentSettings,
+  adminListInvestorApplications,
+  adminSetInvestmentSettings,
+  adminUpdateInvestorApplication,
+} from "@/lib/investor-portal.functions";
 import { formatMoney } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Briefcase, Plus, AlertTriangle } from "lucide-react";
+import { Briefcase, Plus, AlertTriangle, Settings2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/investors/")({
   component: InvestorsList,
@@ -73,6 +85,8 @@ function InvestorsList() {
           <Button className="gap-2"><Plus className="size-4" /> Добавить инвестора</Button>
         </Link>
       </div>
+
+      <InvestmentIntakeBlock />
 
       {data.length > 0 && (
         <div className="rounded-2xl bg-card ring-1 ring-border p-5">
@@ -206,4 +220,215 @@ function Field({ label, value, highlight }: { label: string; value: string; high
       <div className={`font-bold text-sm ${highlight ? "text-primary" : ""}`}>{value}</div>
     </div>
   );
+}
+
+function InvestmentIntakeBlock() {
+  const qc = useQueryClient();
+  const getSettings = useServerFn(adminGetInvestmentSettings);
+  const setSettings = useServerFn(adminSetInvestmentSettings);
+  const listApps = useServerFn(adminListInvestorApplications);
+  const updateApp = useServerFn(adminUpdateInvestorApplication);
+
+  const { data: settings } = useQuery({
+    queryKey: ["investment-settings"],
+    queryFn: () => getSettings(),
+  });
+  const { data: appsData } = useQuery({
+    queryKey: ["investor-applications"],
+    queryFn: () => listApps(),
+  });
+
+  const [enabled, setEnabled] = useState(false);
+  const [minAmount, setMinAmount] = useState("0");
+
+  useEffect(() => {
+    if (settings) {
+      setEnabled(settings.enabled);
+      setMinAmount(String(settings.minAmount));
+    }
+  }, [settings]);
+
+  const saveMut = useMutation({
+    mutationFn: () =>
+      setSettings({ data: { enabled, minAmount: Number(minAmount) || 0 } }),
+    onSuccess: () => {
+      toast.success("Настройки сохранены");
+      qc.invalidateQueries({ queryKey: ["investment-settings"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
+  });
+
+  const updateMut = useMutation({
+    mutationFn: (vars: { id: string; status: "approved" | "rejected" | "pending"; adminNote: string }) =>
+      updateApp({ data: vars }),
+    onSuccess: () => {
+      toast.success("Заявка обновлена");
+      qc.invalidateQueries({ queryKey: ["investor-applications"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
+  });
+
+  const apps = appsData?.applications ?? [];
+  const pending = apps.filter((a) => a.status === "pending");
+
+  return (
+    <div className="rounded-2xl bg-card ring-1 ring-border p-5 space-y-5">
+      <div>
+        <h2 className="text-sm font-bold flex items-center gap-2">
+          <Settings2 className="size-4" /> Приём инвестиций
+        </h2>
+        <p className="text-xs text-muted-foreground mt-1">
+          Управление кнопкой «Кабинет инвестора» для всех пользователей.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-end gap-4">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <Switch checked={enabled} onCheckedChange={setEnabled} />
+          <span className="text-sm font-medium">
+            {enabled ? "Заявки принимаются" : "Заявки закрыты"}
+          </span>
+        </label>
+        <div className="space-y-1">
+          <Label className="text-xs">Минимальная сумма заявки, ₽</Label>
+          <Input
+            type="number"
+            min={0}
+            step="1000"
+            className="w-48"
+            value={minAmount}
+            onChange={(e) => setMinAmount(e.target.value)}
+          />
+        </div>
+        <Button onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
+          Сохранить
+        </Button>
+      </div>
+
+      <div className="border-t border-border pt-4 space-y-3">
+        <h3 className="text-sm font-bold">
+          Заявки на инвестиции{" "}
+          <span className="text-muted-foreground font-normal">
+            · всего {apps.length}
+            {pending.length > 0 && ` · на рассмотрении ${pending.length}`}
+          </span>
+        </h3>
+        {apps.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Заявок пока нет.</p>
+        ) : (
+          <div className="space-y-2">
+            {apps.map((a) => (
+              <ApplicationRow
+                key={a.id}
+                app={a}
+                onUpdate={(status, adminNote) =>
+                  updateMut.mutate({ id: a.id, status, adminNote })
+                }
+                saving={updateMut.isPending}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ApplicationRow({
+  app,
+  onUpdate,
+  saving,
+}: {
+  app: {
+    id: string;
+    full_name: string;
+    email: string | null;
+    phone: string | null;
+    amount: number | string;
+    desired_monthly_rate: number | string;
+    term_months: number | null;
+    comment: string | null;
+    status: string;
+    admin_note: string | null;
+    created_at: string;
+  };
+  onUpdate: (status: "approved" | "rejected" | "pending", note: string) => void;
+  saving: boolean;
+}) {
+  const [note, setNote] = useState(app.admin_note ?? "");
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="rounded-xl border border-border p-3">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 items-center text-left"
+      >
+        <div className="min-w-0">
+          <div className="font-semibold truncate">{app.full_name}</div>
+          <div className="text-xs text-muted-foreground truncate">
+            {app.phone || app.email || "—"} ·{" "}
+            {new Date(app.created_at).toLocaleDateString("ru-RU")}
+          </div>
+        </div>
+        <div className="text-sm font-bold">{formatMoney(Number(app.amount))}</div>
+        <div className="text-xs text-muted-foreground">
+          {Number(app.desired_monthly_rate).toFixed(2)}%/мес
+          {app.term_months ? ` · ${app.term_months} мес` : ""}
+        </div>
+        <StatusBadge status={app.status} />
+      </button>
+      {open && (
+        <div className="mt-3 pt-3 border-t border-border space-y-3">
+          {app.comment && (
+            <div className="text-sm">
+              <div className="text-xs text-muted-foreground mb-1">Комментарий клиента</div>
+              <div>{app.comment}</div>
+            </div>
+          )}
+          <div className="space-y-1">
+            <Label className="text-xs">Комментарий менеджера (виден клиенту)</Label>
+            <Textarea
+              rows={2}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="default"
+              disabled={saving}
+              onClick={() => onUpdate("approved", note)}
+            >
+              Одобрить
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={saving}
+              onClick={() => onUpdate("rejected", note)}
+            >
+              Отклонить
+            </Button>
+            {app.status !== "pending" && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={saving}
+                onClick={() => onUpdate("pending", note)}
+              >
+                Вернуть на рассмотрение
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === "approved") return <Badge className="bg-emerald-600">одобрена</Badge>;
+  if (status === "rejected") return <Badge variant="destructive">отклонена</Badge>;
+  return <Badge variant="secondary">на рассмотрении</Badge>;
 }
