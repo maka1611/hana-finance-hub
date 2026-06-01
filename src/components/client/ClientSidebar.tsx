@@ -33,17 +33,14 @@ const baseItems = [
 
 export function ClientSidebar({
   isStaff,
-  isInvestor = false,
 }: {
   isStaff: boolean;
   isInvestor?: boolean;
 }) {
-  const items = isInvestor
-    ? [
-        ...baseItems,
-        { title: "Инвестор", url: "/app/investor", icon: TrendingUp, exact: false },
-      ]
-    : baseItems;
+  const items = [
+    ...baseItems,
+    { title: "Кабинет инвестора", url: "/app/investor", icon: TrendingUp, exact: false },
+  ];
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (r) => r.location.pathname });

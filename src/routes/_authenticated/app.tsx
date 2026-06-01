@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getMyRoles } from "@/lib/admin.functions";
-import { getMyInvestorFlag } from "@/lib/investor-portal.functions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -19,12 +18,6 @@ function AppLayout() {
   const rolesFn = useServerFn(getMyRoles);
   const { data: roles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
   const isStaff = (roles ?? []).some((r) => r === "manager" || r === "admin" || r === "owner");
-  const investorFlagFn = useServerFn(getMyInvestorFlag);
-  const { data: investorFlag } = useQuery({
-    queryKey: ["my-investor-flag"],
-    queryFn: () => investorFlagFn(),
-  });
-  const isInvestor = !!investorFlag?.isInvestor;
   const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(
     null,
   );
@@ -77,7 +70,7 @@ function AppLayout() {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <ClientSidebar isStaff={isStaff} isInvestor={isInvestor} />
+        <ClientSidebar isStaff={isStaff} />
         <div className="min-w-0 flex-1 flex flex-col">
           <header className="min-h-16 pt-safe border-b border-border flex items-center px-4 gap-3 bg-background md:sticky md:top-0 z-30">
             <SidebarTrigger />
