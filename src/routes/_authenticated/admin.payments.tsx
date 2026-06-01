@@ -1,18 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { adminListPayments, adminMarkSchedulePaid } from "@/lib/admin.functions";
+import { adminListPayments } from "@/lib/admin.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, Clock, Wallet } from "lucide-react";
+import { ScheduleActionsMenu } from "@/components/admin/ScheduleActionsMenu";
 
 export const Route = createFileRoute("/_authenticated/admin/payments")({
   head: () => ({ meta: [{ title: "Платежи — Админка" }] }),
@@ -23,7 +22,6 @@ type StatusFilter = "all" | "pending" | "paid" | "overdue";
 
 function PaymentsPage() {
   const listFn = useServerFn(adminListPayments);
-  const markFn = useServerFn(adminMarkSchedulePaid);
   const qc = useQueryClient();
 
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -44,14 +42,7 @@ function PaymentsPage() {
       }),
   });
 
-  const mark = useMutation({
-    mutationFn: (id: string) => markFn({ data: { scheduleId: id } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-payments"] });
-      toast.success("Платёж отмечен оплаченным");
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
-  });
+  const refresh = () => qc.invalidateQueries({ queryKey: ["admin-payments"] });
 
   const items = data?.items ?? [];
   const kpi = data?.kpi;
@@ -124,34 +115,46 @@ function PaymentsPage() {
               <TableHead>Клиент</TableHead>
               <TableHead>Товар</TableHead>
               <TableHead>№</TableHead>
-              <TableHead className="text-right">Сумма</TableHead>
+              <TableHead className="text-right">К оплате</TableHead>
+              <TableHead className="text-right">Оплачено</TableHead>
+              <TableHead className="text-right">Остаток</TableHead>
               <TableHead>Статус</TableHead>
-              <TableHead className="text-right">Действие</TableHead>
+              <TableHead className="text-right">Действия</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">Загрузка...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">Загрузка...</TableCell></TableRow>
             ) : items.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">Платежей нет</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">Платежей нет</TableCell></TableRow>
             ) : (
-              items.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell className="text-sm">{formatDate(s.due_date)}</TableCell>
-                  <TableCell className="font-medium">{s.client_full_name}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{s.product_name}</TableCell>
-                  <TableCell className="text-xs font-mono text-muted-foreground">#{s.seq}</TableCell>
-                  <TableCell className="text-right font-bold">{formatMoney(Number(s.amount))}</TableCell>
-                  <TableCell><StatusBadge status={s.status} /></TableCell>
-                  <TableCell className="text-right">
-                    {s.status !== "paid" && (
-                      <Button size="sm" onClick={() => mark.mutate(s.id)} disabled={mark.isPending}>
-                        Отметить оплачено
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
+              items.map((s) => {
+                const due = Number(s.amount) + Number(s.carried_in ?? 0) - Number(s.carried_out ?? 0);
+                const paid = Number(s.paid_amount ?? 0);
+                const remaining = Math.max(0, due - paid);
+                return (
+                  <TableRow key={s.id}>
+                    <TableCell className="text-sm">
+                      {formatDate(s.due_date)}
+                      {s.original_due_date && s.original_due_date !== s.due_date && (
+                        <div className="text-[10px] text-muted-foreground">
+                          перенесён с {formatDate(s.original_due_date)}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{s.client_full_name}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{s.product_name}</TableCell>
+                    <TableCell className="text-xs font-mono text-muted-foreground">#{s.seq}</TableCell>
+                    <TableCell className="text-right font-bold">{formatMoney(due)}</TableCell>
+                    <TableCell className="text-right">{formatMoney(paid)}</TableCell>
+                    <TableCell className="text-right">{formatMoney(remaining)}</TableCell>
+                    <TableCell><StatusBadge status={s.status} /></TableCell>
+                    <TableCell className="text-right">
+                      <ScheduleActionsMenu row={s} onChanged={refresh} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -184,6 +187,10 @@ function AgingCell({ label, value, danger }: { label: string; value: number; dan
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "paid") return <Badge className="bg-green-600 hover:bg-green-700">Оплачен</Badge>;
+  if (status === "partial") return <Badge variant="secondary">Частично</Badge>;
+  if (status === "carried_over") return <Badge variant="secondary">Перенесён</Badge>;
+  if (status === "rescheduled") return <Badge variant="outline">Дата перенесена</Badge>;
+  if (status === "closed_manual") return <Badge variant="outline">Закрыт</Badge>;
   if (status === "overdue") return <Badge variant="destructive">Просрочен</Badge>;
   return <Badge variant="secondary">Ожидает</Badge>;
 }
