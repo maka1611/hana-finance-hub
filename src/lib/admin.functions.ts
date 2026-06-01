@@ -1586,7 +1586,18 @@ export const adminListPayments = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
-        status: z.enum(["all", "pending", "paid", "overdue"]).default("all"),
+        status: z
+          .enum([
+            "all",
+            "pending",
+            "paid",
+            "overdue",
+            "partial",
+            "carried_over",
+            "rescheduled",
+            "closed_manual",
+          ])
+          .default("all"),
         from: z
           .string()
           .regex(/^\d{4}-\d{2}-\d{2}$/)

@@ -18,7 +18,15 @@ export const Route = createFileRoute("/_authenticated/admin/payments")({
   component: PaymentsPage,
 });
 
-type StatusFilter = "all" | "pending" | "paid" | "overdue";
+type StatusFilter =
+  | "all"
+  | "pending"
+  | "paid"
+  | "overdue"
+  | "partial"
+  | "carried_over"
+  | "rescheduled"
+  | "closed_manual";
 
 function PaymentsPage() {
   const listFn = useServerFn(adminListPayments);
@@ -89,6 +97,10 @@ function PaymentsPage() {
               <SelectItem value="pending">Ожидают</SelectItem>
               <SelectItem value="overdue">Просрочены</SelectItem>
               <SelectItem value="paid">Оплачены</SelectItem>
+              <SelectItem value="partial">Частично оплачены</SelectItem>
+              <SelectItem value="carried_over">Остаток перенесён</SelectItem>
+              <SelectItem value="rescheduled">Дата перенесена</SelectItem>
+              <SelectItem value="closed_manual">Закрыты вручную</SelectItem>
             </SelectContent>
           </Select>
         </div>
