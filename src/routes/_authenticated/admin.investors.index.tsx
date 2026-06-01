@@ -1,12 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { listInvestors, getInvestorsAggregate } from "@/lib/investors.functions";
+import {
+  adminGetInvestmentSettings,
+  adminListInvestorApplications,
+  adminSetInvestmentSettings,
+  adminUpdateInvestorApplication,
+} from "@/lib/investor-portal.functions";
 import { formatMoney } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Briefcase, Plus, AlertTriangle } from "lucide-react";
+import { Briefcase, Plus, AlertTriangle, Settings2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/investors/")({
   component: InvestorsList,
