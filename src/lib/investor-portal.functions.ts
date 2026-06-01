@@ -66,8 +66,16 @@ async function assertStaff(userId: string) {
 export const getMyInvestorFlag = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const inv = await resolveMyInvestor(context.userId);
-    return { isInvestor: !!inv };
+    const [inv, wasInv, settings] = await Promise.all([
+      resolveMyInvestor(context.userId),
+      resolveWasInvestor(context.userId),
+      readInvestmentSettings(),
+    ]);
+    return {
+      isInvestor: !!inv,
+      wasInvestor: wasInv,
+      cabinetPublic: settings.cabinetPublic,
+    };
   });
 
 /** State for the "Кабинет инвестора" page: detects whether the current user
@@ -171,6 +179,7 @@ export const adminSetInvestmentSettings = createServerFn({ method: "POST" })
       .object({
         enabled: z.boolean(),
         minAmount: z.number().min(0).max(1_000_000_000),
+        cabinetPublic: z.boolean(),
       })
       .parse(input),
   )
@@ -181,6 +190,7 @@ export const adminSetInvestmentSettings = createServerFn({ method: "POST" })
       .update({
         investments_enabled: data.enabled,
         investments_min_amount: data.minAmount,
+        investor_cabinet_public: data.cabinetPublic,
       })
       .eq("id", true);
     if (error) throw new Error(error.message);
