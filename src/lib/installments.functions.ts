@@ -116,7 +116,46 @@ export const getInstallmentById = createServerFn({ method: "POST" })
       supabase.from("payments").select("*").eq("contract_id", data.id).order("paid_at", { ascending: false }),
     ]);
     if (c.error) throw new Error(c.error.message);
-    return { contract: c.data, schedule: s.data ?? [], payments: p.data ?? [] };
+    const scheduleIds = (s.data ?? []).map((r) => r.id);
+    type HistoryRow = {
+      id: string;
+      schedule_id: string;
+      old_due_date: string;
+      new_due_date: string;
+      reason: string | null;
+      comment: string | null;
+      changed_by: string;
+      changed_at: string;
+    };
+    type CarryoverRow = {
+      id: string;
+      from_schedule_id: string;
+      to_schedule_id: string | null;
+      amount: number;
+      mode: string;
+      note: string | null;
+      created_by: string;
+      created_at: string;
+    };
+    let history: HistoryRow[] = [];
+    let carryovers: CarryoverRow[] = [];
+    if (scheduleIds.length > 0) {
+      const [h, co] = await Promise.all([
+        supabase
+          .from("payment_schedule_history")
+          .select("*")
+          .in("schedule_id", scheduleIds)
+          .order("changed_at", { ascending: false }),
+        supabase
+          .from("payment_carryovers")
+          .select("*")
+          .in("from_schedule_id", scheduleIds)
+          .order("created_at", { ascending: false }),
+      ]);
+      history = (h.data ?? []) as HistoryRow[];
+      carryovers = (co.data ?? []) as CarryoverRow[];
+    }
+    return { contract: c.data, schedule: s.data ?? [], payments: p.data ?? [], history, carryovers };
   });
 
 export const getMyDashboard = createServerFn({ method: "GET" })
