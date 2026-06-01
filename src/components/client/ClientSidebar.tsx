@@ -33,13 +33,16 @@ const baseItems = [
 
 export function ClientSidebar({
   isStaff,
+  showInvestorCabinet = true,
 }: {
   isStaff: boolean;
-  isInvestor?: boolean;
+  showInvestorCabinet?: boolean;
 }) {
   const items = [
     ...baseItems,
-    { title: "Кабинет инвестора", url: "/app/investor", icon: TrendingUp, exact: false },
+    ...(showInvestorCabinet
+      ? [{ title: "Кабинет инвестора", url: "/app/investor", icon: TrendingUp, exact: false }]
+      : []),
   ];
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
