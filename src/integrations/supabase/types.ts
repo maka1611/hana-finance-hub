@@ -861,7 +861,14 @@ export type Database = {
       app_role: "client" | "manager" | "admin" | "owner"
       application_status: "pending" | "approved" | "rejected"
       contract_status: "pending" | "active" | "closed" | "overdue"
-      payment_status: "pending" | "paid" | "overdue"
+      payment_status:
+        | "pending"
+        | "paid"
+        | "overdue"
+        | "partial"
+        | "carried_over"
+        | "rescheduled"
+        | "closed_manual"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -992,7 +999,15 @@ export const Constants = {
       app_role: ["client", "manager", "admin", "owner"],
       application_status: ["pending", "approved", "rejected"],
       contract_status: ["pending", "active", "closed", "overdue"],
-      payment_status: ["pending", "paid", "overdue"],
+      payment_status: [
+        "pending",
+        "paid",
+        "overdue",
+        "partial",
+        "carried_over",
+        "rescheduled",
+        "closed_manual",
+      ],
     },
   },
 } as const
