@@ -4,6 +4,17 @@ import { useQuery } from "@tanstack/react-query";
 import { getInstallmentById } from "@/lib/installments.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Ожидается",
+  paid: "Оплачен",
+  partial: "Частично оплачен",
+  carried_over: "Остаток перенесён",
+  rescheduled: "Перенесён",
+  overdue: "Просрочен",
+  closed_manual: "Закрыт вручную",
+};
 
 export const Route = createFileRoute("/_authenticated/app/installments/$id")({
   head: () => ({ meta: [{ title: "Рассрочка — NoorPay" }] }),
@@ -21,9 +32,10 @@ function InstallmentDetail() {
   if (isLoading) return <p className="text-sm text-muted-foreground">Загрузка...</p>;
   if (!data) return <p className="text-sm text-muted-foreground">Не найдено</p>;
 
-  const { contract, schedule } = data;
+  const { contract, schedule, payments, history, carryovers } = data;
   const paid = schedule.filter((s) => s.status === "paid").length;
   const progress = schedule.length > 0 ? (paid / schedule.length) * 100 : 0;
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="space-y-6 md:space-y-8 w-full min-w-0 overflow-hidden">
@@ -79,22 +91,124 @@ function InstallmentDetail() {
       <div>
         <h2 className="text-lg font-bold mb-4">График платежей</h2>
         <div className="min-w-0 bg-card rounded-2xl ring-1 ring-border divide-y divide-border overflow-hidden">
-          {schedule.map((s) => (
-            <div key={s.id} className="flex items-center justify-between p-4 gap-3 min-w-0">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="size-9 rounded-lg bg-muted flex items-center justify-center font-mono text-xs font-bold">
-                  {s.seq}
-                </div>
-                <div className="min-w-0">
-                  <div className="font-semibold text-sm">{formatDate(s.due_date)}</div>
-                  <div className="text-xs text-muted-foreground capitalize">{s.status}</div>
+          {schedule.map((s) => {
+            const sRow = s as typeof s & {
+              paid_amount?: number;
+              carried_in?: number;
+              carried_out?: number;
+              original_due_date?: string | null;
+            };
+            const due =
+              Number(sRow.amount) + Number(sRow.carried_in ?? 0) - Number(sRow.carried_out ?? 0);
+            const paidAmt = Number(sRow.paid_amount ?? 0);
+            const remaining = Math.max(0, due - paidAmt);
+            const overdue = s.status === "pending" && s.due_date < today;
+            return (
+              <div key={s.id} className="p-4 min-w-0">
+                <div className="flex items-center justify-between gap-3 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="size-9 rounded-lg bg-muted flex items-center justify-center font-mono text-xs font-bold">
+                      {s.seq}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-sm">{formatDate(s.due_date)}</div>
+                      {sRow.original_due_date && sRow.original_due_date !== s.due_date && (
+                        <div className="text-[11px] text-muted-foreground">
+                          перенесён с {formatDate(sRow.original_due_date)}
+                        </div>
+                      )}
+                      <div className="mt-1">
+                        <Badge
+                          variant={
+                            s.status === "paid"
+                              ? "default"
+                              : s.status === "partial" || s.status === "carried_over"
+                                ? "secondary"
+                                : overdue
+                                  ? "destructive"
+                                  : "outline"
+                          }
+                        >
+                          {overdue && s.status === "pending"
+                            ? "Просрочен"
+                            : (STATUS_LABEL[s.status] ?? s.status)}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="font-bold">{formatMoney(due)}</div>
+                    {Number(sRow.carried_in ?? 0) > 0 && (
+                      <div className="text-[11px] text-muted-foreground">
+                        базовый {formatMoney(Number(sRow.amount))} + перенос {formatMoney(Number(sRow.carried_in))}
+                      </div>
+                    )}
+                    {paidAmt > 0 && s.status !== "paid" && (
+                      <div className="text-[11px] text-muted-foreground">
+                        оплачено {formatMoney(paidAmt)} · остаток {formatMoney(remaining)}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="font-bold shrink-0">{formatMoney(Number(s.amount))}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
+
+      {history && history.length > 0 && (
+        <div>
+          <h2 className="text-lg font-bold mb-4">История переносов даты</h2>
+          <div className="bg-card rounded-2xl ring-1 ring-border divide-y divide-border overflow-hidden">
+            {history.map((h) => {
+              const sch = schedule.find((s) => s.id === h.schedule_id);
+              return (
+                <div key={h.id} className="p-4 text-sm">
+                  <div className="flex justify-between gap-3 flex-wrap">
+                    <div>
+                      <span className="font-semibold">Платёж №{sch?.seq ?? "?"}</span>
+                      {" · "}
+                      {formatDate(h.old_due_date)} → {formatDate(h.new_due_date)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{formatDate(h.changed_at)}</div>
+                  </div>
+                  {h.reason && <div className="text-xs mt-1">Причина: {h.reason}</div>}
+                  {h.comment && <div className="text-xs text-muted-foreground mt-0.5">{h.comment}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {payments && payments.length > 0 && (
+        <div>
+          <h2 className="text-lg font-bold mb-4">История оплат</h2>
+          <div className="bg-card rounded-2xl ring-1 ring-border divide-y divide-border overflow-hidden">
+            {payments.map((p) => {
+              const pn = (p as { note?: string | null }).note;
+              return (
+                <div key={p.id} className="flex items-center justify-between p-4">
+                  <div>
+                    <div className="font-semibold text-sm">{formatDate(p.paid_at)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {p.method ?? "—"}
+                      {pn ? ` · ${pn}` : ""}
+                    </div>
+                  </div>
+                  <div className="font-bold">{formatMoney(Number(p.amount))}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {carryovers && carryovers.length > 0 && (
+        <div className="text-xs text-muted-foreground">
+          {carryovers.length} операций переноса остатка зарегистрировано — итоговая цена не изменилась.
+        </div>
+      )}
     </div>
   );
 }
