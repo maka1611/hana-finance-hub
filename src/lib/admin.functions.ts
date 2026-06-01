@@ -679,8 +679,28 @@ export const adminGetContract = createServerFn({ method: "POST" })
       .eq("id", c.data.client_id)
       .single();
     const scheduleIds = (s.data ?? []).map((r) => r.id);
-    let history: Array<Record<string, unknown>> = [];
-    let carryovers: Array<Record<string, unknown>> = [];
+    type HistoryRow = {
+      id: string;
+      schedule_id: string;
+      old_due_date: string;
+      new_due_date: string;
+      reason: string | null;
+      comment: string | null;
+      changed_by: string;
+      changed_at: string;
+    };
+    type CarryoverRow = {
+      id: string;
+      from_schedule_id: string;
+      to_schedule_id: string | null;
+      amount: number;
+      mode: string;
+      note: string | null;
+      created_by: string;
+      created_at: string;
+    };
+    let history: HistoryRow[] = [];
+    let carryovers: CarryoverRow[] = [];
     if (scheduleIds.length > 0) {
       const [h, co] = await Promise.all([
         supabaseAdmin
@@ -694,8 +714,8 @@ export const adminGetContract = createServerFn({ method: "POST" })
           .in("from_schedule_id", scheduleIds)
           .order("created_at", { ascending: false }),
       ]);
-      history = (h.data ?? []) as Array<Record<string, unknown>>;
-      carryovers = (co.data ?? []) as Array<Record<string, unknown>>;
+      history = (h.data ?? []) as HistoryRow[];
+      carryovers = (co.data ?? []) as CarryoverRow[];
     }
     return {
       contract: c.data,
