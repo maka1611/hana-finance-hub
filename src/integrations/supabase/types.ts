@@ -57,16 +57,22 @@ export type Database = {
         Row: {
           default_markup_rate: number
           id: boolean
+          investments_enabled: boolean
+          investments_min_amount: number
           updated_at: string
         }
         Insert: {
           default_markup_rate?: number
           id?: boolean
+          investments_enabled?: boolean
+          investments_min_amount?: number
           updated_at?: string
         }
         Update: {
           default_markup_rate?: number
           id?: boolean
+          investments_enabled?: boolean
+          investments_min_amount?: number
           updated_at?: string
         }
         Relationships: []
@@ -456,6 +462,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      investor_applications: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          comment: string | null
+          created_at: string
+          desired_monthly_rate: number
+          email: string | null
+          full_name: string
+          id: string
+          phone: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          term_months: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount: number
+          comment?: string | null
+          created_at?: string
+          desired_monthly_rate: number
+          email?: string | null
+          full_name: string
+          id?: string
+          phone?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          term_months?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          comment?: string | null
+          created_at?: string
+          desired_monthly_rate?: number
+          email?: string | null
+          full_name?: string
+          id?: string
+          phone?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          term_months?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       investor_contributions: {
         Row: {
