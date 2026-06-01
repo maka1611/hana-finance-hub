@@ -124,8 +124,8 @@ function ApplicationStatus({
           <Row label="Имя" value={app.full_name} />
           <Row label="Сумма" value={fmt(Number(app.amount))} />
           <Row
-            label="Доходность инвестора"
-            value={`2% / мес`}
+            label="Желаемая доходность"
+            value={`${Number(app.desired_monthly_rate).toFixed(2)}% / мес`}
           />
           {app.term_months && <Row label="Срок" value={`${app.term_months} мес`} />}
           {app.admin_note && (
@@ -167,6 +167,7 @@ function ApplyForm({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState<string>(minAmount > 0 ? String(minAmount) : "");
+  const [rate, setRate] = useState<string>("");
   const [term, setTerm] = useState<string>("12");
   const [comment, setComment] = useState("");
 
@@ -186,7 +187,7 @@ function ApplyForm({
           email: email.trim(),
           phone: phone.trim(),
           amount: Number(amount),
-          desiredMonthlyRate: 2,
+          desiredMonthlyRate: Number(rate),
           termMonths: term ? Number(term) : null,
           comment: comment.trim(),
         },
@@ -199,11 +200,14 @@ function ApplyForm({
   });
 
   const amountNum = Number(amount);
+  const rateNum = Number(rate);
   const valid =
     fullName.trim().length >= 2 &&
     Number.isFinite(amountNum) &&
     amountNum >= minAmount &&
-    amountNum > 0;
+    amountNum > 0 &&
+    Number.isFinite(rateNum) &&
+    rateNum > 0;
 
   return (
     <div className="max-w-2xl mx-auto py-8 space-y-6">
@@ -264,10 +268,21 @@ function ApplyForm({
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>Доходность инвестора</Label>
-              <div className="text-sm font-semibold">2% в месяц</div>
+              <Label>Желаемая доходность, % в месяц *</Label>
+              <Input
+                type="number"
+                min={0.01}
+                max={100}
+                step="0.1"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                placeholder="например, 2"
+              />
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Мы не гарантируем фиксированный процент. Инвестор получает 2% долю от нашей прибыли с клиента, сформированной за счёт использованных средств инвестора.
+                Это ориентир для понимания, какую доходность вы хотите получать
+                в среднем со своих вложений. Мы не предоставляем гарантированный
+                процент — доля от прибыли рассчитывается индивидуально по итогам
+                переговоров и фиксируется в договоре.
               </p>
             </div>
             <div className="space-y-1.5">

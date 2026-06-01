@@ -240,20 +240,25 @@ function InvestmentIntakeBlock() {
 
   const [enabled, setEnabled] = useState(false);
   const [minAmount, setMinAmount] = useState("0");
+  const [cabinetPublic, setCabinetPublic] = useState(true);
 
   useEffect(() => {
     if (settings) {
       setEnabled(settings.enabled);
       setMinAmount(String(settings.minAmount));
+      setCabinetPublic(settings.cabinetPublic);
     }
   }, [settings]);
 
   const saveMut = useMutation({
     mutationFn: () =>
-      setSettings({ data: { enabled, minAmount: Number(minAmount) || 0 } }),
+      setSettings({
+        data: { enabled, minAmount: Number(minAmount) || 0, cabinetPublic },
+      }),
     onSuccess: () => {
       toast.success("Настройки сохранены");
       qc.invalidateQueries({ queryKey: ["investment-settings"] });
+      qc.invalidateQueries({ queryKey: ["my-investor-flag"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
   });
@@ -299,6 +304,14 @@ function InvestmentIntakeBlock() {
             onChange={(e) => setMinAmount(e.target.value)}
           />
         </div>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <Switch checked={cabinetPublic} onCheckedChange={setCabinetPublic} />
+          <span className="text-sm font-medium">
+            {cabinetPublic
+              ? "Кнопка видна всем пользователям"
+              : "Кнопка видна только инвесторам"}
+          </span>
+        </label>
         <Button onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
           Сохранить
         </Button>

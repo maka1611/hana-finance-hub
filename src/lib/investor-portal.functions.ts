@@ -20,15 +20,33 @@ async function resolveMyInvestor(userId: string) {
   return investor ?? null;
 }
 
+async function resolveWasInvestor(userId: string) {
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("email")
+    .eq("id", userId)
+    .maybeSingle();
+  const email = profile?.email?.toLowerCase();
+  if (!email) return false;
+  const { data } = await supabaseAdmin
+    .from("investors")
+    .select("id")
+    .ilike("email", email)
+    .limit(1)
+    .maybeSingle();
+  return !!data;
+}
+
 async function readInvestmentSettings() {
   const { data } = await supabaseAdmin
     .from("app_settings")
-    .select("investments_enabled, investments_min_amount")
+    .select("investments_enabled, investments_min_amount, investor_cabinet_public")
     .eq("id", true)
     .maybeSingle();
   return {
     enabled: Boolean(data?.investments_enabled ?? false),
     minAmount: Number(data?.investments_min_amount ?? 0),
+    cabinetPublic: Boolean(data?.investor_cabinet_public ?? true),
   };
 }
 
@@ -48,8 +66,16 @@ async function assertStaff(userId: string) {
 export const getMyInvestorFlag = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const inv = await resolveMyInvestor(context.userId);
-    return { isInvestor: !!inv };
+    const [inv, wasInv, settings] = await Promise.all([
+      resolveMyInvestor(context.userId),
+      resolveWasInvestor(context.userId),
+      readInvestmentSettings(),
+    ]);
+    return {
+      isInvestor: !!inv,
+      wasInvestor: wasInv,
+      cabinetPublic: settings.cabinetPublic,
+    };
   });
 
 /** State for the "Кабинет инвестора" page: detects whether the current user
@@ -91,7 +117,7 @@ export const submitInvestorApplication = createServerFn({ method: "POST" })
         email: z.string().trim().email().max(255).optional().or(z.literal("")),
         phone: z.string().trim().max(64).optional().or(z.literal("")),
         amount: z.number().positive().max(1_000_000_000),
-        desiredMonthlyRate: z.number().min(0).max(100),
+        desiredMonthlyRate: z.number().positive().max(100),
         termMonths: z.number().int().min(1).max(120).optional().nullable(),
         comment: z.string().trim().max(2000).optional().or(z.literal("")),
       })
@@ -153,6 +179,7 @@ export const adminSetInvestmentSettings = createServerFn({ method: "POST" })
       .object({
         enabled: z.boolean(),
         minAmount: z.number().min(0).max(1_000_000_000),
+        cabinetPublic: z.boolean(),
       })
       .parse(input),
   )
@@ -163,6 +190,7 @@ export const adminSetInvestmentSettings = createServerFn({ method: "POST" })
       .update({
         investments_enabled: data.enabled,
         investments_min_amount: data.minAmount,
+        investor_cabinet_public: data.cabinetPublic,
       })
       .eq("id", true);
     if (error) throw new Error(error.message);

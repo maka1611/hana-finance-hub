@@ -59,6 +59,7 @@ export type Database = {
           id: boolean
           investments_enabled: boolean
           investments_min_amount: number
+          investor_cabinet_public: boolean
           updated_at: string
         }
         Insert: {
@@ -66,6 +67,7 @@ export type Database = {
           id?: boolean
           investments_enabled?: boolean
           investments_min_amount?: number
+          investor_cabinet_public?: boolean
           updated_at?: string
         }
         Update: {
@@ -73,6 +75,7 @@ export type Database = {
           id?: boolean
           investments_enabled?: boolean
           investments_min_amount?: number
+          investor_cabinet_public?: boolean
           updated_at?: string
         }
         Relationships: []
