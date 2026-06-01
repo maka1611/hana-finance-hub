@@ -20,15 +20,33 @@ async function resolveMyInvestor(userId: string) {
   return investor ?? null;
 }
 
+async function resolveWasInvestor(userId: string) {
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("email")
+    .eq("id", userId)
+    .maybeSingle();
+  const email = profile?.email?.toLowerCase();
+  if (!email) return false;
+  const { data } = await supabaseAdmin
+    .from("investors")
+    .select("id")
+    .ilike("email", email)
+    .limit(1)
+    .maybeSingle();
+  return !!data;
+}
+
 async function readInvestmentSettings() {
   const { data } = await supabaseAdmin
     .from("app_settings")
-    .select("investments_enabled, investments_min_amount")
+    .select("investments_enabled, investments_min_amount, investor_cabinet_public")
     .eq("id", true)
     .maybeSingle();
   return {
     enabled: Boolean(data?.investments_enabled ?? false),
     minAmount: Number(data?.investments_min_amount ?? 0),
+    cabinetPublic: Boolean(data?.investor_cabinet_public ?? true),
   };
 }
 
