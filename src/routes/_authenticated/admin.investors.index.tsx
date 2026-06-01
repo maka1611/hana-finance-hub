@@ -86,6 +86,8 @@ function InvestorsList() {
         </Link>
       </div>
 
+      <InvestmentIntakeBlock />
+
       {data.length > 0 && (
         <div className="rounded-2xl bg-card ring-1 ring-border p-5">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
