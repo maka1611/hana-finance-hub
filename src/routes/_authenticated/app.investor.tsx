@@ -124,8 +124,8 @@ function ApplicationStatus({
           <Row label="Имя" value={app.full_name} />
           <Row label="Сумма" value={fmt(Number(app.amount))} />
           <Row
-            label="Желаемая доходность"
-            value={`${Number(app.desired_monthly_rate).toFixed(2)}% / мес`}
+            label="Доходность инвестора"
+            value={`2% / мес`}
           />
           {app.term_months && <Row label="Срок" value={`${app.term_months} мес`} />}
           {app.admin_note && (
@@ -186,7 +186,7 @@ function ApplyForm({
           email: email.trim(),
           phone: phone.trim(),
           amount: Number(amount),
-          desiredMonthlyRate: Number(rate),
+          desiredMonthlyRate: 2,
           termMonths: term ? Number(term) : null,
           comment: comment.trim(),
         },
@@ -199,14 +199,11 @@ function ApplyForm({
   });
 
   const amountNum = Number(amount);
-  const rateNum = Number(rate);
   const valid =
     fullName.trim().length >= 2 &&
     Number.isFinite(amountNum) &&
     amountNum >= minAmount &&
-    amountNum > 0 &&
-    Number.isFinite(rateNum) &&
-    rateNum >= 0;
+    amountNum > 0;
 
   return (
     <div className="max-w-2xl mx-auto py-8 space-y-6">
@@ -267,15 +264,11 @@ function ApplyForm({
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>Желаемая доходность, % в месяц *</Label>
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                step="0.1"
-                value={rate}
-                onChange={(e) => setRate(e.target.value)}
-              />
+              <Label>Доходность инвестора</Label>
+              <div className="text-sm font-semibold">2% в месяц</div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Мы не гарантируем фиксированный процент. Инвестор получает 2% долю от нашей прибыли с клиента, сформированной за счёт использованных средств инвестора.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label>Желаемый срок, мес</Label>
