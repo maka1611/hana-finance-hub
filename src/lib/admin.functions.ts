@@ -1351,7 +1351,9 @@ export const adminDeleteClientDocument = createServerFn({ method: "POST" })
 
 export const adminDeleteContract = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), reason: z.string().trim().max(500).optional() }).parse(input),
+  )
   .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
     const { data: contract, error: gErr } = await supabaseAdmin
@@ -1360,30 +1362,13 @@ export const adminDeleteContract = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .single();
     if (gErr) throw new Error(gErr.message);
-    const { data: schedulesSnap } = await supabaseAdmin
-      .from("payment_schedules")
-      .select("*")
-      .eq("contract_id", data.id)
-      .order("seq", { ascending: true });
-    const { data: paymentsSnap } = await supabaseAdmin
-      .from("payments")
-      .select("*")
-      .eq("contract_id", data.id)
-      .order("paid_at", { ascending: true });
-    const { data: clientSnap } = await supabaseAdmin
-      .from("profiles")
-      .select("id,full_name,email,phone")
-      .eq("id", contract.client_id)
-      .maybeSingle();
-    await supabaseAdmin.from("payments").delete().eq("contract_id", data.id);
-    await supabaseAdmin.from("payment_schedules").delete().eq("contract_id", data.id);
-    await supabaseAdmin
-      .from("installment_applications")
-      .update({ contract_id: null } as never)
-      .eq("contract_id", data.id);
     const { error: dErr } = await supabaseAdmin
       .from("installment_contracts")
-      .delete()
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: context.userId,
+        deleted_reason: data.reason ?? null,
+      } as never)
       .eq("id", data.id);
     if (dErr) throw new Error(dErr.message);
     await logAction({
@@ -1391,17 +1376,38 @@ export const adminDeleteContract = createServerFn({ method: "POST" })
       action: "contract.delete",
       entityType: "contract",
       entityId: data.id,
-      summary: `Удалён контракт «${contract.product_name}»`,
+      summary: `Архивирован контракт «${contract.product_name}»`,
       details: {
         clientId: contract.client_id,
         totalSalePrice: contract.total_sale_price,
-        snapshot: {
-          contract,
-          schedules: schedulesSnap ?? [],
-          payments: paymentsSnap ?? [],
-          client: clientSnap ?? null,
-        },
+        reason: data.reason ?? null,
       },
+    });
+    return { ok: true };
+  });
+
+export const adminRestoreContract = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertOwner(context.userId);
+    const { data: contract } = await supabaseAdmin
+      .from("installment_contracts")
+      .select("product_name,client_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    const { error } = await supabaseAdmin
+      .from("installment_contracts")
+      .update({ deleted_at: null, deleted_by: null, deleted_reason: null } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await logAction({
+      actorId: context.userId,
+      action: "contract.restore",
+      entityType: "contract",
+      entityId: data.id,
+      summary: `Восстановлен контракт «${contract?.product_name ?? data.id}»`,
+      details: { clientId: contract?.client_id ?? null },
     });
     return { ok: true };
   });
