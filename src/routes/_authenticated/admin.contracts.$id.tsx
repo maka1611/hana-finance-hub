@@ -47,7 +47,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Briefcase, MoreVertical } from "lucide-react";
+import { ArrowLeft, Trash2, Briefcase, MoreVertical, Archive, RotateCcw } from "lucide-react";
 
 type ScheduleRow = {
   id: string;
