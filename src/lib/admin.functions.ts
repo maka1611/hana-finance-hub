@@ -1720,7 +1720,7 @@ export const adminListPayments = createServerFn({ method: "POST" })
         client_email: p?.email ?? null,
         client_phone: p?.phone ?? null,
       };
-    });
+    }).filter(<T>(x: T | null): x is T => x !== null);
 
     const q2 = data.search?.trim().toLowerCase();
     const filtered = q2
