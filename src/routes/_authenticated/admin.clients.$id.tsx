@@ -51,7 +51,6 @@ function ClientProfilePage() {
   const getFn = useServerFn(adminGetClient);
   const updateFn = useServerFn(adminUpdateClient);
   const restoreFn = useServerFn(adminRestoreClient);
-  const rolesFn = useServerFn(getMyRoles);
   const addPhoneFn = useServerFn(adminAddClientPhone);
   const delPhoneFn = useServerFn(adminDeleteClientPhone);
   const updPhoneFn = useServerFn(adminUpdateClientPhone);
