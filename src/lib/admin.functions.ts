@@ -733,8 +733,19 @@ export const adminGetContract = createServerFn({ method: "POST" })
       history = (h.data ?? []) as HistoryRow[];
       carryovers = (co.data ?? []) as CarryoverRow[];
     }
+    const contractRow = c.data as typeof c.data & {
+      deleted_at?: string | null;
+      deleted_by?: string | null;
+      deleted_reason?: string | null;
+    };
+    let deletedByName: string | null = null;
+    if (contractRow.deleted_by) {
+      const m = await fetchActorMap([contractRow.deleted_by]);
+      const a = m.get(contractRow.deleted_by);
+      deletedByName = a?.full_name ?? a?.email ?? null;
+    }
     return {
-      contract: c.data,
+      contract: { ...contractRow, deleted_by_name: deletedByName },
       schedule: s.data ?? [],
       payments: p.data ?? [],
       profile: prof,
