@@ -393,6 +393,9 @@ export type Database = {
           client_id: string
           client_telegram: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deleted_reason: string | null
           down_payment: number
           id: string
           investor_id: string | null
@@ -416,6 +419,9 @@ export type Database = {
           client_id: string
           client_telegram?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_reason?: string | null
           down_payment?: number
           id?: string
           investor_id?: string | null
@@ -439,6 +445,9 @@ export type Database = {
           client_id?: string
           client_telegram?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_reason?: string | null
           down_payment?: number
           id?: string
           investor_id?: string | null
@@ -799,6 +808,9 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deleted_reason: string | null
           driver_license_categories: string | null
           driver_license_issued_at: string | null
           driver_license_number: string | null
@@ -817,6 +829,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_reason?: string | null
           driver_license_categories?: string | null
           driver_license_issued_at?: string | null
           driver_license_number?: string | null
@@ -835,6 +850,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_reason?: string | null
           driver_license_categories?: string | null
           driver_license_issued_at?: string | null
           driver_license_number?: string | null
