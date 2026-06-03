@@ -1107,6 +1107,17 @@ export const adminGetClient = createServerFn({ method: "POST" })
       ]);
 
     if (!profileR.data) throw new Error("Клиент не найден");
+    const profile = profileR.data as typeof profileR.data & {
+      deleted_at?: string | null;
+      deleted_by?: string | null;
+      deleted_reason?: string | null;
+    };
+    let deletedByName: string | null = null;
+    if (profile.deleted_by) {
+      const m = await fetchActorMap([profile.deleted_by]);
+      const a = m.get(profile.deleted_by);
+      deletedByName = a?.full_name ?? a?.email ?? null;
+    }
 
     const schedules = (schedulesR.data ?? []) as Array<{
       status: string;
@@ -1144,7 +1155,7 @@ export const adminGetClient = createServerFn({ method: "POST" })
     else tier = "bronze";
 
     return {
-      profile: profileR.data,
+      profile: { ...profile, deleted_by_name: deletedByName },
       phones: phonesR.data ?? [],
       roles: (rolesR.data ?? []).map((r) => r.role as string),
       contracts: contractsR.data ?? [],
