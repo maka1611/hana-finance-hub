@@ -13,6 +13,8 @@ import {
   adminDeleteClientDocument,
   adminGetClientSecret,
   adminResetClientPassword,
+  adminRestoreClient,
+  getMyRoles,
 } from "@/lib/admin.functions";
 import {
   getEffectiveMarkupRateForUser,
@@ -26,7 +28,7 @@ import { formatMoney, formatDate } from "@/lib/installment";
 import { toast } from "sonner";
 import {
   ArrowLeft, Mail, Phone, Plus, Trash2, Star, Award,
-  CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink, X, KeyRound, Eye, EyeOff, Copy, RefreshCw, Percent,
+  CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink, X, KeyRound, Eye, EyeOff, Copy, RefreshCw, Percent, RotateCcw, Archive,
 } from "lucide-react";
 import { ContactChannelToggles, roleLabelRu, type ContactChannel } from "@/components/admin/ContactChannels";
 
