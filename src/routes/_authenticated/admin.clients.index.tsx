@@ -2,9 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Search, Star, Trash2 } from "lucide-react";
+import { Search, Star, Trash2, Archive, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { adminListClients, adminDeleteClient } from "@/lib/admin.functions";
+import { adminListClients, adminDeleteClient, adminRestoreClient, getMyRoles } from "@/lib/admin.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -28,9 +28,17 @@ export const Route = createFileRoute("/_authenticated/admin/clients/")({
 function ClientsPage() {
   const fn = useServerFn(adminListClients);
   const delFn = useServerFn(adminDeleteClient);
+  const restoreFn = useServerFn(adminRestoreClient);
+  const rolesFn = useServerFn(getMyRoles);
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-clients"], queryFn: () => fn() });
+  const [showDeleted, setShowDeleted] = useState(false);
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-clients", showDeleted],
+    queryFn: () => fn({ data: { includeDeleted: showDeleted } }),
+  });
+  const { data: myRoles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
+  const isOwner = (myRoles ?? []).includes("owner");
   const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,13 +58,23 @@ function ClientsPage() {
     setDeleting(true);
     try {
       await delFn({ data: { id: toDelete.id } });
-      toast.success("Клиент удалён");
+      toast.success("Клиент архивирован");
       setToDelete(null);
       qc.invalidateQueries({ queryKey: ["admin-clients"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Ошибка удаления");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleRestore = async (id: string) => {
+    try {
+      await restoreFn({ data: { id } });
+      toast.success("Клиент восстановлен");
+      qc.invalidateQueries({ queryKey: ["admin-clients"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Ошибка восстановления");
     }
   };
 
@@ -79,6 +97,15 @@ function ClientsPage() {
               className="pl-9 w-64"
             />
           </div>
+          <Button
+            variant={showDeleted ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowDeleted((v) => !v)}
+            title="Показать архив"
+          >
+            <Archive className="size-4 mr-2" />
+            {showDeleted ? "Скрыть удалённых" : "Показать удалённых"}
+          </Button>
           </div>
       </div>
       <div className="bg-card rounded-2xl ring-1 ring-border overflow-x-auto">
@@ -93,21 +120,24 @@ function ClientsPage() {
               <TableHead className="text-center">Контрактов</TableHead>
               <TableHead className="text-right">Долг</TableHead>
               <TableHead>Регистрация</TableHead>
+              {showDeleted && <TableHead>Удалён</TableHead>}
               <TableHead className="w-[60px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">Загрузка...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={showDeleted ? 10 : 9} className="text-center text-muted-foreground py-10">Загрузка...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">
+              <TableRow><TableCell colSpan={showDeleted ? 10 : 9} className="text-center text-muted-foreground py-10">
                 {searchQuery ? "Ничего не найдено" : "Нет клиентов"}
               </TableCell></TableRow>
             ) : (
-              filtered.map((c) => (
+              filtered.map((c) => {
+                const isDeleted = !!c.deleted_at;
+                return (
                 <TableRow
                   key={c.id}
-                  className="cursor-pointer hover:bg-muted/40 transition-colors"
+                  className={`cursor-pointer hover:bg-muted/40 transition-colors ${isDeleted ? "opacity-60" : ""}`}
                   onClick={() => navigate({ to: "/admin/clients/$id", params: { id: c.id } })}
                 >
                   <TableCell className="font-medium text-primary">{c.full_name ?? "—"}</TableCell>
@@ -122,19 +152,46 @@ function ClientsPage() {
                   <TableCell className="text-center">{c.contracts_count}</TableCell>
                   <TableCell className="text-right font-bold">{formatMoney(Number(c.total_debt))}</TableCell>
                   <TableCell className="text-xs font-mono text-muted-foreground">{formatDate(c.created_at)}</TableCell>
+                  {showDeleted && (
+                    <TableCell className="text-xs">
+                      {isDeleted ? (
+                        <div>
+                          <div className="font-mono text-muted-foreground">{formatDate(c.deleted_at!)}</div>
+                          <div className="text-muted-foreground">{c.deleted_by_name ?? "—"}</div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => setToDelete({ id: c.id, name: c.full_name ?? c.email ?? "клиента" })}
-                      title="Удалить клиента"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                    {isDeleted ? (
+                      isOwner ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-primary hover:bg-primary/10"
+                          onClick={() => handleRestore(c.id)}
+                          title="Восстановить клиента"
+                        >
+                          <RotateCcw className="size-4" />
+                        </Button>
+                      ) : null
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setToDelete({ id: c.id, name: c.full_name ?? c.email ?? "клиента" })}
+                        title="Удалить клиента"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>

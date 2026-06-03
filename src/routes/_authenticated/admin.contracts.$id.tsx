@@ -10,6 +10,8 @@ import {
   adminReschedulePayment,
   adminCarryOverRemainder,
   adminCloseScheduleManually,
+  adminRestoreContract,
+  getMyRoles,
 } from "@/lib/admin.functions";
 import { listInvestorsLite, setContractInvestor } from "@/lib/investors.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
@@ -45,7 +47,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Briefcase, MoreVertical } from "lucide-react";
+import { ArrowLeft, Trash2, Briefcase, MoreVertical, Archive, RotateCcw } from "lucide-react";
 
 type ScheduleRow = {
   id: string;
@@ -114,6 +116,8 @@ function AdminContractDetail() {
   const recordFn = useServerFn(adminRecordPayment);
   const statusFn = useServerFn(adminUpdateContractStatus);
   const deleteFn = useServerFn(adminDeleteContract);
+  const restoreFn = useServerFn(adminRestoreContract);
+  const rolesFn = useServerFn(getMyRoles);
   const investorsFn = useServerFn(listInvestorsLite);
   const setInvFn = useServerFn(setContractInvestor);
   const qc = useQueryClient();
@@ -121,6 +125,8 @@ function AdminContractDetail() {
     queryKey: ["admin-contract", id],
     queryFn: () => fn({ data: { id } }),
   });
+  const { data: myRoles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
+  const isOwner = (myRoles ?? []).includes("owner");
   const { data: investors } = useQuery({
     queryKey: ["investors-lite"],
     queryFn: () => investorsFn(),
@@ -164,7 +170,7 @@ function AdminContractDetail() {
     setDeleting(true);
     try {
       await deleteFn({ data: { id } });
-      toast.success("Контракт удалён");
+      toast.success("Контракт архивирован");
       qc.invalidateQueries({ queryKey: ["admin-contracts"] });
       qc.invalidateQueries({ queryKey: ["admin-stats"] });
       navigate({ to: "/admin/contracts" });
@@ -174,8 +180,41 @@ function AdminContractDetail() {
     }
   };
 
+  const handleRestore = async () => {
+    try {
+      await restoreFn({ data: { id } });
+      toast.success("Контракт восстановлен");
+      qc.invalidateQueries({ queryKey: ["admin-contract", id] });
+      qc.invalidateQueries({ queryKey: ["admin-contracts"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    }
+  };
+
   return (
     <div className="space-y-8">
+      {(contract as { deleted_at?: string | null }).deleted_at && (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 flex items-start gap-3">
+          <Archive className="size-5 text-destructive shrink-0 mt-0.5" />
+          <div className="flex-1 text-sm">
+            <div className="font-semibold text-destructive">Контракт в архиве</div>
+            <div className="text-muted-foreground">
+              Удалён {formatDate((contract as { deleted_at: string }).deleted_at)}
+              {(contract as { deleted_by_name?: string | null }).deleted_by_name
+                ? ` пользователем ${(contract as { deleted_by_name: string }).deleted_by_name}`
+                : ""}
+              {(contract as { deleted_reason?: string | null }).deleted_reason
+                ? ` · причина: ${(contract as { deleted_reason: string }).deleted_reason}`
+                : ""}
+            </div>
+          </div>
+          {isOwner && (
+            <Button onClick={handleRestore} size="sm">
+              <RotateCcw className="size-4 mr-2" /> Восстановить
+            </Button>
+          )}
+        </div>
+      )}
       <Link to="/admin/contracts" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
         <ArrowLeft className="size-3.5" /> К контрактам
       </Link>

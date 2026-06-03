@@ -13,6 +13,8 @@ import {
   adminDeleteClientDocument,
   adminGetClientSecret,
   adminResetClientPassword,
+  adminRestoreClient,
+  getMyRoles,
 } from "@/lib/admin.functions";
 import {
   getEffectiveMarkupRateForUser,
@@ -26,7 +28,7 @@ import { formatMoney, formatDate } from "@/lib/installment";
 import { toast } from "sonner";
 import {
   ArrowLeft, Mail, Phone, Plus, Trash2, Star, Award,
-  CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink, X, KeyRound, Eye, EyeOff, Copy, RefreshCw, Percent,
+  CheckCircle2, AlertTriangle, Clock, Save, IdCard, Car, Upload, ExternalLink, X, KeyRound, Eye, EyeOff, Copy, RefreshCw, Percent, RotateCcw, Archive,
 } from "lucide-react";
 import { ContactChannelToggles, roleLabelRu, type ContactChannel } from "@/components/admin/ContactChannels";
 
@@ -48,6 +50,7 @@ function ClientProfilePage() {
   const qc = useQueryClient();
   const getFn = useServerFn(adminGetClient);
   const updateFn = useServerFn(adminUpdateClient);
+  const restoreFn = useServerFn(adminRestoreClient);
   const addPhoneFn = useServerFn(adminAddClientPhone);
   const delPhoneFn = useServerFn(adminDeleteClientPhone);
   const updPhoneFn = useServerFn(adminUpdateClientPhone);
@@ -227,6 +230,20 @@ function ClientProfilePage() {
 
   return (
     <div className="space-y-8 max-w-6xl">
+      {data.profile.deleted_at && (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 flex items-start gap-3">
+          <Archive className="size-5 text-destructive shrink-0 mt-0.5" />
+          <div className="flex-1 text-sm">
+            <div className="font-semibold text-destructive">Клиент в архиве</div>
+            <div className="text-muted-foreground">
+              Удалён {formatDate(data.profile.deleted_at)}
+              {data.profile.deleted_by_name ? ` пользователем ${data.profile.deleted_by_name}` : ""}
+              {data.profile.deleted_reason ? ` · причина: ${data.profile.deleted_reason}` : ""}
+            </div>
+          </div>
+          <RestoreClientButton id={id} restoreFn={restoreFn} />
+        </div>
+      )}
       <div>
         <Link to="/admin/clients" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3">
           <ArrowLeft className="size-4" /> К клиентам
@@ -769,5 +786,37 @@ function ClientMarkupRateCard({ clientId }: { clientId: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+function RestoreClientButton({
+  id,
+  restoreFn,
+}: {
+  id: string;
+  restoreFn: (args: { data: { id: string; restoreContracts?: boolean } }) => Promise<unknown>;
+}) {
+  const rolesFn = useServerFn(getMyRoles);
+  const { data: roles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  if (!(roles ?? []).includes("owner")) return null;
+  const handle = async () => {
+    setBusy(true);
+    try {
+      await restoreFn({ data: { id, restoreContracts: true } });
+      toast.success("Клиент восстановлен");
+      qc.invalidateQueries({ queryKey: ["admin-client", id] });
+      qc.invalidateQueries({ queryKey: ["admin-clients"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Button onClick={handle} disabled={busy} size="sm">
+      <RotateCcw className="size-4 mr-2" /> Восстановить
+    </Button>
   );
 }

@@ -544,15 +544,18 @@ function emptyRow(key: string, label: string): AnalyticsRow {
 
 export const adminListClients = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input: unknown) =>
+    z.object({ includeDeleted: z.boolean().optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
-    const { data: profiles } = await supabaseAdmin
-      .from("profiles")
-      .select("*")
-      .order("created_at", { ascending: false });
+    let pq = supabaseAdmin.from("profiles").select("*").order("created_at", { ascending: false });
+    if (!data.includeDeleted) pq = pq.is("deleted_at", null);
+    const { data: profiles } = await pq;
     const { data: contracts } = await supabaseAdmin
       .from("installment_contracts")
-      .select("client_id,status,principal,markup_amount");
+      .select("client_id,status,principal,markup_amount")
+      .is("deleted_at", null);
     const byClient: Record<string, { count: number; debt: number; active: number }> = {};
     for (const c of contracts ?? []) {
       const k = c.client_id;
@@ -598,11 +601,13 @@ export const adminListClients = createServerFn({ method: "GET" })
         ratingByClient[cid].overdue++;
       }
     }
+    const deleterMap = await fetchActorMap((profiles ?? []).map((p) => p.deleted_by));
     return (profiles ?? []).map((p) => {
       const r = ratingByClient[p.id];
       const base = (r?.paid ?? 0) + (r?.overdue ?? 0);
       const ratingScore = !r || base === 0 ? null : Math.round((r.paid / base) * 100);
       const stars = ratingScore === null ? 0 : Math.max(1, Math.round(ratingScore / 20));
+      const deleter = p.deleted_by ? deleterMap.get(p.deleted_by) ?? null : null;
       return {
         ...p,
         contracts_count: byClient[p.id]?.count ?? 0,
@@ -612,6 +617,7 @@ export const adminListClients = createServerFn({ method: "GET" })
         overdue_count: r?.overdue ?? 0,
         rating_score: ratingScore,
         rating_stars: stars,
+        deleted_by_name: deleter?.full_name ?? deleter?.email ?? null,
       };
     });
   });
@@ -620,7 +626,10 @@ export const adminListContracts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
-      .object({ status: z.enum(["all", "active", "overdue", "closed", "pending"]).default("all") })
+      .object({
+        status: z.enum(["all", "active", "overdue", "closed", "pending"]).default("all"),
+        includeDeleted: z.boolean().optional(),
+      })
       .parse(input ?? {}),
   )
   .handler(async ({ context, data }) => {
@@ -630,19 +639,17 @@ export const adminListContracts = createServerFn({ method: "POST" })
       .select("*, profiles!installment_contracts_client_id_fkey(full_name,email)")
       .order("created_at", { ascending: false });
     if (data.status !== "all") q = q.eq("status", data.status);
+    if (!data.includeDeleted) q = q.is("deleted_at", null);
     const { data: rows, error } = await q;
     if (error) {
       // fallback without join if FK isn't named as expected
-      const { data: rows2, error: e2 } = await (data.status === "all"
-        ? supabaseAdmin
-            .from("installment_contracts")
-            .select("*")
-            .order("created_at", { ascending: false })
-        : supabaseAdmin
-            .from("installment_contracts")
-            .select("*")
-            .eq("status", data.status)
-            .order("created_at", { ascending: false }));
+      let q2 = supabaseAdmin
+        .from("installment_contracts")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data.status !== "all") q2 = q2.eq("status", data.status);
+      if (!data.includeDeleted) q2 = q2.is("deleted_at", null);
+      const { data: rows2, error: e2 } = await q2;
       if (e2) throw new Error(e2.message);
       const ids = [...new Set((rows2 ?? []).map((r) => r.client_id))];
       const { data: profs } = await supabaseAdmin
@@ -650,12 +657,21 @@ export const adminListContracts = createServerFn({ method: "POST" })
         .select("id,full_name,email")
         .in("id", ids);
       const map = new Map((profs ?? []).map((p) => [p.id, p]));
-      return (rows2 ?? []).map((r) => ({ ...r, profile: map.get(r.client_id) ?? null }));
+      const dmap = await fetchActorMap((rows2 ?? []).map((r) => r.deleted_by));
+      return (rows2 ?? []).map((r) => {
+        const d = r.deleted_by ? dmap.get(r.deleted_by) ?? null : null;
+        return { ...r, profile: map.get(r.client_id) ?? null, deleted_by_name: d?.full_name ?? d?.email ?? null };
+      });
     }
-    return (rows ?? []).map((r) => ({
-      ...r,
-      profile: (r as { profiles?: unknown }).profiles ?? null,
-    }));
+    const dmap = await fetchActorMap((rows ?? []).map((r) => r.deleted_by));
+    return (rows ?? []).map((r) => {
+      const d = r.deleted_by ? dmap.get(r.deleted_by) ?? null : null;
+      return {
+        ...r,
+        profile: (r as { profiles?: unknown }).profiles ?? null,
+        deleted_by_name: d?.full_name ?? d?.email ?? null,
+      };
+    });
   });
 
 export const adminGetContract = createServerFn({ method: "POST" })
@@ -717,8 +733,19 @@ export const adminGetContract = createServerFn({ method: "POST" })
       history = (h.data ?? []) as HistoryRow[];
       carryovers = (co.data ?? []) as CarryoverRow[];
     }
+    const contractRow = c.data as typeof c.data & {
+      deleted_at?: string | null;
+      deleted_by?: string | null;
+      deleted_reason?: string | null;
+    };
+    let deletedByName: string | null = null;
+    if (contractRow.deleted_by) {
+      const m = await fetchActorMap([contractRow.deleted_by]);
+      const a = m.get(contractRow.deleted_by);
+      deletedByName = a?.full_name ?? a?.email ?? null;
+    }
     return {
-      contract: c.data,
+      contract: { ...contractRow, deleted_by_name: deletedByName },
       schedule: s.data ?? [],
       payments: p.data ?? [],
       profile: prof,
@@ -1091,6 +1118,17 @@ export const adminGetClient = createServerFn({ method: "POST" })
       ]);
 
     if (!profileR.data) throw new Error("Клиент не найден");
+    const profile = profileR.data as typeof profileR.data & {
+      deleted_at?: string | null;
+      deleted_by?: string | null;
+      deleted_reason?: string | null;
+    };
+    let deletedByName: string | null = null;
+    if (profile.deleted_by) {
+      const m = await fetchActorMap([profile.deleted_by]);
+      const a = m.get(profile.deleted_by);
+      deletedByName = a?.full_name ?? a?.email ?? null;
+    }
 
     const schedules = (schedulesR.data ?? []) as Array<{
       status: string;
@@ -1128,7 +1166,7 @@ export const adminGetClient = createServerFn({ method: "POST" })
     else tier = "bronze";
 
     return {
-      profile: profileR.data,
+      profile: { ...profile, deleted_by_name: deletedByName },
       phones: phonesR.data ?? [],
       roles: (rolesR.data ?? []).map((r) => r.role as string),
       contracts: contractsR.data ?? [],
@@ -1335,7 +1373,9 @@ export const adminDeleteClientDocument = createServerFn({ method: "POST" })
 
 export const adminDeleteContract = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), reason: z.string().trim().max(500).optional() }).parse(input),
+  )
   .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
     const { data: contract, error: gErr } = await supabaseAdmin
@@ -1344,30 +1384,13 @@ export const adminDeleteContract = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .single();
     if (gErr) throw new Error(gErr.message);
-    const { data: schedulesSnap } = await supabaseAdmin
-      .from("payment_schedules")
-      .select("*")
-      .eq("contract_id", data.id)
-      .order("seq", { ascending: true });
-    const { data: paymentsSnap } = await supabaseAdmin
-      .from("payments")
-      .select("*")
-      .eq("contract_id", data.id)
-      .order("paid_at", { ascending: true });
-    const { data: clientSnap } = await supabaseAdmin
-      .from("profiles")
-      .select("id,full_name,email,phone")
-      .eq("id", contract.client_id)
-      .maybeSingle();
-    await supabaseAdmin.from("payments").delete().eq("contract_id", data.id);
-    await supabaseAdmin.from("payment_schedules").delete().eq("contract_id", data.id);
-    await supabaseAdmin
-      .from("installment_applications")
-      .update({ contract_id: null } as never)
-      .eq("contract_id", data.id);
     const { error: dErr } = await supabaseAdmin
       .from("installment_contracts")
-      .delete()
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: context.userId,
+        deleted_reason: data.reason ?? null,
+      } as never)
       .eq("id", data.id);
     if (dErr) throw new Error(dErr.message);
     await logAction({
@@ -1375,17 +1398,38 @@ export const adminDeleteContract = createServerFn({ method: "POST" })
       action: "contract.delete",
       entityType: "contract",
       entityId: data.id,
-      summary: `Удалён контракт «${contract.product_name}»`,
+      summary: `Архивирован контракт «${contract.product_name}»`,
       details: {
         clientId: contract.client_id,
         totalSalePrice: contract.total_sale_price,
-        snapshot: {
-          contract,
-          schedules: schedulesSnap ?? [],
-          payments: paymentsSnap ?? [],
-          client: clientSnap ?? null,
-        },
+        reason: data.reason ?? null,
       },
+    });
+    return { ok: true };
+  });
+
+export const adminRestoreContract = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertOwner(context.userId);
+    const { data: contract } = await supabaseAdmin
+      .from("installment_contracts")
+      .select("product_name,client_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    const { error } = await supabaseAdmin
+      .from("installment_contracts")
+      .update({ deleted_at: null, deleted_by: null, deleted_reason: null } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await logAction({
+      actorId: context.userId,
+      action: "contract.restore",
+      entityType: "contract",
+      entityId: data.id,
+      summary: `Восстановлен контракт «${contract?.product_name ?? data.id}»`,
+      details: { clientId: contract?.client_id ?? null },
     });
     return { ok: true };
   });
@@ -1508,6 +1552,22 @@ async function assertAdmin(userId: string): Promise<RoleValue[]> {
   const isAdmin = roles.some((r) => r === "admin" || r === "owner");
   if (!isAdmin) throw new Error("Forbidden: admin or owner required");
   return roles as RoleValue[];
+}
+
+async function assertOwner(userId: string): Promise<RoleValue[]> {
+  const roles = await assertStaff(userId);
+  if (!roles.includes("owner")) throw new Error("Forbidden: owner required");
+  return roles as RoleValue[];
+}
+
+async function fetchActorMap(ids: Array<string | null | undefined>) {
+  const uniq = [...new Set(ids.filter((x): x is string => !!x))];
+  if (uniq.length === 0) return new Map<string, { full_name: string | null; email: string | null }>();
+  const { data } = await supabaseAdmin
+    .from("profiles")
+    .select("id,full_name,email")
+    .in("id", uniq);
+  return new Map((data ?? []).map((p) => [p.id, { full_name: p.full_name, email: p.email }]));
 }
 
 export const adminListUsers = createServerFn({ method: "GET" })
@@ -1637,7 +1697,8 @@ export const adminListPayments = createServerFn({ method: "POST" })
     const { data: contracts } = await supabaseAdmin
       .from("installment_contracts")
       .select("id,client_id,product_name,client_full_name")
-      .in("id", contractIds.length ? contractIds : ["00000000-0000-0000-0000-000000000000"]);
+      .in("id", contractIds.length ? contractIds : ["00000000-0000-0000-0000-000000000000"])
+      .is("deleted_at", null);
 
     const clientIds = [...new Set((contracts ?? []).map((c) => c.client_id))];
     const { data: profiles } = await supabaseAdmin
@@ -1650,6 +1711,7 @@ export const adminListPayments = createServerFn({ method: "POST" })
 
     const enriched = (schedules ?? []).map((s) => {
       const c = contractMap.get(s.contract_id);
+      if (!c) return null;
       const p = c ? profileMap.get(c.client_id) : null;
       return {
         ...s,
@@ -1658,7 +1720,7 @@ export const adminListPayments = createServerFn({ method: "POST" })
         client_email: p?.email ?? null,
         client_phone: p?.phone ?? null,
       };
-    });
+    }).filter(<T>(x: T | null): x is T => x !== null);
 
     const q2 = data.search?.trim().toLowerCase();
     const filtered = q2
@@ -1885,7 +1947,9 @@ export const adminSeedDemoData = createServerFn({ method: "POST" })
 
 export const adminDeleteClient = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), reason: z.string().trim().max(500).optional() }).parse(input),
+  )
   .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
     if (data.id === context.userId) throw new Error("Нельзя удалить самого себя");
@@ -1894,34 +1958,59 @@ export const adminDeleteClient = createServerFn({ method: "POST" })
       .select("full_name,email")
       .eq("id", data.id)
       .maybeSingle();
-
-    // Получим контракты клиента, чтобы каскадно вычистить графики и платежи
-    const { data: contracts } = await supabaseAdmin
+    const nowIso = new Date().toISOString();
+    // Мягкое удаление: помечаем профиль и каскадно — все его контракты
+    const { error: pErr } = await supabaseAdmin
+      .from("profiles")
+      .update({ deleted_at: nowIso, deleted_by: context.userId, deleted_reason: data.reason ?? null } as never)
+      .eq("id", data.id);
+    if (pErr) throw new Error(pErr.message);
+    await supabaseAdmin
       .from("installment_contracts")
-      .select("id")
-      .eq("client_id", data.id);
-    const contractIds = (contracts ?? []).map((c) => c.id);
-    if (contractIds.length > 0) {
-      await supabaseAdmin.from("payments").delete().in("contract_id", contractIds);
-      await supabaseAdmin.from("payment_schedules").delete().in("contract_id", contractIds);
-      await supabaseAdmin.from("installment_contracts").delete().in("id", contractIds);
-    }
-    await supabaseAdmin.from("installment_applications").delete().eq("client_id", data.id);
-    await supabaseAdmin.from("user_phones").delete().eq("user_id", data.id);
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.id);
-    await supabaseAdmin.from("profiles").delete().eq("id", data.id);
-    // Удалим самого пользователя из auth
-    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(data.id);
-    if (authErr && !authErr.message.toLowerCase().includes("not found")) {
-      throw new Error(authErr.message);
-    }
+      .update({ deleted_at: nowIso, deleted_by: context.userId, deleted_reason: data.reason ?? "Удалён клиент" } as never)
+      .eq("client_id", data.id)
+      .is("deleted_at", null);
     await logAction({
       actorId: context.userId,
       action: "client.delete",
       entityType: "client",
       entityId: data.id,
-      summary: `Удалён клиент ${prof?.full_name ?? prof?.email ?? data.id}`,
-      details: { email: prof?.email ?? null },
+      summary: `Архивирован клиент ${prof?.full_name ?? prof?.email ?? data.id}`,
+      details: { email: prof?.email ?? null, reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
+
+export const adminRestoreClient = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), restoreContracts: z.boolean().optional() }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertOwner(context.userId);
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name,email")
+      .eq("id", data.id)
+      .maybeSingle();
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ deleted_at: null, deleted_by: null, deleted_reason: null } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    if (data.restoreContracts !== false) {
+      await supabaseAdmin
+        .from("installment_contracts")
+        .update({ deleted_at: null, deleted_by: null, deleted_reason: null } as never)
+        .eq("client_id", data.id);
+    }
+    await logAction({
+      actorId: context.userId,
+      action: "client.restore",
+      entityType: "client",
+      entityId: data.id,
+      summary: `Восстановлен клиент ${prof?.full_name ?? prof?.email ?? data.id}`,
+      details: { restoreContracts: data.restoreContracts !== false },
     });
     return { ok: true };
   });
