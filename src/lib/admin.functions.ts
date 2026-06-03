@@ -1923,7 +1923,9 @@ export const adminSeedDemoData = createServerFn({ method: "POST" })
 
 export const adminDeleteClient = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), reason: z.string().trim().max(500).optional() }).parse(input),
+  )
   .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
     if (data.id === context.userId) throw new Error("Нельзя удалить самого себя");
@@ -1932,34 +1934,59 @@ export const adminDeleteClient = createServerFn({ method: "POST" })
       .select("full_name,email")
       .eq("id", data.id)
       .maybeSingle();
-
-    // Получим контракты клиента, чтобы каскадно вычистить графики и платежи
-    const { data: contracts } = await supabaseAdmin
+    const nowIso = new Date().toISOString();
+    // Мягкое удаление: помечаем профиль и каскадно — все его контракты
+    const { error: pErr } = await supabaseAdmin
+      .from("profiles")
+      .update({ deleted_at: nowIso, deleted_by: context.userId, deleted_reason: data.reason ?? null } as never)
+      .eq("id", data.id);
+    if (pErr) throw new Error(pErr.message);
+    await supabaseAdmin
       .from("installment_contracts")
-      .select("id")
-      .eq("client_id", data.id);
-    const contractIds = (contracts ?? []).map((c) => c.id);
-    if (contractIds.length > 0) {
-      await supabaseAdmin.from("payments").delete().in("contract_id", contractIds);
-      await supabaseAdmin.from("payment_schedules").delete().in("contract_id", contractIds);
-      await supabaseAdmin.from("installment_contracts").delete().in("id", contractIds);
-    }
-    await supabaseAdmin.from("installment_applications").delete().eq("client_id", data.id);
-    await supabaseAdmin.from("user_phones").delete().eq("user_id", data.id);
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.id);
-    await supabaseAdmin.from("profiles").delete().eq("id", data.id);
-    // Удалим самого пользователя из auth
-    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(data.id);
-    if (authErr && !authErr.message.toLowerCase().includes("not found")) {
-      throw new Error(authErr.message);
-    }
+      .update({ deleted_at: nowIso, deleted_by: context.userId, deleted_reason: data.reason ?? "Удалён клиент" } as never)
+      .eq("client_id", data.id)
+      .is("deleted_at", null);
     await logAction({
       actorId: context.userId,
       action: "client.delete",
       entityType: "client",
       entityId: data.id,
-      summary: `Удалён клиент ${prof?.full_name ?? prof?.email ?? data.id}`,
-      details: { email: prof?.email ?? null },
+      summary: `Архивирован клиент ${prof?.full_name ?? prof?.email ?? data.id}`,
+      details: { email: prof?.email ?? null, reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
+
+export const adminRestoreClient = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), restoreContracts: z.boolean().optional() }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertOwner(context.userId);
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name,email")
+      .eq("id", data.id)
+      .maybeSingle();
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ deleted_at: null, deleted_by: null, deleted_reason: null } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    if (data.restoreContracts !== false) {
+      await supabaseAdmin
+        .from("installment_contracts")
+        .update({ deleted_at: null, deleted_by: null, deleted_reason: null } as never)
+        .eq("client_id", data.id);
+    }
+    await logAction({
+      actorId: context.userId,
+      action: "client.restore",
+      entityType: "client",
+      entityId: data.id,
+      summary: `Восстановлен клиент ${prof?.full_name ?? prof?.email ?? data.id}`,
+      details: { restoreContracts: data.restoreContracts !== false },
     });
     return { ok: true };
   });
