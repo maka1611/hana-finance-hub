@@ -626,7 +626,10 @@ export const adminListContracts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
-      .object({ status: z.enum(["all", "active", "overdue", "closed", "pending"]).default("all") })
+      .object({
+        status: z.enum(["all", "active", "overdue", "closed", "pending"]).default("all"),
+        includeDeleted: z.boolean().optional(),
+      })
       .parse(input ?? {}),
   )
   .handler(async ({ context, data }) => {
@@ -636,19 +639,17 @@ export const adminListContracts = createServerFn({ method: "POST" })
       .select("*, profiles!installment_contracts_client_id_fkey(full_name,email)")
       .order("created_at", { ascending: false });
     if (data.status !== "all") q = q.eq("status", data.status);
+    if (!data.includeDeleted) q = q.is("deleted_at", null);
     const { data: rows, error } = await q;
     if (error) {
       // fallback without join if FK isn't named as expected
-      const { data: rows2, error: e2 } = await (data.status === "all"
-        ? supabaseAdmin
-            .from("installment_contracts")
-            .select("*")
-            .order("created_at", { ascending: false })
-        : supabaseAdmin
-            .from("installment_contracts")
-            .select("*")
-            .eq("status", data.status)
-            .order("created_at", { ascending: false }));
+      let q2 = supabaseAdmin
+        .from("installment_contracts")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data.status !== "all") q2 = q2.eq("status", data.status);
+      if (!data.includeDeleted) q2 = q2.is("deleted_at", null);
+      const { data: rows2, error: e2 } = await q2;
       if (e2) throw new Error(e2.message);
       const ids = [...new Set((rows2 ?? []).map((r) => r.client_id))];
       const { data: profs } = await supabaseAdmin
@@ -656,12 +657,21 @@ export const adminListContracts = createServerFn({ method: "POST" })
         .select("id,full_name,email")
         .in("id", ids);
       const map = new Map((profs ?? []).map((p) => [p.id, p]));
-      return (rows2 ?? []).map((r) => ({ ...r, profile: map.get(r.client_id) ?? null }));
+      const dmap = await fetchActorMap((rows2 ?? []).map((r) => r.deleted_by));
+      return (rows2 ?? []).map((r) => {
+        const d = r.deleted_by ? dmap.get(r.deleted_by) ?? null : null;
+        return { ...r, profile: map.get(r.client_id) ?? null, deleted_by_name: d?.full_name ?? d?.email ?? null };
+      });
     }
-    return (rows ?? []).map((r) => ({
-      ...r,
-      profile: (r as { profiles?: unknown }).profiles ?? null,
-    }));
+    const dmap = await fetchActorMap((rows ?? []).map((r) => r.deleted_by));
+    return (rows ?? []).map((r) => {
+      const d = r.deleted_by ? dmap.get(r.deleted_by) ?? null : null;
+      return {
+        ...r,
+        profile: (r as { profiles?: unknown }).profiles ?? null,
+        deleted_by_name: d?.full_name ?? d?.email ?? null,
+      };
+    });
   });
 
 export const adminGetContract = createServerFn({ method: "POST" })
