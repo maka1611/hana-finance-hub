@@ -544,15 +544,18 @@ function emptyRow(key: string, label: string): AnalyticsRow {
 
 export const adminListClients = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input: unknown) =>
+    z.object({ includeDeleted: z.boolean().optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ context, data }) => {
     await assertStaff(context.userId);
-    const { data: profiles } = await supabaseAdmin
-      .from("profiles")
-      .select("*")
-      .order("created_at", { ascending: false });
+    let pq = supabaseAdmin.from("profiles").select("*").order("created_at", { ascending: false });
+    if (!data.includeDeleted) pq = pq.is("deleted_at", null);
+    const { data: profiles } = await pq;
     const { data: contracts } = await supabaseAdmin
       .from("installment_contracts")
-      .select("client_id,status,principal,markup_amount");
+      .select("client_id,status,principal,markup_amount")
+      .is("deleted_at", null);
     const byClient: Record<string, { count: number; debt: number; active: number }> = {};
     for (const c of contracts ?? []) {
       const k = c.client_id;
@@ -598,11 +601,13 @@ export const adminListClients = createServerFn({ method: "GET" })
         ratingByClient[cid].overdue++;
       }
     }
+    const deleterMap = await fetchActorMap((profiles ?? []).map((p) => p.deleted_by));
     return (profiles ?? []).map((p) => {
       const r = ratingByClient[p.id];
       const base = (r?.paid ?? 0) + (r?.overdue ?? 0);
       const ratingScore = !r || base === 0 ? null : Math.round((r.paid / base) * 100);
       const stars = ratingScore === null ? 0 : Math.max(1, Math.round(ratingScore / 20));
+      const deleter = p.deleted_by ? deleterMap.get(p.deleted_by) ?? null : null;
       return {
         ...p,
         contracts_count: byClient[p.id]?.count ?? 0,
@@ -612,6 +617,7 @@ export const adminListClients = createServerFn({ method: "GET" })
         overdue_count: r?.overdue ?? 0,
         rating_score: ratingScore,
         rating_stars: stars,
+        deleted_by_name: deleter?.full_name ?? deleter?.email ?? null,
       };
     });
   });
