@@ -789,3 +789,35 @@ function ClientMarkupRateCard({ clientId }: { clientId: string }) {
     </div>
   );
 }
+
+function RestoreClientButton({
+  id,
+  restoreFn,
+}: {
+  id: string;
+  restoreFn: (args: { data: { id: string; restoreContracts?: boolean } }) => Promise<unknown>;
+}) {
+  const rolesFn = useServerFn(getMyRoles);
+  const { data: roles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  if (!(roles ?? []).includes("owner")) return null;
+  const handle = async () => {
+    setBusy(true);
+    try {
+      await restoreFn({ data: { id, restoreContracts: true } });
+      toast.success("Клиент восстановлен");
+      qc.invalidateQueries({ queryKey: ["admin-client", id] });
+      qc.invalidateQueries({ queryKey: ["admin-clients"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Button onClick={handle} disabled={busy} size="sm">
+      <RotateCcw className="size-4 mr-2" /> Восстановить
+    </Button>
+  );
+}
