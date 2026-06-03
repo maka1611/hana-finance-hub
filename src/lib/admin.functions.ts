@@ -1510,6 +1510,22 @@ async function assertAdmin(userId: string): Promise<RoleValue[]> {
   return roles as RoleValue[];
 }
 
+async function assertOwner(userId: string): Promise<RoleValue[]> {
+  const roles = await assertStaff(userId);
+  if (!roles.includes("owner")) throw new Error("Forbidden: owner required");
+  return roles as RoleValue[];
+}
+
+async function fetchActorMap(ids: Array<string | null | undefined>) {
+  const uniq = [...new Set(ids.filter((x): x is string => !!x))];
+  if (uniq.length === 0) return new Map<string, { full_name: string | null; email: string | null }>();
+  const { data } = await supabaseAdmin
+    .from("profiles")
+    .select("id,full_name,email")
+    .in("id", uniq);
+  return new Map((data ?? []).map((p) => [p.id, { full_name: p.full_name, email: p.email }]));
+}
+
 export const adminListUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
