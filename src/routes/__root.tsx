@@ -92,6 +92,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "apple-mobile-web-app-title", content: "NoorPay" },
       { name: "format-detection", content: "telephone=no" },
+      { name: "twitter:title", content: "NoorPay" },
+      { name: "twitter:description", content: "NoorPay" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6338f67b-fb61-479c-9be3-0006a17b6b69/id-preview-2687b0d6--7d5b19ed-8907-4cde-9825-df3a9ad75c20.lovable.app-1780500213560.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6338f67b-fb61-479c-9be3-0006a17b6b69/id-preview-2687b0d6--7d5b19ed-8907-4cde-9825-df3a9ad75c20.lovable.app-1780500213560.png" },
     ],
     links: [
       {
