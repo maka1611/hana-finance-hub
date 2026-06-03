@@ -1697,7 +1697,8 @@ export const adminListPayments = createServerFn({ method: "POST" })
     const { data: contracts } = await supabaseAdmin
       .from("installment_contracts")
       .select("id,client_id,product_name,client_full_name")
-      .in("id", contractIds.length ? contractIds : ["00000000-0000-0000-0000-000000000000"]);
+      .in("id", contractIds.length ? contractIds : ["00000000-0000-0000-0000-000000000000"])
+      .is("deleted_at", null);
 
     const clientIds = [...new Set((contracts ?? []).map((c) => c.client_id))];
     const { data: profiles } = await supabaseAdmin
@@ -1710,6 +1711,7 @@ export const adminListPayments = createServerFn({ method: "POST" })
 
     const enriched = (schedules ?? []).map((s) => {
       const c = contractMap.get(s.contract_id);
+      if (!c) return null;
       const p = c ? profileMap.get(c.client_id) : null;
       return {
         ...s,
