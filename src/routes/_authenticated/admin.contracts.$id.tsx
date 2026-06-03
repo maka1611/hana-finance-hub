@@ -10,6 +10,8 @@ import {
   adminReschedulePayment,
   adminCarryOverRemainder,
   adminCloseScheduleManually,
+  adminRestoreContract,
+  getMyRoles,
 } from "@/lib/admin.functions";
 import { listInvestorsLite, setContractInvestor } from "@/lib/investors.functions";
 import { formatMoney, formatDate } from "@/lib/installment";
