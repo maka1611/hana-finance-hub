@@ -121,7 +121,6 @@ function RootShell({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
-        <style dangerouslySetInnerHTML={{ __html: criticalFallbackCss }} />
         <HeadContent />
       </head>
       <body>
