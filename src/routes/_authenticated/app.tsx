@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ClientSidebar } from "@/components/client/ClientSidebar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/_authenticated/app")({
   component: AppLayout,
@@ -86,7 +87,9 @@ function AppLayout() {
             <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground hidden sm:block">
               Личный кабинет
             </div>
-            <div className="ml-auto flex items-center gap-2.5 pl-2 pr-3 py-1 rounded-full bg-muted/60 border border-border/60">
+            <div className="ml-auto flex items-center gap-2">
+              <ThemeToggle className="rounded-full" />
+              <div className="flex items-center gap-2.5 pl-2 pr-3 py-1 rounded-full bg-muted/60 border border-border/60">
               <Avatar className="size-7">
                 <AvatarFallback className="text-[11px] font-semibold bg-primary/15 text-primary">
                   {initials || "U"}
@@ -99,6 +102,7 @@ function AppLayout() {
                     {profile.email}
                   </span>
                 )}
+              </div>
               </div>
             </div>
           </header>
