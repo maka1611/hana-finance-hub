@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { getMyRoles, adminMakeMeOwner } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -37,13 +38,16 @@ function AdminShell() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="admin-theme min-h-screen flex w-full bg-background text-foreground">
         <AdminSidebar />
         <div className="min-w-0 flex-1 flex flex-col">
           <header className="min-h-16 pt-safe border-b border-border flex items-center px-4 gap-3 bg-background sticky top-0 z-30 supports-[padding:max(0px)]:top-[env(safe-area-inset-top)]">
             <SidebarTrigger />
             <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
               Панель администратора
+            </div>
+            <div className="ml-auto">
+              <ThemeToggle className="rounded-full" />
             </div>
           </header>
           <main className="min-w-0 flex-1 p-4 md:p-8 bg-muted/20">
