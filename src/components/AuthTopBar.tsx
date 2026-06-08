@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function AuthTopBar() {
   return (
@@ -8,12 +9,15 @@ export function AuthTopBar() {
         <Link to="/" className="font-extrabold text-xl tracking-tighter uppercase">
           Noor<span className="text-primary">Pay</span>
         </Link>
-        <Link
-          to="/"
-          className="text-sm font-medium px-4 py-2 hover:bg-muted rounded-full transition-colors flex items-center gap-1.5"
-        >
-          <ArrowLeft className="size-4" /> На главную
-        </Link>
+        <div className="flex items-center gap-2">
+          <ThemeToggle className="rounded-full" />
+          <Link
+            to="/"
+            className="text-sm font-medium px-4 py-2 hover:bg-muted rounded-full transition-colors flex items-center gap-1.5"
+          >
+            <ArrowLeft className="size-4" /> На главную
+          </Link>
+        </div>
       </div>
     </nav>
   );
