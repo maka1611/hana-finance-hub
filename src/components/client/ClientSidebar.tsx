@@ -23,6 +23,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 
 const baseItems = [
   { title: "Обзор", url: "/app", icon: LayoutDashboard, exact: true },
@@ -38,6 +39,29 @@ export function ClientSidebar({
   isStaff: boolean;
   showInvestorCabinet?: boolean;
 }) {
+  // Fallback: query roles directly from supabase so the admin link
+  // appears even if the getMyRoles serverFn fails (e.g. expired token).
+  const [clientIsStaff, setClientIsStaff] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return;
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", u.user.id);
+      if (cancelled) return;
+      const roles = (data ?? []).map((r) => r.role as string);
+      setClientIsStaff(
+        roles.includes("manager") || roles.includes("admin") || roles.includes("owner"),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const staff = isStaff || clientIsStaff;
   const items = [
     ...baseItems,
     ...(showInvestorCabinet
@@ -99,7 +123,7 @@ export function ClientSidebar({
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
-          {isStaff && (
+          {staff && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
                 <Link to="/admin" className="flex items-center gap-2 text-primary">
