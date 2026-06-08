@@ -139,11 +139,11 @@
  */
 .admin-theme {
   --background: oklch(0.975 0.01 280);
-  --foreground: oklch(0.22 0.05 280);
+  --foreground: oklch(0.18 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.05 280);
+  --card-foreground: oklch(0.18 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.05 280);
+  --popover-foreground: oklch(0.18 0 0);
   --primary: oklch(0.45 0.18 280);
   --primary-foreground: oklch(0.985 0.005 280);
   --secondary: oklch(0.95 0.02 280);
@@ -156,7 +156,7 @@
   --input: oklch(0.92 0.015 280);
   --ring: oklch(0.45 0.18 280);
   --sidebar: oklch(0.97 0.015 280);
-  --sidebar-foreground: oklch(0.25 0.06 280);
+  --sidebar-foreground: oklch(0.18 0 0);
   --sidebar-primary: oklch(0.45 0.18 280);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.92 0.04 285);
