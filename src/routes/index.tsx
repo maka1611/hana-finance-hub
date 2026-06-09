@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Calculator } from "@/components/Calculator";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -53,6 +54,7 @@ function Index() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle className="rounded-full" />
             {isAuthed ? (
               <>
                 <button
