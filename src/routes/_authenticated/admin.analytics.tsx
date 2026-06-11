@@ -3,7 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { adminAnalyticsSeries, adminStats } from "@/lib/admin.functions";
+import { adminAnalyticsSeries, adminStats, getMyRoles } from "@/lib/admin.functions";
+import { exportReportXlsx } from "@/lib/reports.functions";
 import { formatMoney } from "@/lib/installment";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import {
@@ -14,6 +15,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Download, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/analytics")({
   component: AnalyticsPage,
@@ -42,10 +48,14 @@ const todayKey = () => new Date().toISOString().slice(0, 10);
 function AnalyticsPage() {
   const fn = useServerFn(adminStats);
   const seriesFn = useServerFn(adminAnalyticsSeries);
+  const rolesFn = useServerFn(getMyRoles);
+  const exportFn = useServerFn(exportReportXlsx);
   const [period, setPeriod] = useState<Period>("month");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState(todayKey());
   const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fn() });
+  const { data: roles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
+  const canExport = (roles ?? []).some((r) => r === "admin" || r === "owner");
   const { data: series, isLoading: seriesLoading } = useQuery({
     queryKey: ["admin-analytics-series", period, from, to],
     queryFn: () => seriesFn({ data: { period, from: from || undefined, to: to || undefined } }),
@@ -66,6 +76,8 @@ function AnalyticsPage() {
         </p>
         <h1 className="text-3xl font-extrabold tracking-tight">Финансовые показатели</h1>
       </div>
+
+      {canExport && <ExportPanel exportFn={exportFn} />}
 
       <div className="grid md:grid-cols-3 gap-4">
         <KPI
