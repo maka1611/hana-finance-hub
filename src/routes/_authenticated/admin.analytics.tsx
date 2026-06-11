@@ -3,7 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { adminAnalyticsSeries, adminStats } from "@/lib/admin.functions";
+import { adminAnalyticsSeries, adminStats, getMyRoles } from "@/lib/admin.functions";
+import { exportReportXlsx } from "@/lib/reports.functions";
 import { formatMoney } from "@/lib/installment";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import {
@@ -14,6 +15,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Download, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/analytics")({
   component: AnalyticsPage,
@@ -42,10 +48,14 @@ const todayKey = () => new Date().toISOString().slice(0, 10);
 function AnalyticsPage() {
   const fn = useServerFn(adminStats);
   const seriesFn = useServerFn(adminAnalyticsSeries);
+  const rolesFn = useServerFn(getMyRoles);
+  const exportFn = useServerFn(exportReportXlsx);
   const [period, setPeriod] = useState<Period>("month");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState(todayKey());
   const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fn() });
+  const { data: roles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
+  const canExport = (roles ?? []).some((r) => r === "admin" || r === "owner");
   const { data: series, isLoading: seriesLoading } = useQuery({
     queryKey: ["admin-analytics-series", period, from, to],
     queryFn: () => seriesFn({ data: { period, from: from || undefined, to: to || undefined } }),
@@ -66,6 +76,8 @@ function AnalyticsPage() {
         </p>
         <h1 className="text-3xl font-extrabold tracking-tight">Финансовые показатели</h1>
       </div>
+
+      {canExport && <ExportPanel exportFn={exportFn} />}
 
       <div className="grid md:grid-cols-3 gap-4">
         <KPI
@@ -387,6 +399,154 @@ function compactMoney(value: number) {
   if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)} млн`;
   if (Math.abs(value) >= 1_000) return `${Math.round(value / 1_000)} тыс`;
   return value.toLocaleString("ru-RU");
+}
+
+type ExportSheetKey = "clients" | "contracts" | "schedules" | "investors" | "applications" | "summary";
+const SHEET_OPTIONS: { key: ExportSheetKey; label: string }[] = [
+  { key: "clients", label: "Клиенты" },
+  { key: "contracts", label: "Рассрочки" },
+  { key: "schedules", label: "График платежей" },
+  { key: "investors", label: "Инвесторы и вложения" },
+  { key: "applications", label: "Заявки" },
+  { key: "summary", label: "Финансовая сводка" },
+];
+type ExportPreset = "all" | "today" | "week" | "month" | "year" | "custom";
+const PRESET_LABEL: Record<ExportPreset, string> = {
+  all: "За всё время",
+  today: "Сегодня",
+  week: "7 дней",
+  month: "Текущий месяц",
+  year: "Текущий год",
+  custom: "Произвольный",
+};
+function presetRange(p: ExportPreset): { from: string | null; to: string | null } {
+  const today = new Date();
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  if (p === "all") return { from: null, to: null };
+  if (p === "today") return { from: iso(today), to: iso(today) };
+  if (p === "week") {
+    const f = new Date(today);
+    f.setDate(f.getDate() - 6);
+    return { from: iso(f), to: iso(today) };
+  }
+  if (p === "month") {
+    const f = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { from: iso(f), to: iso(today) };
+  }
+  if (p === "year") {
+    const f = new Date(today.getFullYear(), 0, 1);
+    return { from: iso(f), to: iso(today) };
+  }
+  return { from: null, to: null };
+}
+
+function ExportPanel({ exportFn }: { exportFn: (args: { data: { from: string | null; to: string | null; sheets: string[] } }) => Promise<{ base64: string; filename: string }> }) {
+  const [preset, setPreset] = useState<ExportPreset>("month");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState(todayKey());
+  const [sheets, setSheets] = useState<Set<ExportSheetKey>>(
+    new Set(SHEET_OPTIONS.map((s) => s.key)),
+  );
+  const [loading, setLoading] = useState(false);
+
+  const toggle = (key: ExportSheetKey) => {
+    setSheets((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleExport = async () => {
+    if (sheets.size === 0) {
+      toast.error("Выберите хотя бы один лист");
+      return;
+    }
+    const range = preset === "custom" ? { from: customFrom || null, to: customTo || null } : presetRange(preset);
+    setLoading(true);
+    try {
+      const { base64, filename } = await exportFn({ data: { from: range.from, to: range.to, sheets: Array.from(sheets) } });
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Отчёт сформирован");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка экспорта");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-card rounded-2xl ring-1 ring-border p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-5">
+        <div>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-1">
+            Отчёты
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Выгрузка данных в Excel с разделением по листам.
+          </p>
+        </div>
+        <Button onClick={handleExport} disabled={loading}>
+          {loading ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Download className="size-4 mr-2" />}
+          Скачать Excel
+        </Button>
+      </div>
+
+      <div className="grid gap-5 md:grid-cols-2">
+        <div>
+          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+            Период
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Select value={preset} onValueChange={(v) => setPreset(v as ExportPreset)}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(PRESET_LABEL) as ExportPreset[]).map((k) => (
+                  <SelectItem key={k} value={k}>
+                    {PRESET_LABEL[k]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {preset === "custom" && (
+              <>
+                <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-40" />
+                <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-40" />
+              </>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+            Листы
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {SHEET_OPTIONS.map((s) => (
+              <Label key={s.key} className="flex items-center gap-2 cursor-pointer text-sm font-normal">
+                <Checkbox checked={sheets.has(s.key)} onCheckedChange={() => toggle(s.key)} />
+                {s.label}
+              </Label>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function AnalyticsTooltip({
