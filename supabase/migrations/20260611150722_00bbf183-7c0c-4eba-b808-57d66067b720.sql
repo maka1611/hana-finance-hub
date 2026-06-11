@@ -1,0 +1,1 @@
+ALTER TABLE public.client_documents ALTER COLUMN signed_url DROP NOT NULL; UPDATE public.client_documents SET signed_url = NULL WHERE signed_url IS NOT NULL;

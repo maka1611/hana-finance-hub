@@ -87,7 +87,7 @@ export type Database = {
           file_path: string
           id: string
           kind: string
-          signed_url: string
+          signed_url: string | null
           uploaded_by: string | null
           user_id: string
         }
@@ -97,7 +97,7 @@ export type Database = {
           file_path: string
           id?: string
           kind: string
-          signed_url: string
+          signed_url?: string | null
           uploaded_by?: string | null
           user_id: string
         }
@@ -107,7 +107,7 @@ export type Database = {
           file_path?: string
           id?: string
           kind?: string
-          signed_url?: string
+          signed_url?: string | null
           uploaded_by?: string | null
           user_id?: string
         }
