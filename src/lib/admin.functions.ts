@@ -1274,7 +1274,6 @@ export const adminUploadClientDocument = createServerFn({ method: "POST" })
         user_id: data.userId,
         kind: data.kind,
         file_path: path,
-        signed_url: signed.signedUrl,
         content_type: data.contentType,
         uploaded_by: context.userId,
       } as never)
@@ -1307,11 +1306,21 @@ export const adminListClientDocuments = createServerFn({ method: "POST" })
     await assertStaff(context.userId);
     const { data: rows, error } = await supabaseAdmin
       .from("client_documents")
-      .select("id,kind,file_path,signed_url,content_type,created_at")
+      .select("id,kind,file_path,content_type,created_at")
       .eq("user_id", data.userId)
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    const list = rows ?? [];
+    // Generate short-lived signed URLs on demand — never persisted.
+    const withUrls = await Promise.all(
+      list.map(async (r) => {
+        const { data: signed } = await supabaseAdmin.storage
+          .from("client-documents")
+          .createSignedUrl(r.file_path, DOC_SIGNED_TTL);
+        return { ...r, signed_url: signed?.signedUrl ?? "" };
+      }),
+    );
+    return withUrls;
   });
 
 export const adminDeleteClientDocument = createServerFn({ method: "POST" })
@@ -1344,7 +1353,7 @@ export const adminDeleteClientDocument = createServerFn({ method: "POST" })
       // подставим первый оставшийся в legacy-колонку
       const { data: first } = await supabaseAdmin
         .from("client_documents")
-        .select("signed_url")
+        .select("file_path")
         .eq("user_id", doc.user_id)
         .eq("kind", doc.kind)
         .order("created_at", { ascending: true })
@@ -1352,9 +1361,12 @@ export const adminDeleteClientDocument = createServerFn({ method: "POST" })
         .maybeSingle();
       if (first) {
         const col = doc.kind === "passport" ? "passport_photo_url" : "driver_license_photo_url";
+        const { data: signed } = await supabaseAdmin.storage
+          .from("client-documents")
+          .createSignedUrl(first.file_path, DOC_SIGNED_TTL);
         await supabaseAdmin
           .from("profiles")
-          .update({ [col]: first.signed_url } as never)
+          .update({ [col]: signed?.signedUrl ?? null } as never)
           .eq("id", doc.user_id);
       }
     }
@@ -2311,7 +2323,6 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
             user_id: clientId,
             kind,
             file_path: path,
-            signed_url: signed.signedUrl,
             content_type: photo.contentType,
             uploaded_by: context.userId,
           } as never);
