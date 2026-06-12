@@ -9,8 +9,9 @@ type Input = {
 
 // Lazy-loaded server-only modules. Populated inside the handler so the
 // client bundle never pulls in xlsx or the service-role client.
-let XLSX: typeof import("xlsx");
-let supabaseAdmin: typeof import("@/integrations/supabase/client.server")["supabaseAdmin"];
+let XLSX!: typeof import("xlsx");
+let supabaseAdmin!: typeof import("@/integrations/supabase/client.server")["supabaseAdmin"];
+type XLSXNS = typeof import("xlsx");
 
 async function assertAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -76,7 +77,7 @@ function makeSheet<T extends Record<string, unknown>>(rows: T[], headers: { key:
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   // freeze top row
   ws["!freeze"] = { xSplit: 0, ySplit: 1 };
-  (ws as XLSX.WorkSheet & { ["!autofilter"]?: { ref: string } })["!autofilter"] = {
+  (ws as XLSXNS["WorkSheet"] & { ["!autofilter"]?: { ref: string } })["!autofilter"] = {
     ref: XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: headers.length - 1, r: Math.max(rows.length, 1) } }),
   };
   // column widths
