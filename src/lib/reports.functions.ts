@@ -77,7 +77,7 @@ function makeSheet<T extends Record<string, unknown>>(rows: T[], headers: { key:
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   // freeze top row
   ws["!freeze"] = { xSplit: 0, ySplit: 1 };
-  (ws as XLSXNS["WorkSheet"] & { ["!autofilter"]?: { ref: string } })["!autofilter"] = {
+  (ws as Record<string, unknown> & { ["!autofilter"]?: { ref: string } })["!autofilter"] = {
     ref: XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: headers.length - 1, r: Math.max(rows.length, 1) } }),
   };
   // column widths
