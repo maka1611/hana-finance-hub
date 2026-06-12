@@ -7,7 +7,12 @@ type Input = {
   sheets: string[];
 };
 
-async function assertAdmin(supabaseAdmin: typeof import("@/integrations/supabase/client.server")["supabaseAdmin"], userId: string) {
+// Lazy-loaded server-only modules. Populated inside the handler so the
+// client bundle never pulls in xlsx or the service-role client.
+let XLSX: typeof import("xlsx");
+let supabaseAdmin: typeof import("@/integrations/supabase/client.server")["supabaseAdmin"];
+
+async function assertAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("user_roles")
     .select("role")
