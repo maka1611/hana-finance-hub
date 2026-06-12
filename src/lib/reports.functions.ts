@@ -107,6 +107,8 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: Input) => input)
   .handler(async ({ data, context }) => {
+    XLSX = await import("xlsx");
+    ({ supabaseAdmin } = await import("@/integrations/supabase/client.server"));
     await assertAdmin(context.userId);
     const { from, to, sheets } = data;
     const want = new Set(sheets);
