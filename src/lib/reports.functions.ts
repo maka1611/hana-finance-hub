@@ -1,7 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import * as XLSX from "xlsx";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type Input = {
   from: string | null;
@@ -9,7 +7,7 @@ type Input = {
   sheets: string[];
 };
 
-async function assertAdmin(userId: string) {
+async function assertAdmin(supabaseAdmin: typeof import("@/integrations/supabase/client.server")["supabaseAdmin"], userId: string) {
   const { data, error } = await supabaseAdmin
     .from("user_roles")
     .select("role")
