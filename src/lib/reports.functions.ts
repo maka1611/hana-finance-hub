@@ -1,13 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
-import * as XLSX from "xlsx";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type Input = {
   from: string | null;
   to: string | null;
   sheets: string[];
 };
+
+// Lazy-loaded server-only modules. Populated inside the handler so the
+// client bundle never pulls in xlsx or the service-role client.
+let XLSX!: typeof import("xlsx");
+let supabaseAdmin!: typeof import("@/integrations/supabase/client.server")["supabaseAdmin"];
+type XLSXNS = typeof import("xlsx");
 
 async function assertAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -73,7 +77,7 @@ function makeSheet<T extends Record<string, unknown>>(rows: T[], headers: { key:
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   // freeze top row
   ws["!freeze"] = { xSplit: 0, ySplit: 1 };
-  (ws as XLSX.WorkSheet & { ["!autofilter"]?: { ref: string } })["!autofilter"] = {
+  (ws as Record<string, unknown> & { ["!autofilter"]?: { ref: string } })["!autofilter"] = {
     ref: XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: headers.length - 1, r: Math.max(rows.length, 1) } }),
   };
   // column widths
@@ -103,6 +107,8 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: Input) => input)
   .handler(async ({ data, context }) => {
+    XLSX = await import("xlsx");
+    ({ supabaseAdmin } = await import("@/integrations/supabase/client.server"));
     await assertAdmin(context.userId);
     const { from, to, sheets } = data;
     const want = new Set(sheets);
