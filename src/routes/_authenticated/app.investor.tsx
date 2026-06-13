@@ -8,7 +8,7 @@ import {
 } from "@/lib/investor-portal.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Wallet, AlertTriangle, Bell, CalendarClock, Coins, BarChart3, Lock, Send, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { TrendingUp, Wallet, AlertTriangle, Bell, Coins, BarChart3, Lock, Send, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
