@@ -401,13 +401,12 @@ function compactMoney(value: number) {
   return value.toLocaleString("ru-RU");
 }
 
-type ExportSheetKey = "clients" | "contracts" | "schedules" | "investors" | "applications" | "summary";
+type ExportSheetKey = "clients" | "contracts" | "schedules" | "investors" | "summary";
 const SHEET_OPTIONS: { key: ExportSheetKey; label: string }[] = [
   { key: "clients", label: "Клиенты" },
   { key: "contracts", label: "Рассрочки" },
   { key: "schedules", label: "График платежей" },
-  { key: "investors", label: "Инвесторы и вложения" },
-  { key: "applications", label: "Заявки" },
+  { key: "investors", label: "Инвесторы и их рассрочки" },
   { key: "summary", label: "Финансовая сводка" },
 ];
 type ExportPreset = "all" | "today" | "week" | "month" | "year" | "custom";
