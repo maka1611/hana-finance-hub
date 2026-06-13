@@ -11,7 +11,8 @@ type Input = {
 // client bundle never pulls in xlsx or the service-role client.
 let XLSX!: typeof import("xlsx");
 let supabaseAdmin!: typeof import("@/integrations/supabase/client.server")["supabaseAdmin"];
-type XLSXNS = typeof import("xlsx");
+
+const MONEY_FMT = '#,##0\\ "₽"';
 
 async function assertAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -37,18 +38,17 @@ const RU_STATUS_PAYMENT: Record<string, string> = {
   partial: "Частично",
   overdue: "Просрочен",
   cancelled: "Отменён",
-};
-const RU_STATUS_APP: Record<string, string> = {
-  pending: "Ожидает",
-  approved: "Одобрена",
-  rejected: "Отклонена",
-  cancelled: "Отменена",
+  rescheduled: "Перенесён",
+  scheduled: "Запланирован",
 };
 
 function num(v: unknown): number {
   if (v == null) return 0;
   const n = typeof v === "number" ? v : parseFloat(String(v));
   return Number.isFinite(n) ? n : 0;
+}
+function money(v: unknown): number {
+  return Math.round(num(v));
 }
 
 function fmtDate(v: string | null | undefined) {
@@ -97,7 +97,7 @@ function makeSheet<T extends Record<string, unknown>>(rows: T[], headers: { key:
     for (let ri = 1; ri <= rows.length; ri++) {
       const addr = XLSX.utils.encode_cell({ c: ci, r: ri });
       const cell = ws[addr];
-      if (cell && typeof cell.v === "number") cell.z = '#,##0.00\\ "₽"';
+        if (cell && typeof cell.v === "number") cell.z = MONEY_FMT;
     }
   });
   return ws;
