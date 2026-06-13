@@ -336,15 +336,11 @@ function InvestorDashboard() {
     );
   }
 
-  const { investor, summary, contracts, upcoming, contributions, feed } = data;
+  const { investor, summary, contracts, contributions, feed } = data;
   const { monthlyProjection } = data;
   const displayedYield = summary.displayedAvgMonthlyYieldPct ?? summary.avgMonthlyYieldPct;
   const annualYield = displayedYield * 12;
   const isForecast = !!summary.yieldIsForecast;
-  const upcomingTotalAmount = upcoming.reduce((s, u) => s + u.amount, 0);
-  const upcomingTotalPrincipal = upcoming.reduce((s, u) => s + u.principalPart, 0);
-  const upcomingTotalProfit = upcoming.reduce((s, u) => s + u.investorProfit, 0);
-  const upcomingTotalCash = upcomingTotalPrincipal + upcomingTotalProfit;
 
   return (
     <div className="space-y-8">
