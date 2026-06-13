@@ -20,21 +20,21 @@ export const MagicLinkEmail = ({
   siteName,
   confirmationUrl,
 }: MagicLinkEmailProps) => (
-  <Html lang="en" dir="ltr">
+  <Html lang="ru" dir="ltr">
     <Head />
-    <Preview>Your login link for {siteName}</Preview>
+    <Preview>Ваша ссылка для входа в {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Your login link</Heading>
+        <Heading style={h1}>Ссылка для входа</Heading>
         <Text style={text}>
-          Click the button below to log in to {siteName}. This link will expire
-          shortly.
+          Нажмите кнопку ниже, чтобы войти в {siteName}. Ссылка действует
+          ограниченное время.
         </Text>
         <Button style={button} href={confirmationUrl}>
-          Log In
+          Войти
         </Button>
         <Text style={footer}>
-          If you didn't request this link, you can safely ignore this email.
+          Если вы не запрашивали ссылку — просто проигнорируйте это письмо.
         </Text>
       </Container>
     </Body>
@@ -48,7 +48,7 @@ const container = { padding: '20px 25px' }
 const h1 = {
   fontSize: '22px',
   fontWeight: 'bold' as const,
-  color: '#000000',
+  color: '#0d0d0d',
   margin: '0 0 20px',
 }
 const text = {
@@ -58,7 +58,7 @@ const text = {
   margin: '0 0 25px',
 }
 const button = {
-  backgroundColor: '#000000',
+  backgroundColor: '#065f46',
   color: '#ffffff',
   fontSize: '14px',
   borderRadius: '8px',

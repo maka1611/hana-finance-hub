@@ -30,32 +30,31 @@ export const EmailChangeEmail = ({
   newEmail,
   confirmationUrl,
 }: EmailChangeEmailProps) => (
-  <Html lang="en" dir="ltr">
+  <Html lang="ru" dir="ltr">
     <Head />
-    <Preview>Confirm your email change for {siteName}</Preview>
+    <Preview>Подтвердите смену email в {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Confirm your email change</Heading>
+        <Heading style={h1}>Подтвердите смену email</Heading>
         <Text style={text}>
-          You requested to change your email address for {siteName} from{' '}
+          Вы запросили смену email в {siteName} с{' '}
           <Link href={`mailto:${oldEmail}`} style={link}>
             {oldEmail}
           </Link>{' '}
-          to{' '}
+          на{' '}
           <Link href={`mailto:${newEmail}`} style={link}>
             {newEmail}
           </Link>
           .
         </Text>
         <Text style={text}>
-          Click the button below to confirm this change:
+          Нажмите кнопку ниже, чтобы подтвердить изменение:
         </Text>
         <Button style={button} href={confirmationUrl}>
-          Confirm Email Change
+          Подтвердить смену email
         </Button>
         <Text style={footer}>
-          If you didn't request this change, please secure your account
-          immediately.
+          Если вы не запрашивали смену — срочно защитите свой аккаунт.
         </Text>
       </Container>
     </Body>
@@ -69,7 +68,7 @@ const container = { padding: '20px 25px' }
 const h1 = {
   fontSize: '22px',
   fontWeight: 'bold' as const,
-  color: '#000000',
+  color: '#0d0d0d',
   margin: '0 0 20px',
 }
 const text = {
@@ -78,9 +77,9 @@ const text = {
   lineHeight: '1.5',
   margin: '0 0 25px',
 }
-const link = { color: 'inherit', textDecoration: 'underline' }
+const link = { color: '#065f46', textDecoration: 'underline' }
 const button = {
-  backgroundColor: '#000000',
+  backgroundColor: '#065f46',
   color: '#ffffff',
   fontSize: '14px',
   borderRadius: '8px',

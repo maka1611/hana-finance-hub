@@ -20,22 +20,22 @@ export const RecoveryEmail = ({
   siteName,
   confirmationUrl,
 }: RecoveryEmailProps) => (
-  <Html lang="en" dir="ltr">
+  <Html lang="ru" dir="ltr">
     <Head />
-    <Preview>Reset your password for {siteName}</Preview>
+    <Preview>Восстановление пароля {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Reset your password</Heading>
+        <Heading style={h1}>Сброс пароля</Heading>
         <Text style={text}>
-          We received a request to reset your password for {siteName}. Click
-          the button below to choose a new password.
+          Мы получили запрос на сброс пароля в {siteName}. Нажмите кнопку
+          ниже, чтобы задать новый пароль.
         </Text>
         <Button style={button} href={confirmationUrl}>
-          Reset Password
+          Сбросить пароль
         </Button>
         <Text style={footer}>
-          If you didn't request a password reset, you can safely ignore this
-          email. Your password will not be changed.
+          Если вы не запрашивали сброс пароля — просто проигнорируйте письмо,
+          пароль останется прежним.
         </Text>
       </Container>
     </Body>
@@ -49,7 +49,7 @@ const container = { padding: '20px 25px' }
 const h1 = {
   fontSize: '22px',
   fontWeight: 'bold' as const,
-  color: '#000000',
+  color: '#0d0d0d',
   margin: '0 0 20px',
 }
 const text = {
@@ -59,7 +59,7 @@ const text = {
   margin: '0 0 25px',
 }
 const button = {
-  backgroundColor: '#000000',
+  backgroundColor: '#065f46',
   color: '#ffffff',
   fontSize: '14px',
   borderRadius: '8px',
