@@ -482,63 +482,6 @@ function InvestorDashboard() {
         )}
       </section>
 
-      {/* Upcoming payments */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <CalendarClock className="h-5 w-5" /> Ближайшие поступления и ваша прибыль (90 дней)
-        </h2>
-        {upcoming.length === 0 ? (
-          <div className="text-sm text-muted-foreground">Платежи в ближайшие 90 дней не ожидаются.</div>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="text-left p-3">Дата</th>
-                  <th className="text-left p-3">Товар</th>
-                  <th className="text-right p-3">Платёж</th>
-                  <th className="text-right p-3">Возврат тела</th>
-                  <th className="text-right p-3">Чистая прибыль</th>
-                  <th className="text-right p-3">Ваш приход</th>
-                  <th className="text-right p-3">Статус</th>
-                </tr>
-              </thead>
-              <tbody>
-                {upcoming.slice(0, 30).map((u) => (
-                  <tr key={u.id} className="border-t border-border">
-                    <td className="p-3">{u.dueDate}</td>
-                    <td className="p-3">{u.productName}</td>
-                    <td className="p-3 text-right">{fmt(u.amount)}</td>
-                    <td className="p-3 text-right">{fmt(u.principalPart)}</td>
-                    <td className="p-3 text-right text-emerald-700 font-semibold">
-                      +{fmt(u.investorProfit)}
-                    </td>
-                    <td className="p-3 text-right font-semibold">{fmt(u.investorCashflow)}</td>
-                    <td className="p-3 text-right">
-                      {u.overdue ? (
-                        <Badge variant="destructive">Просрочен</Badge>
-                      ) : (
-                        <Badge variant="secondary">Ожидается</Badge>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-muted/30 font-semibold">
-                <tr className="border-t border-border">
-                  <td className="p-3" colSpan={2}>Итого за период</td>
-                  <td className="p-3 text-right">{fmt(upcomingTotalAmount)}</td>
-                  <td className="p-3 text-right">{fmt(upcomingTotalPrincipal)}</td>
-                  <td className="p-3 text-right text-emerald-700">+{fmt(upcomingTotalProfit)}</td>
-                  <td className="p-3 text-right">{fmt(upcomingTotalCash)}</td>
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-      </section>
-
       {/* Monthly projection */}
       {monthlyProjection.length > 0 && (
         <section className="space-y-3">
