@@ -114,32 +114,21 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
     const want = new Set(sheets);
 
     // Fetch all needed data in parallel
-    const [profilesRes, contractsRes, schedulesRes, applicationsRes, investorsRes, contributionsRes, paymentsRes] =
+    const [profilesRes, contractsRes, schedulesRes, investorsRes, contributionsRes, paymentsRes] =
       await Promise.all([
-        want.has("clients") || want.has("contracts") || want.has("schedules") || want.has("applications") || want.has("summary")
+        want.has("clients") || want.has("contracts") || want.has("schedules") || want.has("investors") || want.has("summary")
           ? supabaseAdmin.from("profiles").select("id,full_name,email,phone,created_at")
           : Promise.resolve({ data: [] as any[] }),
-        want.has("contracts") || want.has("schedules") || want.has("clients") || want.has("summary")
+        want.has("contracts") || want.has("schedules") || want.has("clients") || want.has("investors") || want.has("summary")
           ? supabaseAdmin
               .from("installment_contracts")
               .select("id,client_id,product_name,product_price,principal,markup_rate,markup_amount,total_sale_price,monthly_payment,term_months,start_date,status,investor_id,created_at")
               .is("deleted_at", null)
           : Promise.resolve({ data: [] as any[] }),
-        want.has("schedules") || want.has("contracts") || want.has("clients") || want.has("summary")
+        want.has("schedules") || want.has("contracts") || want.has("clients") || want.has("investors") || want.has("summary")
           ? supabaseAdmin
               .from("payment_schedules")
               .select("id,contract_id,seq,due_date,amount,paid_amount,status")
-          : Promise.resolve({ data: [] as any[] }),
-        want.has("applications")
-          ? toRangeFilter(
-              supabaseAdmin
-                .from("installment_applications")
-                .select("id,client_id,client_full_name,client_phone,product_name,product_price,term_months,status,admin_note,created_at"),
-              "created_at",
-              from,
-              to,
-              true,
-            )
           : Promise.resolve({ data: [] as any[] }),
         want.has("investors") || want.has("summary")
           ? supabaseAdmin
@@ -159,13 +148,16 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
     const allProfiles = (profilesRes.data ?? []) as any[];
     const allContracts = (contractsRes.data ?? []) as any[];
     const allSchedules = (schedulesRes.data ?? []) as any[];
-    const allApplications = (applicationsRes.data ?? []) as any[];
     const allInvestors = (investorsRes.data ?? []) as any[];
     const allContributions = (contributionsRes.data ?? []) as any[];
     const allPayments = (paymentsRes.data ?? []) as any[];
 
     const profileById = new Map<string, any>(allProfiles.map((p) => [p.id, p]));
     const investorById = new Map<string, any>(allInvestors.map((i) => [i.id, i]));
+    const contractIds = new Set<string>(allContracts.map((c) => c.id as string));
+    // Drop schedules whose contract was deleted or is otherwise missing — they show
+    // up as empty client/product rows in the report.
+    const liveSchedules = allSchedules.filter((s) => contractIds.has(s.contract_id));
 
     // Filtered subsets by natural date
     const inRange = (d: string | null | undefined, useTime: boolean) => {
@@ -177,7 +169,7 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
     };
 
     const contractsInPeriod = from || to ? allContracts.filter((c) => inRange(c.start_date, false)) : allContracts;
-    const schedulesInPeriod = from || to ? allSchedules.filter((s) => inRange(s.due_date, false)) : allSchedules;
+    const schedulesInPeriod = from || to ? liveSchedules.filter((s) => inRange(s.due_date, false)) : liveSchedules;
     const clientsInPeriod = from || to ? allProfiles.filter((p) => inRange(p.created_at, true)) : allProfiles;
     const investorsInPeriod = from || to ? allInvestors.filter((i) => inRange(i.created_at, true)) : allInvestors;
     const paymentsInPeriod = from || to ? allPayments.filter((p) => inRange(p.paid_at, true)) : allPayments;
@@ -193,22 +185,22 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
         contractsByClient.set(c.client_id, arr);
       }
       const schedulesByContract = new Map<string, any[]>();
-      for (const s of allSchedules) {
+      for (const s of liveSchedules) {
         const arr = schedulesByContract.get(s.contract_id) ?? [];
         arr.push(s);
         schedulesByContract.set(s.contract_id, arr);
       }
       const rows = clientsInPeriod.map((p) => {
         const ctrs = contractsByClient.get(p.id) ?? [];
-        const totalSold = ctrs.reduce((a, c) => a + num(c.total_sale_price), 0);
+        const totalSold = ctrs.reduce((a, c) => a + money(c.total_sale_price), 0);
         let paid = 0;
         let remaining = 0;
         const activeCount = ctrs.filter((c) => c.status === "active").length;
         for (const c of ctrs) {
           const sch = schedulesByContract.get(c.id) ?? [];
           for (const s of sch) {
-            paid += num(s.paid_amount);
-            remaining += Math.max(num(s.amount) - num(s.paid_amount), 0);
+            paid += money(s.paid_amount);
+            remaining += Math.max(money(s.amount) - money(s.paid_amount), 0);
           }
         }
         return {
@@ -243,7 +235,7 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
     // Sheet: Рассрочки
     if (want.has("contracts")) {
       const schedulesByContract = new Map<string, any[]>();
-      for (const s of allSchedules) {
+      for (const s of liveSchedules) {
         const arr = schedulesByContract.get(s.contract_id) ?? [];
         arr.push(s);
         schedulesByContract.set(s.contract_id, arr);
@@ -251,8 +243,8 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
       const rows = contractsInPeriod.map((c) => {
         const sch = schedulesByContract.get(c.id) ?? [];
         const paidCount = sch.filter((s) => s.status === "paid").length;
-        const paidSum = sch.reduce((a, s) => a + num(s.paid_amount), 0);
-        const remaining = Math.max(num(c.total_sale_price) - paidSum, 0);
+        const paidSum = sch.reduce((a, s) => a + money(s.paid_amount), 0);
+        const remaining = Math.max(money(c.total_sale_price) - paidSum, 0);
         const cl = profileById.get(c.client_id);
         const inv = c.investor_id ? investorById.get(c.investor_id) : null;
         return {
@@ -261,10 +253,10 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
           product: c.product_name,
           start_date: fmtDate(c.start_date),
           term: c.term_months,
-          product_price: num(c.product_price),
-          markup: num(c.markup_amount),
-          total: num(c.total_sale_price),
-          monthly: num(c.monthly_payment),
+          product_price: money(c.product_price),
+          markup: money(c.markup_amount),
+          total: money(c.total_sale_price),
+          monthly: money(c.monthly_payment),
           progress: `${paidCount}/${sch.length}`,
           paid_sum: paidSum,
           remaining,
@@ -303,8 +295,8 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
         .map((s) => {
           const c = contractById.get(s.contract_id);
           const cl = c ? profileById.get(c.client_id) : null;
-          const amount = num(s.amount);
-          const paid = num(s.paid_amount);
+          const amount = money(s.amount);
+          const paid = money(s.paid_amount);
           return {
             due_date: fmtDate(s.due_date),
             client: cl?.full_name ?? "",
@@ -332,122 +324,156 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
       );
     }
 
-    // Sheet: Инвесторы + Вложения
+    // Sheet: Инвесторы — иерархический отчёт с контрактами под каждым инвестором
     if (want.has("investors")) {
+      const schedulesByContract = new Map<string, any[]>();
+      for (const s of liveSchedules) {
+        const arr = schedulesByContract.get(s.contract_id) ?? [];
+        arr.push(s);
+        schedulesByContract.set(s.contract_id, arr);
+      }
+      const contractsByInvestor = new Map<string, any[]>();
+      for (const c of allContracts) {
+        if (!c.investor_id) continue;
+        const arr = contractsByInvestor.get(c.investor_id) ?? [];
+        arr.push(c);
+        contractsByInvestor.set(c.investor_id, arr);
+      }
       const contribsByInvestor = new Map<string, any[]>();
       for (const c of allContributions) {
         const arr = contribsByInvestor.get(c.investor_id) ?? [];
         arr.push(c);
         contribsByInvestor.set(c.investor_id, arr);
       }
-      const invRows = investorsInPeriod.map((i) => {
-        const cs = contribsByInvestor.get(i.id) ?? [];
-        const sum = cs.reduce((a, c) => a + num(c.amount), 0);
-        return {
-          full_name: i.full_name,
-          email: i.email ?? "",
-          phone: i.phone ?? "",
-          created_at: fmtDate(i.created_at),
-          capital: num(i.total_capital),
-          share: `${(num(i.profit_share_rate) * 100).toFixed(0)}%`,
-          contribs_count: cs.length,
-          contribs_sum: sum,
-          status: i.is_active ? "Активный" : "Неактивный",
-        };
-      });
-      XLSX.utils.book_append_sheet(
-        wb,
-        makeSheet(invRows, [
-          { key: "full_name", label: "ФИО" },
-          { key: "email", label: "Email" },
-          { key: "phone", label: "Телефон" },
-          { key: "created_at", label: "Дата регистрации" },
-          { key: "capital", label: "Капитал", money: true },
-          { key: "share", label: "Доля прибыли" },
-          { key: "contribs_count", label: "Вложений (шт)" },
-          { key: "contribs_sum", label: "Сумма вложений", money: true },
-          { key: "status", label: "Статус" },
-        ]),
-        "Инвесторы",
-      );
 
-      const contribRows = allContributions
-        .filter((c) => (from || to ? inRange(c.operation_date, false) : true))
-        .slice()
-        .sort((a, b) => (a.operation_date < b.operation_date ? 1 : -1))
-        .map((c) => {
-          const inv = investorById.get(c.investor_id);
-          return {
-            operation_date: fmtDate(c.operation_date),
-            investor: inv?.full_name ?? "",
-            amount: num(c.amount),
-            due_date: fmtDate(c.due_date),
-            note: c.note ?? "",
-          };
-        });
-      XLSX.utils.book_append_sheet(
-        wb,
-        makeSheet(contribRows, [
-          { key: "operation_date", label: "Дата операции" },
-          { key: "investor", label: "Инвестор" },
-          { key: "amount", label: "Сумма", money: true },
-          { key: "due_date", label: "Срок возврата" },
-          { key: "note", label: "Комментарий" },
-        ]),
-        "Вложения инвесторов",
-      );
-    }
+      const aoa: unknown[][] = [];
+      const moneyCells: { r: number; c: number }[] = [];
+      const headerRows: number[] = [];
+      const subheaderRows: number[] = [];
+      const totalRows: number[] = [];
+      const tableHeaderRows: number[] = [];
 
-    // Sheet: Заявки
-    if (want.has("applications")) {
-      const rows = allApplications
-        .slice()
-        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
-        .map((a) => {
-          const cl = profileById.get(a.client_id);
-          return {
-            created_at: fmtDate(a.created_at),
-            client: a.client_full_name || cl?.full_name || "",
-            phone: a.client_phone || cl?.phone || "",
-            product: a.product_name,
-            price: num(a.product_price),
-            term: a.term_months,
-            status: RU_STATUS_APP[a.status] ?? a.status,
-            admin_note: a.admin_note ?? "",
-          };
-        });
-      XLSX.utils.book_append_sheet(
-        wb,
-        makeSheet(rows, [
-          { key: "created_at", label: "Дата" },
-          { key: "client", label: "Клиент" },
-          { key: "phone", label: "Телефон" },
-          { key: "product", label: "Товар" },
-          { key: "price", label: "Сумма", money: true },
-          { key: "term", label: "Срок (мес)" },
-          { key: "status", label: "Статус" },
-          { key: "admin_note", label: "Комментарий" },
-        ]),
-        "Заявки",
-      );
+      const COLS = ["Клиент", "Товар", "Дата старта", "Срок", "Сумма контракта", "Оплачено", "Остаток", "Прибыль инвестора", "Статус"];
+
+      // Header
+      aoa.push(["Отчёт по инвесторам и профинансированным ими рассрочкам"]);
+      headerRows.push(aoa.length - 1);
+      aoa.push([]);
+
+      const investorsSorted = investorsInPeriod.slice().sort((a, b) => String(a.full_name).localeCompare(String(b.full_name)));
+      for (const inv of investorsSorted) {
+        const share = num(inv.profit_share_rate);
+        const capital = money(inv.total_capital);
+        const contribs = contribsByInvestor.get(inv.id) ?? [];
+        const contribsSum = contribs.reduce((a, c) => a + money(c.amount), 0);
+        const ctrs = contractsByInvestor.get(inv.id) ?? [];
+
+        // Investor header line
+        aoa.push([
+          `ИНВЕСТОР: ${inv.full_name ?? ""}`,
+          inv.email ? `Email: ${inv.email}` : "",
+          inv.phone ? `Тел: ${inv.phone}` : "",
+          `Доля: ${(share * 100).toFixed(0)}%`,
+          "Капитал:",
+          capital,
+          "Вложено:",
+          contribsSum,
+          inv.is_active ? "Активный" : "Неактивный",
+        ]);
+        subheaderRows.push(aoa.length - 1);
+        moneyCells.push({ r: aoa.length - 1, c: 5 });
+        moneyCells.push({ r: aoa.length - 1, c: 7 });
+
+        // Table header
+        aoa.push(COLS);
+        tableHeaderRows.push(aoa.length - 1);
+
+        let invTotal = 0;
+        let invPaid = 0;
+        let invRemaining = 0;
+        let invProfit = 0;
+
+        if (ctrs.length === 0) {
+          aoa.push(["— Нет контрактов, профинансированных этим инвестором —"]);
+        } else {
+          for (const c of ctrs) {
+            const sch = schedulesByContract.get(c.id) ?? [];
+            const total = money(c.total_sale_price);
+            const paid = sch.reduce((a, s) => a + money(s.paid_amount), 0);
+            const remaining = Math.max(total - paid, 0);
+            const profit = Math.round(num(c.markup_amount) * share);
+            const cl = profileById.get(c.client_id);
+            aoa.push([
+              cl?.full_name ?? "",
+              c.product_name ?? "",
+              fmtDate(c.start_date),
+              c.term_months ?? "",
+              total,
+              paid,
+              remaining,
+              profit,
+              RU_STATUS_CONTRACT[c.status] ?? c.status,
+            ]);
+            const r = aoa.length - 1;
+            moneyCells.push({ r, c: 4 }, { r, c: 5 }, { r, c: 6 }, { r, c: 7 });
+            invTotal += total;
+            invPaid += paid;
+            invRemaining += remaining;
+            invProfit += profit;
+          }
+
+          aoa.push(["ИТОГО по инвестору", "", "", "", invTotal, invPaid, invRemaining, invProfit, ""]);
+          const r = aoa.length - 1;
+          totalRows.push(r);
+          moneyCells.push({ r, c: 4 }, { r, c: 5 }, { r, c: 6 }, { r, c: 7 });
+        }
+
+        aoa.push([]); // spacer
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = [
+        { wch: 32 }, { wch: 32 }, { wch: 12 }, { wch: 8 },
+        { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 14 },
+      ];
+      ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+      for (const { r, c } of moneyCells) {
+        const addr = XLSX.utils.encode_cell({ c, r });
+        const cell = ws[addr];
+        if (cell && typeof cell.v === "number") cell.z = MONEY_FMT;
+      }
+      // Bold headers / subtotals
+      const setBold = (r: number) => {
+        for (let c = 0; c < COLS.length; c++) {
+          const addr = XLSX.utils.encode_cell({ c, r });
+          const cell = ws[addr];
+          if (cell) cell.s = { font: { bold: true } };
+        }
+      };
+      headerRows.forEach(setBold);
+      subheaderRows.forEach(setBold);
+      tableHeaderRows.forEach(setBold);
+      totalRows.forEach(setBold);
+
+      XLSX.utils.book_append_sheet(wb, ws, "Инвесторы");
     }
 
     // Sheet: Финансовая сводка
     if (want.has("summary")) {
       const newContracts = contractsInPeriod.length;
-      const newContractsSum = contractsInPeriod.reduce((a, c) => a + num(c.total_sale_price), 0);
-      const newContractsMarkup = contractsInPeriod.reduce((a, c) => a + num(c.markup_amount), 0);
-      const newContractsPrincipal = contractsInPeriod.reduce((a, c) => a + num(c.principal), 0);
-      const paymentsCollected = paymentsInPeriod.reduce((a, p) => a + num(p.amount), 0);
-      const dueInPeriod = schedulesInPeriod.reduce((a, s) => a + num(s.amount), 0);
+      const newContractsSum = contractsInPeriod.reduce((a, c) => a + money(c.total_sale_price), 0);
+      const newContractsMarkup = contractsInPeriod.reduce((a, c) => a + money(c.markup_amount), 0);
+      const newContractsPrincipal = contractsInPeriod.reduce((a, c) => a + money(c.principal), 0);
+      const paymentsCollected = paymentsInPeriod.reduce((a, p) => a + money(p.amount), 0);
+      const dueInPeriod = schedulesInPeriod.reduce((a, s) => a + money(s.amount), 0);
       const overdueInPeriod = schedulesInPeriod
         .filter((s) => s.status === "overdue")
-        .reduce((a, s) => a + Math.max(num(s.amount) - num(s.paid_amount), 0), 0);
+        .reduce((a, s) => a + Math.max(money(s.amount) - money(s.paid_amount), 0), 0);
       const newClients = clientsInPeriod.length;
       const newInvestors = investorsInPeriod.length;
       const newInvestorContribs = allContributions
         .filter((c) => (from || to ? inRange(c.operation_date, false) : true))
-        .reduce((a, c) => a + num(c.amount), 0);
+        .reduce((a, c) => a + money(c.amount), 0);
       const activeContractsTotal = allContracts.filter((c) => c.status === "active").length;
 
       const periodLabel = !from && !to ? "За всё время" : `${from ?? "—"} … ${to ?? "—"}`;
@@ -473,7 +499,7 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
         if (!r.money) return;
         const addr = XLSX.utils.encode_cell({ c: 1, r: idx + 1 });
         const cell = ws[addr];
-        if (cell && typeof cell.v === "number") cell.z = '#,##0.00\\ "₽"';
+        if (cell && typeof cell.v === "number") cell.z = MONEY_FMT;
       });
       XLSX.utils.book_append_sheet(wb, ws, "Финансовая сводка");
     }
