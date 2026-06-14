@@ -8,7 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeProvider } from "@/hooks/use-theme";
 
@@ -101,7 +101,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6338f67b-fb61-479c-9be3-0006a17b6b69/id-preview-2687b0d6--7d5b19ed-8907-4cde-9825-df3a9ad75c20.lovable.app-1780500213560.png" },
     ],
     links: [
-      { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       {
         rel: "icon",
@@ -133,19 +132,39 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const authUserIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+    let mounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (mounted) authUserIdRef.current = data.session?.user.id ?? null;
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextUserId = session?.user.id ?? null;
+      const previousUserId = authUserIdRef.current;
+
       if (event === "SIGNED_OUT") {
+        if (previousUserId === null) return;
+        authUserIdRef.current = null;
         queryClient.cancelQueries();
         queryClient.clear();
         router.invalidate();
-      } else if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+      } else if (event === "SIGNED_IN") {
+        authUserIdRef.current = nextUserId;
+        if (previousUserId === undefined || previousUserId === nextUserId) return;
+        queryClient.invalidateQueries();
+        router.invalidate();
+      } else if (event === "USER_UPDATED") {
+        authUserIdRef.current = nextUserId;
         queryClient.invalidateQueries();
         router.invalidate();
       }
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
   }, [queryClient, router]);
 
   return (
