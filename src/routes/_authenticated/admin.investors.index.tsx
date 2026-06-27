@@ -4,6 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { listInvestors, getInvestorsAggregate } from "@/lib/investors.functions";
 import {
+  getInvestorAllocationPolicy,
+  setInvestorAllocationPolicy,
+} from "@/lib/investors.functions";
+import {
   adminGetInvestmentSettings,
   adminListInvestorApplications,
   adminSetInvestmentSettings,
@@ -39,6 +43,8 @@ function InvestorsList() {
 
   if (isLoading || !data)
     return <p className="text-sm text-muted-foreground">Загрузка...</p>;
+
+  const today = Date.now();
 
   const totals = data.reduce(
     (acc, inv) => {
