@@ -89,6 +89,16 @@ function summarizeInvestor(
   const overdueAmount = overdueSchedules.reduce((s, x) => s + Number(x.amount), 0);
   const free =
     invested - placed + returnedPrincipal + (capitalizeProfit ? receivedProfit : 0);
+  let lastContractAt: string | null = null;
+  for (const c of contracts) {
+    if (!lastContractAt || c.created_at > lastContractAt) lastContractAt = c.created_at;
+  }
+  const idleDays = lastContractAt
+    ? Math.max(
+        0,
+        Math.floor((Date.now() - new Date(lastContractAt).getTime()) / 86400000),
+      )
+    : null;
   return {
     invested,
     placed,
@@ -101,6 +111,10 @@ function summarizeInvestor(
     activeCount: activeContracts.length,
     overdueCount: overdueSchedules.length,
     overdueAmount,
+    loadRatio: invested > 0 ? placed / invested : 0,
+    idleRatio: invested > 0 ? (invested - placed) / invested : 0,
+    idleDays,
+    lastContractAt,
   };
 }
 
