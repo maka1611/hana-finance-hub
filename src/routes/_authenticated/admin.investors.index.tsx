@@ -93,6 +93,7 @@ function InvestorsList() {
       </div>
 
       <InvestmentIntakeBlock />
+      <AllocationPolicyBlock />
 
       {data.length > 0 && (
         <div className="rounded-2xl bg-card ring-1 ring-border p-5">
@@ -158,7 +159,17 @@ function InvestorsList() {
         </div>
       ) : (
         <div className="bg-card rounded-2xl ring-1 ring-border divide-y divide-border overflow-hidden">
-          {data.map((inv) => (
+          {[...data]
+            .sort((a, b) => (b.idleDays ?? 9999) - (a.idleDays ?? 9999))
+            .map((inv) => {
+              const loadPct = Math.round((inv.loadRatio ?? 0) * 100);
+              const loadColor =
+                loadPct < 70
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : loadPct < 90
+                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                    : "bg-rose-500/10 text-rose-700 dark:text-rose-300";
+              return (
             <div key={inv.id} className="p-4 sm:p-5 flex items-start gap-3">
               <Checkbox
                 checked={selected.has(inv.id)}
@@ -176,6 +187,16 @@ function InvestorsList() {
                     {!inv.is_active && (
                       <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                         архив
+                      </span>
+                    )}
+                    <span
+                      className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded ${loadColor}`}
+                    >
+                      загрузка {loadPct}%
+                    </span>
+                    {inv.idleDays !== null && inv.idleDays !== undefined && (
+                      <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                        {inv.idleDays} дн без новых
                       </span>
                     )}
                     {inv.overdueCount > 0 && (
@@ -197,7 +218,8 @@ function InvestorsList() {
                 </div>
               </Link>
             </div>
-          ))}
+              );
+            })}
         </div>
       )}
     </div>
