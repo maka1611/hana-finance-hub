@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { adminListClients, adminCreateInstallment } from "@/lib/admin.functions";
 import {
   listInvestorsLite,
@@ -52,6 +52,18 @@ function AdminNewInstallment() {
     queryFn: () => policyFn(),
   });
   const policy = policyData?.policy ?? "suggest";
+
+  // Auto-pick the least loaded investor under "enforce" policy.
+  useEffect(() => {
+    if (policy !== "enforce") return;
+    const list = investors ?? [];
+    if (list.length === 0) return;
+    const fitting = list
+      .filter((i) => i.free >= calc.principal)
+      .sort((a, b) => b.idleRatio - a.idleRatio);
+    const next = fitting[0]?.id ?? null;
+    if (next && next !== investorId) setInvestorId(next);
+  }, [policy, investors, calc.principal, investorId]);
 
   const [mode, setMode] = useState<Mode>("existing");
   const [open, setOpen] = useState(false);
