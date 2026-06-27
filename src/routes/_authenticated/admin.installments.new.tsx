@@ -5,7 +5,6 @@ import { useMemo, useState, type FormEvent } from "react";
 import { adminListClients, adminCreateInstallment } from "@/lib/admin.functions";
 import {
   listInvestorsLite,
-  suggestInvestorForContract,
   getInvestorAllocationPolicy,
 } from "@/lib/investors.functions";
 import { calcInstallment, formatMoney, MAX_TERM, DEFAULT_MARKUP_RATE } from "@/lib/installment";
@@ -39,7 +38,6 @@ function AdminNewInstallment() {
   const listFn = useServerFn(adminListClients);
   const createFn = useServerFn(adminCreateInstallment);
   const investorsFn = useServerFn(listInvestorsLite);
-  const suggestFn = useServerFn(suggestInvestorForContract);
   const policyFn = useServerFn(getInvestorAllocationPolicy);
   const { data: clients } = useQuery({
     queryKey: ["admin-clients"],
