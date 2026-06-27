@@ -1,4 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { getMyRoles } from "@/lib/admin.functions";
 import {
   Sidebar,
   SidebarContent,
@@ -11,7 +14,7 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Users, FileText, BarChart3, ArrowLeft, Wallet, ShieldCheck, Inbox, FilePlus2, History, Briefcase, Percent } from "lucide-react";
+import { LayoutDashboard, Users, FileText, BarChart3, ArrowLeft, Wallet, ShieldCheck, Inbox, FilePlus2, History, Briefcase, Percent, Coins } from "lucide-react";
 
 const items = [
   { title: "Обзор", url: "/admin", icon: LayoutDashboard, exact: true },
@@ -32,6 +35,9 @@ export function AdminSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const isActive = (url: string, exact: boolean) =>
     exact ? pathname === url : pathname.startsWith(url);
+  const rolesFn = useServerFn(getMyRoles);
+  const { data: roles } = useQuery({ queryKey: ["my-roles"], queryFn: () => rolesFn() });
+  const isOwner = (roles ?? []).includes("owner");
 
   return (
     <Sidebar collapsible="icon">
@@ -74,6 +80,16 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {isOwner && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/admin/company-funds", false)}>
+                    <Link to="/admin/company-funds" className="flex items-center gap-2">
+                      <Coins className="h-4 w-4" />
+                      {!collapsed && <span>Средства компании</span>}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
