@@ -7,6 +7,7 @@ import {
   listInvestorsLite,
   getInvestorAllocationPolicy,
 } from "@/lib/investors.functions";
+import { getCompanyFundsLite } from "@/lib/company-funds.functions";
 import { calcInstallment, formatMoney, MAX_TERM, DEFAULT_MARKUP_RATE } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ function AdminNewInstallment() {
   const createFn = useServerFn(adminCreateInstallment);
   const investorsFn = useServerFn(listInvestorsLite);
   const policyFn = useServerFn(getInvestorAllocationPolicy);
+  const companyFundsFn = useServerFn(getCompanyFundsLite);
   const { data: clients } = useQuery({
     queryKey: ["admin-clients"],
     queryFn: () => listFn(),
@@ -50,6 +52,10 @@ function AdminNewInstallment() {
   const { data: policyData } = useQuery({
     queryKey: ["investor-allocation-policy"],
     queryFn: () => policyFn(),
+  });
+  const { data: companyFunds } = useQuery({
+    queryKey: ["company-funds-lite"],
+    queryFn: () => companyFundsFn(),
   });
   const policy = policyData?.policy ?? "suggest";
 
