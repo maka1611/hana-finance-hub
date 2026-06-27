@@ -7,6 +7,7 @@ import {
   listInvestorsLite,
   getInvestorAllocationPolicy,
 } from "@/lib/investors.functions";
+import { getCompanyFundsLite } from "@/lib/company-funds.functions";
 import { calcInstallment, formatMoney, MAX_TERM, DEFAULT_MARKUP_RATE } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ function AdminNewInstallment() {
   const createFn = useServerFn(adminCreateInstallment);
   const investorsFn = useServerFn(listInvestorsLite);
   const policyFn = useServerFn(getInvestorAllocationPolicy);
+  const companyFundsFn = useServerFn(getCompanyFundsLite);
   const { data: clients } = useQuery({
     queryKey: ["admin-clients"],
     queryFn: () => listFn(),
@@ -50,6 +52,10 @@ function AdminNewInstallment() {
   const { data: policyData } = useQuery({
     queryKey: ["investor-allocation-policy"],
     queryFn: () => policyFn(),
+  });
+  const { data: companyFunds } = useQuery({
+    queryKey: ["company-funds-lite"],
+    queryFn: () => companyFundsFn(),
   });
   const policy = policyData?.policy ?? "suggest";
 
@@ -732,7 +738,13 @@ function AdminNewInstallment() {
                 className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
                 disabled={policy === "enforce" && Boolean(investorId)}
               >
-                <option value="">— Без инвестора (собственные средства) —</option>
+                <option value="">
+                  — Собственные средства компании
+                  {companyFunds
+                    ? ` · свободно ${formatMoney(companyFunds.freeCash)} · в обороте ${formatMoney(companyFunds.capitalInUse)}`
+                    : ""}
+                  {" —"}
+                </option>
                 {(investors ?? []).map((inv) => (
                   <option key={inv.id} value={inv.id}>
                     {inv.full_name} · свободно {formatMoney(inv.free)} · загрузка{" "}
@@ -773,6 +785,31 @@ function AdminNewInstallment() {
                     <div>
                       <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Наша прибыль</div>
                       <div className="font-extrabold text-sm">{formatMoney(ourProfit)}</div>
+                    </div>
+                  </div>
+                );
+              })()}
+              {!investorId && companyFunds && (() => {
+                const after = companyFunds.freeCash - calc.principal;
+                const over = after < 0;
+                return (
+                  <div className="rounded-xl bg-muted/30 ring-1 ring-border p-3 grid sm:grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Свободно</div>
+                      <div className="font-extrabold text-sm">{formatMoney(companyFunds.freeCash)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">В обороте</div>
+                      <div className="font-extrabold text-sm">{formatMoney(companyFunds.capitalInUse)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Останется после оформления</div>
+                      <div className={`font-extrabold text-sm ${over ? "text-destructive" : ""}`}>
+                        {formatMoney(after)}
+                      </div>
+                      {over && (
+                        <div className="text-[10px] text-destructive">Превышает свободные средства компании</div>
+                      )}
                     </div>
                   </div>
                 );

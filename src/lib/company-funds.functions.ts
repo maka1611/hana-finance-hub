@@ -13,6 +13,77 @@ async function assertOwner(userId: string) {
   if (!ok) throw new Error("Forbidden: owner only");
 }
 
+async function assertStaff(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+  const ok = (data ?? []).some((r) =>
+    ["owner", "admin", "manager"].includes(r.role as string),
+  );
+  if (!ok) throw new Error("Forbidden: staff only");
+}
+
+// Lightweight summary of company own funds, available to all staff
+// (manager/admin/owner). Returns just what's needed at the placement step.
+export const getCompanyFundsLite = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertStaff(context.userId);
+    const [ops, expenses, contracts, payments] = await Promise.all([
+      supabaseAdmin.from("company_funds_operations").select("op_type,amount"),
+      supabaseAdmin.from("company_expenses").select("amount"),
+      supabaseAdmin
+        .from("installment_contracts")
+        .select("id,status,principal,markup_amount,investor_id")
+        .is("deleted_at", null),
+      supabaseAdmin.from("payments").select("amount,contract_id"),
+    ]);
+
+    let deposit = 0, withdraw = 0, adjustment = 0;
+    for (const o of (ops.data ?? []) as Array<{ op_type: string; amount: number | string }>) {
+      const v = Number(o.amount);
+      if (o.op_type === "deposit") deposit += v;
+      else if (o.op_type === "withdraw") withdraw += v;
+      else adjustment += v;
+    }
+    const capital = deposit - withdraw + adjustment;
+    const expensesTotal = ((expenses.data ?? []) as Array<{ amount: number | string }>)
+      .reduce((s, e) => s + Number(e.amount), 0);
+
+    const paidByContract = new Map<string, number>();
+    for (const p of (payments.data ?? []) as Array<{ amount: number | string; contract_id: string }>) {
+      paidByContract.set(p.contract_id, (paidByContract.get(p.contract_id) ?? 0) + Number(p.amount));
+    }
+
+    let capitalOwnInUse = 0;
+    let profitOwnAll = 0;
+    for (const c of (contracts.data ?? []) as Array<{
+      id: string; status: string; principal: number | string;
+      markup_amount: number | string; investor_id: string | null;
+    }>) {
+      if (c.investor_id) continue;
+      const principal = Number(c.principal);
+      const markup = Number(c.markup_amount);
+      const total = principal + markup;
+      const markupShare = total > 0 ? markup / total : 0;
+      const paid = paidByContract.get(c.id) ?? 0;
+      profitOwnAll += paid * markupShare;
+      const isActive = c.status === "active" || c.status === "overdue" || c.status === "pending";
+      if (isActive) capitalOwnInUse += principal;
+    }
+
+    const balance = capital + profitOwnAll - expensesTotal;
+    const freeCash = balance - capitalOwnInUse;
+    return {
+      balance,
+      capitalInUse: capitalOwnInUse,
+      freeCash,
+      loadPct: balance > 0 ? (capitalOwnInUse / balance) * 100 : 0,
+    };
+  });
+
 // ============ Operations ============
 
 const opInput = z.object({
