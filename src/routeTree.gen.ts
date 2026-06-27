@@ -41,6 +41,8 @@ import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/l
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
+import { Route as ApiPublicAiSchemaRouteImport } from './routes/api/public/ai/schema'
+import { Route as ApiPublicAiQueryRouteImport } from './routes/api/public/ai/query'
 import { Route as AuthenticatedAppInstallmentsIdRouteImport } from './routes/_authenticated/app.installments.$id'
 import { Route as AuthenticatedAdminInvestorsNewRouteImport } from './routes/_authenticated/admin.investors.new'
 import { Route as AuthenticatedAdminInvestorsIdRouteImport } from './routes/_authenticated/admin.investors.$id'
@@ -48,6 +50,8 @@ import { Route as AuthenticatedAdminInstallmentsNewRouteImport } from './routes/
 import { Route as AuthenticatedAdminContractsIdRouteImport } from './routes/_authenticated/admin.contracts.$id'
 import { Route as AuthenticatedAdminClientsIdRouteImport } from './routes/_authenticated/admin.clients.$id'
 import { Route as AuthenticatedAdminApplicationsIdRouteImport } from './routes/_authenticated/admin.applications.$id'
+import { Route as ApiPublicAiTablesTableRouteImport } from './routes/api/public/ai/tables.$table'
+import { Route as ApiPublicAiExportFullRouteImport } from './routes/api/public/ai/export.full'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -223,6 +227,16 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   path: '/lovable/email/auth/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAiSchemaRoute = ApiPublicAiSchemaRouteImport.update({
+  id: '/api/public/ai/schema',
+  path: '/api/public/ai/schema',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAiQueryRoute = ApiPublicAiQueryRouteImport.update({
+  id: '/api/public/ai/query',
+  path: '/api/public/ai/query',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAppInstallmentsIdRoute =
   AuthenticatedAppInstallmentsIdRouteImport.update({
     id: '/installments/$id',
@@ -265,6 +279,16 @@ const AuthenticatedAdminApplicationsIdRoute =
     path: '/applications/$id',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const ApiPublicAiTablesTableRoute = ApiPublicAiTablesTableRouteImport.update({
+  id: '/api/public/ai/tables/$table',
+  path: '/api/public/ai/tables/$table',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAiExportFullRoute = ApiPublicAiExportFullRouteImport.update({
+  id: '/api/public/ai/export/full',
+  path: '/api/public/ai/export/full',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -295,6 +319,8 @@ export interface FileRoutesByFullPath {
   '/admin/investors/$id': typeof AuthenticatedAdminInvestorsIdRoute
   '/admin/investors/new': typeof AuthenticatedAdminInvestorsNewRoute
   '/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
+  '/api/public/ai/query': typeof ApiPublicAiQueryRoute
+  '/api/public/ai/schema': typeof ApiPublicAiSchemaRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -305,6 +331,8 @@ export interface FileRoutesByFullPath {
   '/admin/contracts/': typeof AuthenticatedAdminContractsIndexRoute
   '/admin/investors/': typeof AuthenticatedAdminInvestorsIndexRoute
   '/app/installments/': typeof AuthenticatedAppInstallmentsIndexRoute
+  '/api/public/ai/export/full': typeof ApiPublicAiExportFullRoute
+  '/api/public/ai/tables/$table': typeof ApiPublicAiTablesTableRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -332,6 +360,8 @@ export interface FileRoutesByTo {
   '/admin/investors/$id': typeof AuthenticatedAdminInvestorsIdRoute
   '/admin/investors/new': typeof AuthenticatedAdminInvestorsNewRoute
   '/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
+  '/api/public/ai/query': typeof ApiPublicAiQueryRoute
+  '/api/public/ai/schema': typeof ApiPublicAiSchemaRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -342,6 +372,8 @@ export interface FileRoutesByTo {
   '/admin/contracts': typeof AuthenticatedAdminContractsIndexRoute
   '/admin/investors': typeof AuthenticatedAdminInvestorsIndexRoute
   '/app/installments': typeof AuthenticatedAppInstallmentsIndexRoute
+  '/api/public/ai/export/full': typeof ApiPublicAiExportFullRoute
+  '/api/public/ai/tables/$table': typeof ApiPublicAiTablesTableRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -374,6 +406,8 @@ export interface FileRoutesById {
   '/_authenticated/admin/investors/$id': typeof AuthenticatedAdminInvestorsIdRoute
   '/_authenticated/admin/investors/new': typeof AuthenticatedAdminInvestorsNewRoute
   '/_authenticated/app/installments/$id': typeof AuthenticatedAppInstallmentsIdRoute
+  '/api/public/ai/query': typeof ApiPublicAiQueryRoute
+  '/api/public/ai/schema': typeof ApiPublicAiSchemaRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -384,6 +418,8 @@ export interface FileRoutesById {
   '/_authenticated/admin/contracts/': typeof AuthenticatedAdminContractsIndexRoute
   '/_authenticated/admin/investors/': typeof AuthenticatedAdminInvestorsIndexRoute
   '/_authenticated/app/installments/': typeof AuthenticatedAppInstallmentsIndexRoute
+  '/api/public/ai/export/full': typeof ApiPublicAiExportFullRoute
+  '/api/public/ai/tables/$table': typeof ApiPublicAiTablesTableRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -416,6 +452,8 @@ export interface FileRouteTypes {
     | '/admin/investors/$id'
     | '/admin/investors/new'
     | '/app/installments/$id'
+    | '/api/public/ai/query'
+    | '/api/public/ai/schema'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -426,6 +464,8 @@ export interface FileRouteTypes {
     | '/admin/contracts/'
     | '/admin/investors/'
     | '/app/installments/'
+    | '/api/public/ai/export/full'
+    | '/api/public/ai/tables/$table'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -453,6 +493,8 @@ export interface FileRouteTypes {
     | '/admin/investors/$id'
     | '/admin/investors/new'
     | '/app/installments/$id'
+    | '/api/public/ai/query'
+    | '/api/public/ai/schema'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -463,6 +505,8 @@ export interface FileRouteTypes {
     | '/admin/contracts'
     | '/admin/investors'
     | '/app/installments'
+    | '/api/public/ai/export/full'
+    | '/api/public/ai/tables/$table'
   id:
     | '__root__'
     | '/'
@@ -494,6 +538,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/investors/$id'
     | '/_authenticated/admin/investors/new'
     | '/_authenticated/app/installments/$id'
+    | '/api/public/ai/query'
+    | '/api/public/ai/schema'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -504,6 +550,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/contracts/'
     | '/_authenticated/admin/investors/'
     | '/_authenticated/app/installments/'
+    | '/api/public/ai/export/full'
+    | '/api/public/ai/tables/$table'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -514,11 +562,15 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
+  ApiPublicAiQueryRoute: typeof ApiPublicAiQueryRoute
+  ApiPublicAiSchemaRoute: typeof ApiPublicAiSchemaRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
   LovableEmailTransactionalSendRoute: typeof LovableEmailTransactionalSendRoute
+  ApiPublicAiExportFullRoute: typeof ApiPublicAiExportFullRoute
+  ApiPublicAiTablesTableRoute: typeof ApiPublicAiTablesTableRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -747,6 +799,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/ai/schema': {
+      id: '/api/public/ai/schema'
+      path: '/api/public/ai/schema'
+      fullPath: '/api/public/ai/schema'
+      preLoaderRoute: typeof ApiPublicAiSchemaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/ai/query': {
+      id: '/api/public/ai/query'
+      path: '/api/public/ai/query'
+      fullPath: '/api/public/ai/query'
+      preLoaderRoute: typeof ApiPublicAiQueryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/app/installments/$id': {
       id: '/_authenticated/app/installments/$id'
       path: '/installments/$id'
@@ -795,6 +861,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/applications/$id'
       preLoaderRoute: typeof AuthenticatedAdminApplicationsIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/api/public/ai/tables/$table': {
+      id: '/api/public/ai/tables/$table'
+      path: '/api/public/ai/tables/$table'
+      fullPath: '/api/public/ai/tables/$table'
+      preLoaderRoute: typeof ApiPublicAiTablesTableRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/ai/export/full': {
+      id: '/api/public/ai/export/full'
+      path: '/api/public/ai/export/full'
+      fullPath: '/api/public/ai/export/full'
+      preLoaderRoute: typeof ApiPublicAiExportFullRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -904,11 +984,15 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
+  ApiPublicAiQueryRoute: ApiPublicAiQueryRoute,
+  ApiPublicAiSchemaRoute: ApiPublicAiSchemaRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
   LovableEmailTransactionalSendRoute: LovableEmailTransactionalSendRoute,
+  ApiPublicAiExportFullRoute: ApiPublicAiExportFullRoute,
+  ApiPublicAiTablesTableRoute: ApiPublicAiTablesTableRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
