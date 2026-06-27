@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { createInvestor, listClientsForInvestor } from "@/lib/investors.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -180,7 +181,7 @@ function NewInvestor() {
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Телефон</Label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 ..." />
+            <PhoneInput value={phone} onChange={setPhone} />
           </div>
           <div className="space-y-2">
             <Label>Email</Label>
