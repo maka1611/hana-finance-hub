@@ -473,3 +473,82 @@ function StatusBadge({ status }: { status: string }) {
   if (status === "rejected") return <Badge variant="destructive">отклонена</Badge>;
   return <Badge variant="secondary">на рассмотрении</Badge>;
 }
+
+function AllocationPolicyBlock() {
+  const qc = useQueryClient();
+  const getFn = useServerFn(getInvestorAllocationPolicy);
+  const setFn = useServerFn(setInvestorAllocationPolicy);
+  const { data } = useQuery({
+    queryKey: ["investor-allocation-policy"],
+    queryFn: () => getFn(),
+  });
+  const mut = useMutation({
+    mutationFn: (policy: "manual" | "suggest" | "enforce") =>
+      setFn({ data: { policy } }),
+    onSuccess: () => {
+      toast.success("Политика обновлена");
+      qc.invalidateQueries({ queryKey: ["investor-allocation-policy"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
+  });
+  const current = data?.policy ?? "suggest";
+  const options: Array<{
+    value: "manual" | "suggest" | "enforce";
+    title: string;
+    desc: string;
+  }> = [
+    {
+      value: "manual",
+      title: "Ручной выбор",
+      desc: "Менеджер выбирает инвестора сам, без подсказок.",
+    },
+    {
+      value: "suggest",
+      title: "Подсказка (рекомендуется)",
+      desc: "Подсвечивается наиболее свободный инвестор, можно изменить.",
+    },
+    {
+      value: "enforce",
+      title: "Обязательный автоподбор",
+      desc: "Автоматически выбирается самый свободный, менеджер не меняет.",
+    },
+  ];
+  return (
+    <div className="rounded-2xl bg-card ring-1 ring-border p-5 space-y-3">
+      <div>
+        <h2 className="text-sm font-bold flex items-center gap-2">
+          <Settings2 className="size-4" /> Распределение средств инвесторов
+        </h2>
+        <p className="text-xs text-muted-foreground mt-1">
+          Чтобы средства разных инвесторов не простаивали, можно включить
+          автоподбор по принципу «у кого больше свободно — тому новая рассрочка».
+        </p>
+      </div>
+      <div className="grid sm:grid-cols-3 gap-2">
+        {options.map((opt) => {
+          const active = current === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              disabled={mut.isPending}
+              onClick={() => mut.mutate(opt.value)}
+              className={`text-left rounded-xl p-3 ring-1 transition-colors ${
+                active
+                  ? "bg-primary text-primary-foreground ring-primary"
+                  : "bg-background ring-border hover:bg-muted"
+              }`}
+            >
+              <div className="font-bold text-sm">{opt.title}</div>
+              <div
+                className={`text-[11px] mt-1 ${active ? "opacity-80" : "text-muted-foreground"}`}
+              >
+                {opt.desc}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
