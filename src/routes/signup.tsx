@@ -21,6 +21,7 @@ function SignupPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -56,6 +57,25 @@ function SignupPage() {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  const handleApple = async () => {
+    setAppleLoading(true);
+    try {
+      const r = await lovable.auth.signInWithOAuth("apple", {
+        redirect_uri: `${window.location.origin}/app`,
+      });
+      if (r.redirected) return;
+      if (r.error) {
+        toast.error(String((r.error as Error)?.message ?? r.error));
+        return;
+      }
+      window.location.assign("/app");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAppleLoading(false);
     }
   };
 
@@ -106,6 +126,15 @@ function SignupPage() {
           disabled={googleLoading}
         >
           {googleLoading ? "Открываем Google..." : "Продолжить через Google"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full mt-2"
+          onClick={handleApple}
+          disabled={appleLoading}
+        >
+          {appleLoading ? "Открываем Apple..." : "Продолжить через Apple"}
         </Button>
         <p className="text-sm text-center text-muted-foreground mt-6">
           Уже есть аккаунт?{" "}
