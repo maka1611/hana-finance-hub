@@ -14,7 +14,7 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Users, FileText, BarChart3, ArrowLeft, Wallet, ShieldCheck, Inbox, FilePlus2, History, Briefcase, Percent, Coins } from "lucide-react";
+import { LayoutDashboard, Users, FileText, BarChart3, ArrowLeft, Wallet, ShieldCheck, Inbox, FilePlus2, History, Briefcase, Percent, Coins, Bot } from "lucide-react";
 
 const items = [
   { title: "Обзор", url: "/admin", icon: LayoutDashboard, exact: true },
@@ -86,6 +86,16 @@ export function AdminSidebar() {
                     <Link to="/admin/company-funds" className="flex items-center gap-2">
                       <Coins className="h-4 w-4" />
                       {!collapsed && <span>Средства компании</span>}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {isOwner && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/admin/ai-api", false)}>
+                    <Link to="/admin/ai-api" className="flex items-center gap-2">
+                      <Bot className="h-4 w-4" />
+                      {!collapsed && <span>API для ИИ</span>}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
