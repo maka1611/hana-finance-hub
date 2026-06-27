@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { AuthTopBar } from "@/components/AuthTopBar";
@@ -99,7 +100,7 @@ function SignupPage() {
           </div>
           <div className="space-y-2">
             <Label>Телефон</Label>
-            <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <PhoneInput value={phone} onChange={setPhone} />
           </div>
           <div className="space-y-2">
             <Label>Пароль</Label>
