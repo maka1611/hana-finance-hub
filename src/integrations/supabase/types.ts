@@ -59,6 +59,7 @@ export type Database = {
           id: boolean
           investments_enabled: boolean
           investments_min_amount: number
+          investor_allocation_policy: string
           investor_cabinet_public: boolean
           updated_at: string
         }
@@ -67,6 +68,7 @@ export type Database = {
           id?: boolean
           investments_enabled?: boolean
           investments_min_amount?: number
+          investor_allocation_policy?: string
           investor_cabinet_public?: boolean
           updated_at?: string
         }
@@ -75,6 +77,7 @@ export type Database = {
           id?: boolean
           investments_enabled?: boolean
           investments_min_amount?: number
+          investor_allocation_policy?: string
           investor_cabinet_public?: boolean
           updated_at?: string
         }

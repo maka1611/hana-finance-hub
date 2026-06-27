@@ -2,7 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { listInvestors, getInvestorsAggregate } from "@/lib/investors.functions";
+import {
+  listInvestors,
+  getInvestorsAggregate,
+  getInvestorAllocationPolicy,
+  setInvestorAllocationPolicy,
+} from "@/lib/investors.functions";
 import {
   adminGetInvestmentSettings,
   adminListInvestorApplications,
@@ -87,6 +92,7 @@ function InvestorsList() {
       </div>
 
       <InvestmentIntakeBlock />
+      <AllocationPolicyBlock />
 
       {data.length > 0 && (
         <div className="rounded-2xl bg-card ring-1 ring-border p-5">
@@ -152,7 +158,17 @@ function InvestorsList() {
         </div>
       ) : (
         <div className="bg-card rounded-2xl ring-1 ring-border divide-y divide-border overflow-hidden">
-          {data.map((inv) => (
+          {[...data]
+            .sort((a, b) => (b.idleDays ?? 9999) - (a.idleDays ?? 9999))
+            .map((inv) => {
+              const loadPct = Math.round((inv.loadRatio ?? 0) * 100);
+              const loadColor =
+                loadPct < 70
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : loadPct < 90
+                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                    : "bg-rose-500/10 text-rose-700 dark:text-rose-300";
+              return (
             <div key={inv.id} className="p-4 sm:p-5 flex items-start gap-3">
               <Checkbox
                 checked={selected.has(inv.id)}
@@ -170,6 +186,16 @@ function InvestorsList() {
                     {!inv.is_active && (
                       <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                         архив
+                      </span>
+                    )}
+                    <span
+                      className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded ${loadColor}`}
+                    >
+                      загрузка {loadPct}%
+                    </span>
+                    {inv.idleDays !== null && inv.idleDays !== undefined && (
+                      <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                        {inv.idleDays} дн без новых
                       </span>
                     )}
                     {inv.overdueCount > 0 && (
@@ -191,7 +217,8 @@ function InvestorsList() {
                 </div>
               </Link>
             </div>
-          ))}
+              );
+            })}
         </div>
       )}
     </div>
@@ -444,4 +471,83 @@ function StatusBadge({ status }: { status: string }) {
   if (status === "approved") return <Badge className="bg-emerald-600">одобрена</Badge>;
   if (status === "rejected") return <Badge variant="destructive">отклонена</Badge>;
   return <Badge variant="secondary">на рассмотрении</Badge>;
+}
+
+function AllocationPolicyBlock() {
+  const qc = useQueryClient();
+  const getFn = useServerFn(getInvestorAllocationPolicy);
+  const setFn = useServerFn(setInvestorAllocationPolicy);
+  const { data } = useQuery({
+    queryKey: ["investor-allocation-policy"],
+    queryFn: () => getFn(),
+  });
+  const mut = useMutation({
+    mutationFn: (policy: "manual" | "suggest" | "enforce") =>
+      setFn({ data: { policy } }),
+    onSuccess: () => {
+      toast.success("Политика обновлена");
+      qc.invalidateQueries({ queryKey: ["investor-allocation-policy"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Ошибка"),
+  });
+  const current = data?.policy ?? "suggest";
+  const options: Array<{
+    value: "manual" | "suggest" | "enforce";
+    title: string;
+    desc: string;
+  }> = [
+    {
+      value: "manual",
+      title: "Ручной выбор",
+      desc: "Менеджер выбирает инвестора сам, без подсказок.",
+    },
+    {
+      value: "suggest",
+      title: "Подсказка (рекомендуется)",
+      desc: "Подсвечивается наиболее свободный инвестор, можно изменить.",
+    },
+    {
+      value: "enforce",
+      title: "Обязательный автоподбор",
+      desc: "Автоматически выбирается самый свободный, менеджер не меняет.",
+    },
+  ];
+  return (
+    <div className="rounded-2xl bg-card ring-1 ring-border p-5 space-y-3">
+      <div>
+        <h2 className="text-sm font-bold flex items-center gap-2">
+          <Settings2 className="size-4" /> Распределение средств инвесторов
+        </h2>
+        <p className="text-xs text-muted-foreground mt-1">
+          Чтобы средства разных инвесторов не простаивали, можно включить
+          автоподбор по принципу «у кого больше свободно — тому новая рассрочка».
+        </p>
+      </div>
+      <div className="grid sm:grid-cols-3 gap-2">
+        {options.map((opt) => {
+          const active = current === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              disabled={mut.isPending}
+              onClick={() => mut.mutate(opt.value)}
+              className={`text-left rounded-xl p-3 ring-1 transition-colors ${
+                active
+                  ? "bg-primary text-primary-foreground ring-primary"
+                  : "bg-background ring-border hover:bg-muted"
+              }`}
+            >
+              <div className="font-bold text-sm">{opt.title}</div>
+              <div
+                className={`text-[11px] mt-1 ${active ? "opacity-80" : "text-muted-foreground"}`}
+              >
+                {opt.desc}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

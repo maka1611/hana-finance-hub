@@ -89,6 +89,16 @@ function summarizeInvestor(
   const overdueAmount = overdueSchedules.reduce((s, x) => s + Number(x.amount), 0);
   const free =
     invested - placed + returnedPrincipal + (capitalizeProfit ? receivedProfit : 0);
+  let lastContractAt: string | null = null;
+  for (const c of contracts) {
+    if (!lastContractAt || c.created_at > lastContractAt) lastContractAt = c.created_at;
+  }
+  const idleDays = lastContractAt
+    ? Math.max(
+        0,
+        Math.floor((Date.now() - new Date(lastContractAt).getTime()) / 86400000),
+      )
+    : null;
   return {
     invested,
     placed,
@@ -101,6 +111,10 @@ function summarizeInvestor(
     activeCount: activeContracts.length,
     overdueCount: overdueSchedules.length,
     overdueAmount,
+    loadRatio: invested > 0 ? placed / invested : 0,
+    idleRatio: invested > 0 ? (invested - placed) / invested : 0,
+    idleDays,
+    lastContractAt,
   };
 }
 
@@ -404,17 +418,126 @@ export const listInvestorsLite = createServerFn({ method: "GET" })
       .order("full_name");
     const { data: contracts } = await supabaseAdmin
       .from("installment_contracts")
-      .select("investor_id,principal,status");
+      .select("investor_id,principal,status,created_at");
     const placedMap = new Map<string, number>();
-    for (const c of (contracts ?? []) as Array<{ investor_id: string | null; principal: number | string; status: string }>) {
+    const lastDateMap = new Map<string, string>();
+    for (const c of (contracts ?? []) as Array<{ investor_id: string | null; principal: number | string; status: string; created_at: string }>) {
       if (!c.investor_id || c.status === "closed") continue;
       placedMap.set(c.investor_id, (placedMap.get(c.investor_id) ?? 0) + Number(c.principal));
+      const prev = lastDateMap.get(c.investor_id);
+      if (!prev || c.created_at > prev) lastDateMap.set(c.investor_id, c.created_at);
     }
-    return (investors ?? []).map((inv) => ({
-      ...inv,
-      placed: placedMap.get(inv.id) ?? 0,
-      free: Number(inv.total_capital) - (placedMap.get(inv.id) ?? 0),
-    }));
+    const today = Date.now();
+    return (investors ?? []).map((inv) => {
+      const placed = placedMap.get(inv.id) ?? 0;
+      const total = Number(inv.total_capital);
+      const free = total - placed;
+      const last = lastDateMap.get(inv.id);
+      const idleDays = last
+        ? Math.max(0, Math.floor((today - new Date(last).getTime()) / 86400000))
+        : null;
+      return {
+        ...inv,
+        placed,
+        free,
+        loadRatio: total > 0 ? placed / total : 0,
+        idleRatio: total > 0 ? free / total : 0,
+        idleDays,
+        lastContractAt: last ?? null,
+      };
+    });
+  });
+
+/** Подобрать инвестора с наибольшим простоем под нужную сумму вложения. */
+export const suggestInvestorForContract = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ principal: z.number().min(0) }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { data: investors } = await supabaseAdmin
+      .from("investors")
+      .select("id,full_name,total_capital,profit_share_rate,is_active")
+      .eq("is_active", true);
+    const { data: contracts } = await supabaseAdmin
+      .from("installment_contracts")
+      .select("investor_id,principal,status,created_at");
+    const placedMap = new Map<string, number>();
+    const lastDateMap = new Map<string, string>();
+    for (const c of (contracts ?? []) as Array<{
+      investor_id: string | null;
+      principal: number | string;
+      status: string;
+      created_at: string;
+    }>) {
+      if (!c.investor_id || c.status === "closed") continue;
+      placedMap.set(c.investor_id, (placedMap.get(c.investor_id) ?? 0) + Number(c.principal));
+      const prev = lastDateMap.get(c.investor_id);
+      if (!prev || c.created_at > prev) lastDateMap.set(c.investor_id, c.created_at);
+    }
+    const today = Date.now();
+    const ranked = (investors ?? [])
+      .map((inv) => {
+        const placed = placedMap.get(inv.id) ?? 0;
+        const total = Number(inv.total_capital);
+        const free = total - placed;
+        const last = lastDateMap.get(inv.id);
+        const idleDays = last
+          ? Math.max(0, Math.floor((today - new Date(last).getTime()) / 86400000))
+          : 9999;
+        return {
+          id: inv.id,
+          full_name: inv.full_name,
+          total,
+          placed,
+          free,
+          idleRatio: total > 0 ? free / total : 0,
+          idleDays,
+          fits: free >= data.principal,
+        };
+      })
+      .sort((a, b) => {
+        if (a.fits !== b.fits) return a.fits ? -1 : 1;
+        if (b.idleRatio !== a.idleRatio) return b.idleRatio - a.idleRatio;
+        return b.idleDays - a.idleDays;
+      });
+    const fitting = ranked.filter((r) => r.fits);
+    return {
+      recommended: fitting[0] ?? null,
+      alternatives: fitting.slice(1, 4),
+      noFit: fitting.length === 0 && ranked.length > 0,
+    };
+  });
+
+/** Текущая политика распределения средств инвесторов. */
+export const getInvestorAllocationPolicy = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { data } = await supabaseAdmin
+      .from("app_settings")
+      .select("investor_allocation_policy")
+      .eq("id", true)
+      .maybeSingle();
+    const policy = ((data as { investor_allocation_policy?: string } | null)
+      ?.investor_allocation_policy ?? "suggest") as "manual" | "suggest" | "enforce";
+    return { policy };
+  });
+
+/** Сменить политику распределения средств инвесторов. */
+export const setInvestorAllocationPolicy = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ policy: z.enum(["manual", "suggest", "enforce"]) }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.userId);
+    const { error } = await supabaseAdmin
+      .from("app_settings")
+      .update({ investor_allocation_policy: data.policy } as never)
+      .eq("id", true);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const listClientsForInvestor = createServerFn({ method: "GET" })

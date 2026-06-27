@@ -1,9 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { adminListClients, adminCreateInstallment } from "@/lib/admin.functions";
-import { listInvestorsLite } from "@/lib/investors.functions";
+import {
+  listInvestorsLite,
+  getInvestorAllocationPolicy,
+} from "@/lib/investors.functions";
 import { calcInstallment, formatMoney, MAX_TERM, DEFAULT_MARKUP_RATE } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +38,7 @@ function AdminNewInstallment() {
   const listFn = useServerFn(adminListClients);
   const createFn = useServerFn(adminCreateInstallment);
   const investorsFn = useServerFn(listInvestorsLite);
+  const policyFn = useServerFn(getInvestorAllocationPolicy);
   const { data: clients } = useQuery({
     queryKey: ["admin-clients"],
     queryFn: () => listFn(),
@@ -43,6 +47,11 @@ function AdminNewInstallment() {
     queryKey: ["investors-lite"],
     queryFn: () => investorsFn(),
   });
+  const { data: policyData } = useQuery({
+    queryKey: ["investor-allocation-policy"],
+    queryFn: () => policyFn(),
+  });
+  const policy = policyData?.policy ?? "suggest";
 
   const [mode, setMode] = useState<Mode>("existing");
   const [open, setOpen] = useState(false);
@@ -130,6 +139,18 @@ function AdminNewInstallment() {
     () => calcInstallment({ productPrice, downPayment, termMonths, markupRate: markupPct / 100 }),
     [productPrice, downPayment, termMonths, markupPct],
   );
+
+  // Auto-pick the least loaded investor under "enforce" policy.
+  useEffect(() => {
+    if (policy !== "enforce") return;
+    const list = investors ?? [];
+    if (list.length === 0) return;
+    const fitting = list
+      .filter((i) => i.free >= calc.principal)
+      .sort((a, b) => b.idleRatio - a.idleRatio);
+    const next = fitting[0]?.id ?? null;
+    if (next && next !== investorId) setInvestorId(next);
+  }, [policy, investors, calc.principal, investorId]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -635,18 +656,99 @@ function AdminNewInstallment() {
             </p>
           ) : (
             <>
+              {(() => {
+                const list = investors ?? [];
+                const fitting = list
+                  .filter((i) => i.free >= calc.principal)
+                  .sort((a, b) => {
+                    if (b.idleRatio !== a.idleRatio) return b.idleRatio - a.idleRatio;
+                    const ad = a.idleDays ?? 9999;
+                    const bd = b.idleDays ?? 9999;
+                    return bd - ad;
+                  });
+                const recommended = fitting[0] ?? null;
+                const selected = list.find((i) => i.id === investorId) ?? null;
+                const avgIdle =
+                  list.length > 0
+                    ? list.reduce((s, i) => s + i.idleRatio, 0) / list.length
+                    : 0;
+                const showWarn =
+                  policy !== "manual" &&
+                  recommended &&
+                  selected &&
+                  selected.id !== recommended.id &&
+                  selected.idleRatio + 0.2 < avgIdle;
+                return (
+                  <div className="space-y-2">
+                    {recommended && (
+                      <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl bg-primary/10 ring-1 ring-primary/30 px-3 py-2 text-xs">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mr-2">
+                            Рекомендуется
+                          </span>
+                          <span className="font-bold">{recommended.full_name}</span>
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · свободно {formatMoney(recommended.free)} ·
+                            простой {Math.round(recommended.idleRatio * 100)}%
+                            {recommended.idleDays !== null
+                              ? ` · ${recommended.idleDays} дн без новых`
+                              : " · ещё не использовался"}
+                          </span>
+                        </div>
+                        {investorId !== recommended.id && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setInvestorId(recommended.id)}
+                          >
+                            Подобрать автоматически
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    {policy !== "manual" && !recommended && (
+                      <div className="rounded-xl bg-amber-500/10 ring-1 ring-amber-500/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+                        Ни у одного инвестора нет достаточно свободных средств на сумму{" "}
+                        {formatMoney(calc.principal)}. Можно оформить из собственных
+                        средств или увеличить капитал инвестора.
+                      </div>
+                    )}
+                    {showWarn && (
+                      <div className="rounded-xl bg-amber-500/10 ring-1 ring-amber-500/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+                        У выбранного инвестора загрузка значительно выше средней. Чтобы
+                        средства распределялись равномерно, рекомендуется
+                        «{recommended!.full_name}» (свободно{" "}
+                        {Math.round(recommended!.idleRatio * 100)}%).
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <select
                 value={investorId ?? ""}
                 onChange={(e) => setInvestorId(e.target.value || null)}
                 className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                disabled={policy === "enforce" && Boolean(investorId)}
               >
                 <option value="">— Без инвестора (собственные средства) —</option>
                 {(investors ?? []).map((inv) => (
                   <option key={inv.id} value={inv.id}>
-                    {inv.full_name} · свободно {formatMoney(inv.free)} · доля {(Number(inv.profit_share_rate) * 100).toFixed(0)}%
+                    {inv.full_name} · свободно {formatMoney(inv.free)} · загрузка{" "}
+                    {Math.round(inv.loadRatio * 100)}%
+                    {inv.idleDays !== null ? ` · ${inv.idleDays} дн без новых` : ""}
+                    {" · доля "}
+                    {(Number(inv.profit_share_rate) * 100).toFixed(0)}%
                   </option>
                 ))}
               </select>
+              {policy === "enforce" && (
+                <p className="text-[11px] text-muted-foreground">
+                  Действует политика «обязательный автоподбор» — выбран наиболее
+                  свободный инвестор. Изменить может только владелец.
+                </p>
+              )}
               {investorId && (() => {
                 const inv = (investors ?? []).find((x) => x.id === investorId);
                 if (!inv) return null;
