@@ -31,6 +31,7 @@ import { Route as AuthenticatedAdminCompanyFundsRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminClientsRouteImport } from './routes/_authenticated/admin.clients'
 import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin.audit'
 import { Route as AuthenticatedAdminAnalyticsRouteImport } from './routes/_authenticated/admin.analytics'
+import { Route as AuthenticatedAdminAiApiRouteImport } from './routes/_authenticated/admin.ai-api'
 import { Route as AuthenticatedAppInstallmentsIndexRouteImport } from './routes/_authenticated/app.installments.index'
 import { Route as AuthenticatedAdminInvestorsIndexRouteImport } from './routes/_authenticated/admin.investors.index'
 import { Route as AuthenticatedAdminContractsIndexRouteImport } from './routes/_authenticated/admin.contracts.index'
@@ -169,6 +170,11 @@ const AuthenticatedAdminAnalyticsRoute =
     path: '/analytics',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminAiApiRoute = AuthenticatedAdminAiApiRouteImport.update({
+  id: '/ai-api',
+  path: '/ai-api',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 const AuthenticatedAppInstallmentsIndexRoute =
   AuthenticatedAppInstallmentsIndexRouteImport.update({
     id: '/installments/',
@@ -298,6 +304,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/admin/ai-api': typeof AuthenticatedAdminAiApiRoute
   '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
@@ -340,6 +347,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/admin/ai-api': typeof AuthenticatedAdminAiApiRoute
   '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/company-funds': typeof AuthenticatedAdminCompanyFundsRoute
@@ -385,6 +393,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/_authenticated/admin/ai-api': typeof AuthenticatedAdminAiApiRoute
   '/_authenticated/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/_authenticated/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
@@ -431,6 +440,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/email/unsubscribe'
+    | '/admin/ai-api'
     | '/admin/analytics'
     | '/admin/audit'
     | '/admin/clients'
@@ -473,6 +483,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/email/unsubscribe'
+    | '/admin/ai-api'
     | '/admin/analytics'
     | '/admin/audit'
     | '/admin/company-funds'
@@ -517,6 +528,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/app'
     | '/email/unsubscribe'
+    | '/_authenticated/admin/ai-api'
     | '/_authenticated/admin/analytics'
     | '/_authenticated/admin/audit'
     | '/_authenticated/admin/clients'
@@ -729,6 +741,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAnalyticsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/ai-api': {
+      id: '/_authenticated/admin/ai-api'
+      path: '/ai-api'
+      fullPath: '/admin/ai-api'
+      preLoaderRoute: typeof AuthenticatedAdminAiApiRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/app/installments/': {
       id: '/_authenticated/app/installments/'
       path: '/installments'
@@ -896,6 +915,7 @@ const AuthenticatedAdminClientsRouteWithChildren =
   )
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminAiApiRoute: typeof AuthenticatedAdminAiApiRoute
   AuthenticatedAdminAnalyticsRoute: typeof AuthenticatedAdminAnalyticsRoute
   AuthenticatedAdminAuditRoute: typeof AuthenticatedAdminAuditRoute
   AuthenticatedAdminClientsRoute: typeof AuthenticatedAdminClientsRouteWithChildren
@@ -915,6 +935,7 @@ interface AuthenticatedAdminRouteChildren {
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminAiApiRoute: AuthenticatedAdminAiApiRoute,
   AuthenticatedAdminAnalyticsRoute: AuthenticatedAdminAnalyticsRoute,
   AuthenticatedAdminAuditRoute: AuthenticatedAdminAuditRoute,
   AuthenticatedAdminClientsRoute: AuthenticatedAdminClientsRouteWithChildren,
