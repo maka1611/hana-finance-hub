@@ -44,8 +44,6 @@ function InvestorsList() {
   if (isLoading || !data)
     return <p className="text-sm text-muted-foreground">Загрузка...</p>;
 
-  const today = Date.now();
-
   const totals = data.reduce(
     (acc, inv) => {
       acc.invested += inv.invested;
