@@ -53,6 +53,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_api_access_log: {
+        Row: {
+          created_at: string
+          endpoint: string
+          error: string | null
+          id: string
+          ip: string | null
+          meta: Json | null
+          method: string
+          rows_returned: number | null
+          status: number
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          error?: string | null
+          id?: string
+          ip?: string | null
+          meta?: Json | null
+          method: string
+          rows_returned?: number | null
+          status: number
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          error?: string | null
+          id?: string
+          ip?: string | null
+          meta?: Json | null
+          method?: string
+          rows_returned?: number | null
+          status?: number
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           company_funds_min_reserve: number
