@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   getCompanyFundsSummary,
@@ -828,7 +828,7 @@ function SettingsTab() {
   const [val, setVal] = useState("");
   const [busy, setBusy] = useState(false);
 
-  useMemo(() => {
+  useEffect(() => {
     if (data && !val) setVal(String(data.reserve));
   }, [data, val]);
 
