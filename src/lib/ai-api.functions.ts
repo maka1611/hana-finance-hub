@@ -60,5 +60,5 @@ export const aiApiOwnerExport = createServerFn({ method: "POST" })
     }
     const { exportFullJson } = await import("@/lib/ai-api/exporter.server");
     const json = await exportFullJson(data.includeSecrets === true);
-    return { format: "json" as const, json };
+    return { format: "json" as const, jsonString: JSON.stringify(json), totalRows: json.total_rows };
   });
