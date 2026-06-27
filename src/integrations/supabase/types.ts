@@ -55,6 +55,7 @@ export type Database = {
       }
       app_settings: {
         Row: {
+          company_funds_min_reserve: number
           default_markup_rate: number
           id: boolean
           investments_enabled: boolean
@@ -64,6 +65,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_funds_min_reserve?: number
           default_markup_rate?: number
           id?: boolean
           investments_enabled?: boolean
@@ -73,6 +75,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_funds_min_reserve?: number
           default_markup_rate?: number
           id?: boolean
           investments_enabled?: boolean
@@ -131,6 +134,72 @@ export type Database = {
           initial_password?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      company_expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          expense_date: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      company_funds_operations: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          op_type: Database["public"]["Enums"]["company_funds_op_type"]
+          operation_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          op_type: Database["public"]["Enums"]["company_funds_op_type"]
+          operation_date?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          op_type?: Database["public"]["Enums"]["company_funds_op_type"]
+          operation_date?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -988,6 +1057,7 @@ export type Database = {
     Enums: {
       app_role: "client" | "manager" | "admin" | "owner"
       application_status: "pending" | "approved" | "rejected"
+      company_funds_op_type: "deposit" | "withdraw" | "adjustment"
       contract_status: "pending" | "active" | "closed" | "overdue"
       payment_status:
         | "pending"
@@ -1126,6 +1196,7 @@ export const Constants = {
     Enums: {
       app_role: ["client", "manager", "admin", "owner"],
       application_status: ["pending", "approved", "rejected"],
+      company_funds_op_type: ["deposit", "withdraw", "adjustment"],
       contract_status: ["pending", "active", "closed", "overdue"],
       payment_status: [
         "pending",
