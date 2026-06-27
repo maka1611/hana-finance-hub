@@ -140,6 +140,18 @@ function AdminNewInstallment() {
     [productPrice, downPayment, termMonths, markupPct],
   );
 
+  // Auto-pick the least loaded investor under "enforce" policy.
+  useEffect(() => {
+    if (policy !== "enforce") return;
+    const list = investors ?? [];
+    if (list.length === 0) return;
+    const fitting = list
+      .filter((i) => i.free >= calc.principal)
+      .sort((a, b) => b.idleRatio - a.idleRatio);
+    const next = fitting[0]?.id ?? null;
+    if (next && next !== investorId) setInvestorId(next);
+  }, [policy, investors, calc.principal, investorId]);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!productName.trim()) return toast.error("Укажите название товара");
