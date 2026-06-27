@@ -3,7 +3,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type FormEvent } from "react";
 import { adminListClients, adminCreateInstallment } from "@/lib/admin.functions";
-import { listInvestorsLite } from "@/lib/investors.functions";
+import {
+  listInvestorsLite,
+  suggestInvestorForContract,
+  getInvestorAllocationPolicy,
+} from "@/lib/investors.functions";
 import { calcInstallment, formatMoney, MAX_TERM, DEFAULT_MARKUP_RATE } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +39,8 @@ function AdminNewInstallment() {
   const listFn = useServerFn(adminListClients);
   const createFn = useServerFn(adminCreateInstallment);
   const investorsFn = useServerFn(listInvestorsLite);
+  const suggestFn = useServerFn(suggestInvestorForContract);
+  const policyFn = useServerFn(getInvestorAllocationPolicy);
   const { data: clients } = useQuery({
     queryKey: ["admin-clients"],
     queryFn: () => listFn(),
@@ -43,6 +49,11 @@ function AdminNewInstallment() {
     queryKey: ["investors-lite"],
     queryFn: () => investorsFn(),
   });
+  const { data: policyData } = useQuery({
+    queryKey: ["investor-allocation-policy"],
+    queryFn: () => policyFn(),
+  });
+  const policy = policyData?.policy ?? "suggest";
 
   const [mode, setMode] = useState<Mode>("existing");
   const [open, setOpen] = useState(false);
