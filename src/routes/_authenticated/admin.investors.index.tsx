@@ -2,8 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { listInvestors, getInvestorsAggregate } from "@/lib/investors.functions";
 import {
+  listInvestors,
+  getInvestorsAggregate,
   getInvestorAllocationPolicy,
   setInvestorAllocationPolicy,
 } from "@/lib/investors.functions";
