@@ -84,16 +84,17 @@ export async function exportFullZip(includeSecrets: boolean): Promise<{ blob: Ar
 
 export async function fetchSchema() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.rpc("pg_catalog_tables" as never).select?.() ?? { data: null, error: null };
-  // Fallback: hardcoded whitelist with column probe per table
   const tables = resolveTableList(false);
-  if (error || !data) {
-    const schema: Record<string, string[]> = {};
-    for (const t of tables) {
-      const { data: row } = await supabaseAdmin.from(t as never).select("*").limit(1);
-      schema[t] = row && row.length > 0 ? Object.keys(row[0] as Record<string, unknown>) : [];
-    }
-    return { tables: schema };
+  const schema: Record<string, { columns: string[]; row_count: number | null }> = {};
+  for (const t of tables) {
+    const { data: row } = await supabaseAdmin.from(t as never).select("*").limit(1);
+    const { count } = await supabaseAdmin
+      .from(t as never)
+      .select("*", { count: "exact", head: true });
+    schema[t] = {
+      columns: row && row.length > 0 ? Object.keys(row[0] as Record<string, unknown>) : [],
+      row_count: count ?? null,
+    };
   }
-  return { tables: data };
+  return { generated_at: new Date().toISOString(), tables: schema };
 }
