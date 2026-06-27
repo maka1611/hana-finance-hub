@@ -105,7 +105,7 @@ export async function logAiApiAccess(params: {
       status: params.status,
       rows_returned: params.rowsReturned ?? null,
       error: params.error ?? null,
-      meta: params.meta ?? null,
+      meta: (params.meta ?? null) as never,
     });
   } catch {
     // never block API response on logging failure
