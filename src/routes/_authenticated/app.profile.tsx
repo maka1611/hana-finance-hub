@@ -214,6 +214,8 @@ function ProfilePage() {
       </div>
 
       {/* Статистика по платежам */}
+      <AddressFields value={address} onChange={setAddress} title="Адрес проживания" />
+
       <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         <StatBox
           icon={<CheckCircle2 className="size-4 text-emerald-600" />}
