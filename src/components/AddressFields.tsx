@@ -184,6 +184,11 @@ export function AddressFields({
             ))}
           </ul>
         )}
+        {open && !loading && suggestions.length === 0 && query.trim().length >= 3 && (
+          <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-border bg-popover shadow-lg px-3 py-2 text-xs text-muted-foreground">
+            Адрес не найден в Махачкале. Заполните поля вручную ниже.
+          </div>
+        )}
         <p className="text-[11px] text-muted-foreground">
           Подсказки ограничены Махачкалой. Если адреса нет — заполните поля вручную ниже.
         </p>
