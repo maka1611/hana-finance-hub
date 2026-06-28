@@ -83,14 +83,17 @@ export function AddressFields({
         const url = new URL("https://nominatim.openstreetmap.org/search");
         url.searchParams.set("format", "json");
         url.searchParams.set("addressdetails", "1");
-        url.searchParams.set("limit", "7");
+        url.searchParams.set("limit", "8");
         url.searchParams.set("accept-language", "ru");
         url.searchParams.set("countrycodes", "ru");
-        url.searchParams.set("city", "Махачкала");
         url.searchParams.set("viewbox", MAKHACHKALA_VIEWBOX);
         url.searchParams.set("bounded", "1");
-        url.searchParams.set("q", `Махачкала ${q}`);
-        const r = await fetch(url.toString(), { signal: ctrl.signal });
+        url.searchParams.set("q", `Махачкала, ${q}`);
+        const r = await fetch(url.toString(), {
+          signal: ctrl.signal,
+          headers: { "Accept": "application/json" },
+        });
+        if (!r.ok) throw new Error(`Nominatim ${r.status}`);
         const json = (await r.json()) as Suggestion[];
         setSuggestions(json);
         setOpen(true);
