@@ -22,6 +22,7 @@ import {
 } from "@/lib/pricing.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/installment";
@@ -294,7 +295,7 @@ function ClientProfilePage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Телефон</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={50} placeholder="+7 ..." />
+              <PhoneInput value={phone} onChange={setPhone} maxLength={50} />
             </div>
           </div>
           <Button onClick={() => save.mutate()} disabled={save.isPending}>
@@ -494,7 +495,7 @@ function ClientProfilePage() {
         )}
         <div className="pt-3 border-t border-border space-y-2">
           <div className="grid md:grid-cols-[1fr_200px] gap-2">
-            <Input placeholder="+7 ..." value={newPhone} onChange={(e) => setNewPhone(e.target.value)} maxLength={50} />
+            <PhoneInput value={newPhone} onChange={setNewPhone} maxLength={50} />
             <Input placeholder="Комментарий" value={newPhoneLabel} onChange={(e) => setNewPhoneLabel(e.target.value)} maxLength={50} />
           </div>
           <div className="flex items-center justify-between gap-3">
