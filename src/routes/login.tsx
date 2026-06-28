@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { AuthTopBar } from "@/components/AuthTopBar";
 import { translateAuthError, type TranslatedAuthError } from "@/lib/auth-errors";
 import { AuthErrorAlert } from "@/components/AuthErrorAlert";
+import { useResendCooldown } from "@/hooks/use-resend-cooldown";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Вход — NoorPay" }] }),
@@ -24,6 +25,7 @@ function LoginPage() {
   const [appleLoading, setAppleLoading] = useState(false);
   const [authError, setAuthError] = useState<TranslatedAuthError | null>(null);
   const [resending, setResending] = useState(false);
+  const cooldown = useResendCooldown(60);
 
   const showError = (err: unknown) => {
     const t = translateAuthError(err);
@@ -36,6 +38,13 @@ function LoginPage() {
       toast.error("Укажите email", { description: "Введите email, на который отправить письмо." });
       return;
     }
+    const left = cooldown.check(email);
+    if (left > 0) {
+      toast.error("Слишком часто", {
+        description: `Подождите ещё ${left} с перед повторной отправкой.`,
+      });
+      return;
+    }
     setResending(true);
     const { error } = await supabase.auth.resend({
       type: "signup",
@@ -44,6 +53,7 @@ function LoginPage() {
     });
     setResending(false);
     if (error) return showError(error);
+    cooldown.start(email);
     toast.success("Письмо отправлено", { description: "Проверьте почту, в том числе папку «Спам»." });
     setAuthError(null);
   };
@@ -109,7 +119,12 @@ function LoginPage() {
         <h1 className="text-3xl font-extrabold mb-2">Вход</h1>
         <p className="text-sm text-muted-foreground mb-6">Войдите в личный кабинет</p>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <AuthErrorAlert error={authError} onResend={handleResend} resending={resending} />
+          <AuthErrorAlert
+            error={authError}
+            onResend={handleResend}
+            resending={resending}
+            resendCooldown={cooldown.remaining}
+          />
           <div className="space-y-2">
             <Label>Email</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />

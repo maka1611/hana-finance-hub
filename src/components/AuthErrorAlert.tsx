@@ -6,10 +6,13 @@ interface Props {
   error: TranslatedAuthError | null;
   onResend?: () => void;
   resending?: boolean;
+  /** Сколько секунд осталось до возможности повторной отправки */
+  resendCooldown?: number;
 }
 
-export function AuthErrorAlert({ error, onResend, resending }: Props) {
+export function AuthErrorAlert({ error, onResend, resending, resendCooldown = 0 }: Props) {
   if (!error) return null;
+  const cooling = resendCooldown > 0;
   return (
     <div
       role="alert"
@@ -25,13 +28,16 @@ export function AuthErrorAlert({ error, onResend, resending }: Props) {
             <Button
               type="button"
               size="sm"
-              variant="outline"
-              className="mt-3 border-destructive/40"
+              className="mt-3 bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-70"
               onClick={onResend}
-              disabled={resending}
+              disabled={resending || cooling}
             >
               <Mail className="h-4 w-4 mr-2" />
-              {resending ? "Отправляем..." : "Отправить письмо повторно"}
+              {resending
+                ? "Отправляем..."
+                : cooling
+                ? `Повторно можно через ${resendCooldown} с`
+                : "Отправить письмо повторно"}
             </Button>
           )}
           {error.raw && error.raw.toLowerCase() !== error.title.toLowerCase() && (
