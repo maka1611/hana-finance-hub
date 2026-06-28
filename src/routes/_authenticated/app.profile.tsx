@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { AddressFields, emptyAddress, type AddressValue } from "@/components/AddressFields";
 
 export const Route = createFileRoute("/_authenticated/app/profile")({
   head: () => ({ meta: [{ title: "Профиль — NoorPay" }] }),
@@ -52,6 +53,7 @@ function ProfilePage() {
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState<AddressValue>(emptyAddress());
   const [newPhone, setNewPhone] = useState("");
   const [newPhoneLabel, setNewPhoneLabel] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -85,11 +87,13 @@ function ProfilePage() {
     if (data?.profile) {
       setFullName(data.profile.full_name ?? "");
       setPhone(data.profile.phone ?? "");
+      const a = (data.profile as { address?: Partial<AddressValue> | null }).address;
+      if (a && typeof a === "object") setAddress({ ...emptyAddress(), ...a });
     }
   }, [data?.profile]);
 
   const saveProfile = useMutation({
-    mutationFn: () => updateFn({ data: { fullName, phone } }),
+    mutationFn: () => updateFn({ data: { fullName, phone, address } }),
     onSuccess: () => {
       toast.success("Профиль обновлён");
       qc.invalidateQueries({ queryKey: ["my-profile-full"] });
