@@ -2042,6 +2042,18 @@ const AdminCreateInstallmentSchema = z.object({
         .min(5)
         .max(50)
         .regex(/^[+\d\s()-]+$/),
+      address: z
+        .object({
+          region: z.string().trim().max(200).optional().nullable(),
+          district: z.string().trim().max(200).optional().nullable(),
+          city: z.string().trim().max(200).optional().nullable(),
+          street: z.string().trim().max(200).optional().nullable(),
+          house: z.string().trim().max(50).optional().nullable(),
+          apartment: z.string().trim().max(50).optional().nullable(),
+          raw: z.string().trim().max(500).optional().nullable(),
+        })
+        .optional()
+        .nullable(),
     }),
   ]),
   productName: z.string().trim().min(1).max(200),
