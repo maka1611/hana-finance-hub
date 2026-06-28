@@ -243,12 +243,12 @@ export const updateMyProfile = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const patch: { full_name?: string | null; phone?: string | null; address?: unknown } = {};
+    const patch: Record<string, unknown> = {};
     if (data.fullName !== undefined) patch.full_name = data.fullName || null;
     if (data.phone !== undefined) patch.phone = data.phone || null;
     if (data.address !== undefined) patch.address = data.address ?? null;
     if (Object.keys(patch).length === 0) return { ok: true };
-    const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
+    const { error } = await supabase.from("profiles").update(patch as never).eq("id", userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
