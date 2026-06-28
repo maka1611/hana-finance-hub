@@ -12,6 +12,7 @@ import { listInvestorsLite } from "@/lib/investors.functions";
 import { calcInstallment, formatMoney, MAX_TERM, formatDate, DEFAULT_MARKUP_RATE } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
@@ -252,7 +253,7 @@ function AdminApplicationDetail() {
           </div>
           <div className="space-y-2">
             <Label>Телефон</Label>
-            <Input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} disabled={!isPending} />
+            <PhoneInput value={clientPhone} onChange={setClientPhone} disabled={!isPending} />
           </div>
         </div>
 
@@ -412,19 +413,17 @@ function AdminApplicationDetail() {
                     {g.phones.map((p, pi) => (
                       <div key={pi} className="bg-card rounded-lg p-3 space-y-2 ring-1 ring-border">
                         <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px] gap-2">
-                          <Input
+                          <PhoneInput
                             value={p.phone}
-                            onChange={(e) =>
+                            onChange={(v) =>
                               setGuarantors((arr) =>
                                 arr.map((x, i) =>
                                   i === gi
-                                    ? { ...x, phones: x.phones.map((y, j) => (j === pi ? { ...y, phone: e.target.value } : y)) }
+                                    ? { ...x, phones: x.phones.map((y, j) => (j === pi ? { ...y, phone: v } : y)) }
                                     : x,
                                 ),
                               )
                             }
-                            placeholder="+7 ..."
-                            inputMode="tel"
                           />
                           <Input
                             value={p.label}

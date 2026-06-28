@@ -10,6 +10,7 @@ import {
 } from "@/lib/applications.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { formatMoney } from "@/lib/installment";
 import { toast } from "sonner";
@@ -162,11 +163,10 @@ function ProfilePage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Основной телефон</Label>
-              <Input
+              <PhoneInput
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={setPhone}
                 maxLength={50}
-                placeholder="+7 ..."
               />
             </div>
           </div>
@@ -261,10 +261,9 @@ function ProfilePage() {
           </ul>
         )}
         <div className="grid min-w-0 md:grid-cols-[minmax(0,1fr)_180px_auto] gap-2 pt-2 border-t border-border">
-          <Input
-            placeholder="+7 ..."
+          <PhoneInput
             value={newPhone}
-            onChange={(e) => setNewPhone(e.target.value)}
+            onChange={setNewPhone}
             maxLength={50}
           />
           <Input

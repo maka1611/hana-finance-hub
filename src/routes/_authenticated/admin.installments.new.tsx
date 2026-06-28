@@ -11,6 +11,7 @@ import { getCompanyFundsLite } from "@/lib/company-funds.functions";
 import { calcInstallment, formatMoney, MAX_TERM, DEFAULT_MARKUP_RATE } from "@/lib/installment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
@@ -377,16 +378,14 @@ function AdminNewInstallment() {
                 {phones.map((row, idx) => (
                   <div key={idx} className="bg-muted/30 rounded-xl p-3 space-y-2 ring-1 ring-border">
                     <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px] gap-2">
-                      <Input
+                      <PhoneInput
                         value={row.phone}
-                        onChange={(e) =>
+                        onChange={(v) =>
                           setPhones((arr) =>
-                            arr.map((p, i) => (i === idx ? { ...p, phone: e.target.value } : p)),
+                            arr.map((p, i) => (i === idx ? { ...p, phone: v } : p)),
                           )
                         }
-                        placeholder={idx === 0 ? "+7 ... (основной)" : "+7 ..."}
                         required={idx === 0}
-                        inputMode="tel"
                       />
                       <Input
                         value={row.label}
@@ -898,24 +897,22 @@ function AdminNewInstallment() {
                 {g.phones.map((p, pi) => (
                   <div key={pi} className="bg-card rounded-lg p-3 space-y-2 ring-1 ring-border">
                     <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px] gap-2">
-                      <Input
+                      <PhoneInput
                         value={p.phone}
-                        onChange={(e) =>
+                        onChange={(v) =>
                           setGuarantors((arr) =>
                             arr.map((x, i) =>
                               i === gi
                                 ? {
                                     ...x,
                                     phones: x.phones.map((y, j) =>
-                                      j === pi ? { ...y, phone: e.target.value } : y,
+                                      j === pi ? { ...y, phone: v } : y,
                                     ),
                                   }
                                 : x,
                             ),
                           )
                         }
-                        placeholder="+7 ..."
-                        inputMode="tel"
                       />
                       <Input
                         value={p.label}
