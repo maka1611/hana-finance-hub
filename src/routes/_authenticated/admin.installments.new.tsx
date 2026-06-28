@@ -430,6 +430,8 @@ function AdminNewInstallment() {
                 </p>
               </div>
 
+              <AddressFields value={address} onChange={setAddress} title="Адрес клиента" />
+
               <div className="rounded-xl ring-1 ring-border bg-muted/20 overflow-hidden">
                 <button
                   type="button"
