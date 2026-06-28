@@ -80,21 +80,32 @@ export function AddressFields({
         const ctrl = new AbortController();
         abortRef.current = ctrl;
         setLoading(true);
-        const url = new URL("https://nominatim.openstreetmap.org/search");
-        url.searchParams.set("format", "json");
-        url.searchParams.set("addressdetails", "1");
-        url.searchParams.set("limit", "8");
-        url.searchParams.set("accept-language", "ru");
-        url.searchParams.set("countrycodes", "ru");
-        url.searchParams.set("viewbox", MAKHACHKALA_VIEWBOX);
-        url.searchParams.set("bounded", "1");
-        url.searchParams.set("q", `Махачкала, ${q}`);
-        const r = await fetch(url.toString(), {
-          signal: ctrl.signal,
-          headers: { "Accept": "application/json" },
-        });
-        if (!r.ok) throw new Error(`Nominatim ${r.status}`);
-        const json = (await r.json()) as Suggestion[];
+        const build = (bounded: boolean) => {
+          const url = new URL("https://nominatim.openstreetmap.org/search");
+          url.searchParams.set("format", "json");
+          url.searchParams.set("addressdetails", "1");
+          url.searchParams.set("limit", "8");
+          url.searchParams.set("accept-language", "ru");
+          url.searchParams.set("countrycodes", "ru");
+          url.searchParams.set("viewbox", MAKHACHKALA_VIEWBOX);
+          if (bounded) url.searchParams.set("bounded", "1");
+          url.searchParams.set("q", `Махачкала, ${q}`);
+          return url.toString();
+        };
+        const doFetch = async (u: string) => {
+          const r = await fetch(u, { signal: ctrl.signal, headers: { Accept: "application/json" } });
+          if (!r.ok) throw new Error(`Nominatim ${r.status}`);
+          return (await r.json()) as Suggestion[];
+        };
+        let json = await doFetch(build(true));
+        if (json.length === 0) {
+          // Фолбэк: снимаем bounded — но фильтруем результаты по Махачкале
+          const wider = await doFetch(build(false));
+          json = wider.filter((s) =>
+            (s.address.city || s.address.town || s.address.village || "").toLowerCase().includes("махачкал") ||
+            s.display_name.toLowerCase().includes("махачкал")
+          );
+        }
         setSuggestions(json);
         setOpen(true);
       } catch (e) {
