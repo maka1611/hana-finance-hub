@@ -34,6 +34,14 @@ export function AuthErrorAlert({ error, onResend, resending }: Props) {
               {resending ? "Отправляем..." : "Отправить письмо повторно"}
             </Button>
           )}
+          {error.raw && error.raw.toLowerCase() !== error.title.toLowerCase() && (
+            <details className="mt-3 text-xs text-muted-foreground">
+              <summary className="cursor-pointer select-none hover:text-foreground">
+                Технические детали
+              </summary>
+              <p className="mt-1 font-mono break-all opacity-80">{error.raw}</p>
+            </details>
+          )}
         </div>
       </div>
     </div>
