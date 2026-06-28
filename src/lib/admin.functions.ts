@@ -2189,7 +2189,8 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
         email: data.client.email,
         full_name: data.client.fullName,
         phone: data.client.phone,
-      });
+        address: data.client.address ?? null,
+      } as never);
       // Сохраняем начальный пароль для доступа админов в профиле клиента
       await supabaseAdmin
         .from("client_secrets")
