@@ -2042,6 +2042,18 @@ const AdminCreateInstallmentSchema = z.object({
         .min(5)
         .max(50)
         .regex(/^[+\d\s()-]+$/),
+      address: z
+        .object({
+          region: z.string().trim().max(200).optional().nullable(),
+          district: z.string().trim().max(200).optional().nullable(),
+          city: z.string().trim().max(200).optional().nullable(),
+          street: z.string().trim().max(200).optional().nullable(),
+          house: z.string().trim().max(50).optional().nullable(),
+          apartment: z.string().trim().max(50).optional().nullable(),
+          raw: z.string().trim().max(500).optional().nullable(),
+        })
+        .optional()
+        .nullable(),
     }),
   ]),
   productName: z.string().trim().min(1).max(200),
@@ -2177,7 +2189,8 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
         email: data.client.email,
         full_name: data.client.fullName,
         phone: data.client.phone,
-      });
+        address: data.client.address ?? null,
+      } as never);
       // Сохраняем начальный пароль для доступа админов в профиле клиента
       await supabaseAdmin
         .from("client_secrets")

@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { Check, ChevronsUpDown, FilePlus2, UserPlus, Users, Plus, Trash2, FileText, ChevronDown, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ContactChannelToggles, autoLabelFromChannels, type ContactChannel } from "@/components/admin/ContactChannels";
+import { AddressFields, emptyAddress, type AddressValue } from "@/components/AddressFields";
 
 export const Route = createFileRoute("/_authenticated/admin/installments/new")({
   component: AdminNewInstallment,
@@ -70,6 +71,7 @@ function AdminNewInstallment() {
   const [phones, setPhones] = useState<PhoneRow[]>([
     { phone: "", label: "", channels: [] },
   ]);
+  const [address, setAddress] = useState<AddressValue>(emptyAddress());
 
   const [productName, setProductName] = useState("");
   const [productDescription, setProductDescription] = useState("");
@@ -180,6 +182,7 @@ function AdminNewInstallment() {
                   email: newEmail.trim(),
                   fullName: newName.trim(),
                   phone: phones[0].phone.trim(),
+                  address,
                 },
           productName,
           productDescription: productDescription || null,
@@ -426,6 +429,8 @@ function AdminNewInstallment() {
                   Подсветите иконки для предпочтительных способов связи: звонок, WhatsApp, Telegram.
                 </p>
               </div>
+
+              <AddressFields value={address} onChange={setAddress} title="Адрес клиента" />
 
               <div className="rounded-xl ring-1 ring-border bg-muted/20 overflow-hidden">
                 <button

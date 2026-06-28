@@ -227,15 +227,28 @@ export const updateMyProfile = createServerFn({ method: "POST" })
     z.object({
       fullName: z.string().trim().max(200).optional().nullable(),
       phone: z.string().trim().max(50).optional().nullable(),
+      address: z
+        .object({
+          region: z.string().trim().max(200).optional().nullable(),
+          district: z.string().trim().max(200).optional().nullable(),
+          city: z.string().trim().max(200).optional().nullable(),
+          street: z.string().trim().max(200).optional().nullable(),
+          house: z.string().trim().max(50).optional().nullable(),
+          apartment: z.string().trim().max(50).optional().nullable(),
+          raw: z.string().trim().max(500).optional().nullable(),
+        })
+        .optional()
+        .nullable(),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const patch: { full_name?: string | null; phone?: string | null } = {};
+    const patch: Record<string, unknown> = {};
     if (data.fullName !== undefined) patch.full_name = data.fullName || null;
     if (data.phone !== undefined) patch.phone = data.phone || null;
+    if (data.address !== undefined) patch.address = data.address ?? null;
     if (Object.keys(patch).length === 0) return { ok: true };
-    const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
+    const { error } = await supabase.from("profiles").update(patch as never).eq("id", userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
