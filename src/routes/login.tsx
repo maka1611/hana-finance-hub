@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { AuthTopBar } from "@/components/AuthTopBar";
+import { translateAuthError, type TranslatedAuthError } from "@/lib/auth-errors";
+import { AuthErrorAlert } from "@/components/AuthErrorAlert";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Вход — NoorPay" }] }),
@@ -20,17 +22,44 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const [authError, setAuthError] = useState<TranslatedAuthError | null>(null);
+  const [resending, setResending] = useState(false);
+
+  const showError = (err: unknown) => {
+    const t = translateAuthError(err);
+    setAuthError(t);
+    toast.error(t.title, { description: t.description });
+  };
+
+  const handleResend = async () => {
+    if (!email) {
+      toast.error("Укажите email", { description: "Введите email, на который отправить письмо." });
+      return;
+    }
+    setResending(true);
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/app` },
+    });
+    setResending(false);
+    if (error) return showError(error);
+    toast.success("Письмо отправлено", { description: "Проверьте почту, в том числе папку «Спам»." });
+    setAuthError(null);
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) return toast.error(error.message);
+    if (error) return showError(error);
     navigate({ to: "/app" });
   };
 
   const handleGoogle = async () => {
+    setAuthError(null);
     setGoogleLoading(true);
     try {
       const r = await lovable.auth.signInWithOAuth("google", {
@@ -39,18 +68,19 @@ function LoginPage() {
       });
       if (r.redirected) return;
       if (r.error) {
-        toast.error(String((r.error as Error)?.message ?? r.error));
+        showError(r.error);
         return;
       }
       window.location.assign("/app");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      showError(e);
     } finally {
       setGoogleLoading(false);
     }
   };
 
   const handleApple = async () => {
+    setAuthError(null);
     setAppleLoading(true);
     try {
       const r = await lovable.auth.signInWithOAuth("apple", {
@@ -58,12 +88,12 @@ function LoginPage() {
       });
       if (r.redirected) return;
       if (r.error) {
-        toast.error(String((r.error as Error)?.message ?? r.error));
+        showError(r.error);
         return;
       }
       window.location.assign("/app");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      showError(e);
     } finally {
       setAppleLoading(false);
     }
@@ -79,6 +109,7 @@ function LoginPage() {
         <h1 className="text-3xl font-extrabold mb-2">Вход</h1>
         <p className="text-sm text-muted-foreground mb-6">Войдите в личный кабинет</p>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <AuthErrorAlert error={authError} onResend={handleResend} resending={resending} />
           <div className="space-y-2">
             <Label>Email</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
