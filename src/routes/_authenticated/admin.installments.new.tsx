@@ -364,10 +364,13 @@ function AdminNewInstallment() {
                   placeholder="client@mail.com"
                   required
                 />
+                <p className="text-xs text-muted-foreground">
+                  Клиент увидит свои рассрочки, войдя под этим email. Идентификация идёт только по email — совпадение телефонов не связывает аккаунты.
+                </p>
               </div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>Телефоны для связи</Label>
+                  <Label>Телефоны для связи <span className="text-xs text-muted-foreground font-normal">(необязательно)</span></Label>
                   <button
                     type="button"
                     onClick={() =>
@@ -388,7 +391,7 @@ function AdminNewInstallment() {
                             arr.map((p, i) => (i === idx ? { ...p, phone: v } : p)),
                           )
                         }
-                        required={idx === 0}
+                        required={false}
                       />
                       <Input
                         value={row.label}
