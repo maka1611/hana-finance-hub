@@ -25,7 +25,6 @@ function SignupPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [appleLoading, setAppleLoading] = useState(false);
   const [authError, setAuthError] = useState<TranslatedAuthError | null>(null);
   const [resending, setResending] = useState(false);
   const cooldown = useResendCooldown(60);
@@ -100,26 +99,6 @@ function SignupPage() {
     }
   };
 
-  const handleApple = async () => {
-    setAuthError(null);
-    setAppleLoading(true);
-    try {
-      const r = await lovable.auth.signInWithOAuth("apple", {
-        redirect_uri: `${window.location.origin}/app`,
-      });
-      if (r.redirected) return;
-      if (r.error) {
-        showError(r.error);
-        return;
-      }
-      window.location.assign("/app");
-    } catch (e) {
-      showError(e);
-    } finally {
-      setAppleLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 pt-24 pb-12 girih-pattern relative">
       <AuthTopBar />
@@ -173,15 +152,6 @@ function SignupPage() {
           disabled={googleLoading}
         >
           {googleLoading ? "Открываем Google..." : "Продолжить через Google"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full mt-2"
-          onClick={handleApple}
-          disabled={appleLoading}
-        >
-          {appleLoading ? "Открываем Apple..." : "Продолжить через Apple"}
         </Button>
         <p className="text-sm text-center text-muted-foreground mt-6">
           Уже есть аккаунт?{" "}
