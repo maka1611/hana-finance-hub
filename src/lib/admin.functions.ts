@@ -2039,9 +2039,10 @@ const AdminCreateInstallmentSchema = z.object({
       phone: z
         .string()
         .trim()
-        .min(5)
         .max(50)
-        .regex(/^[+\d\s()-]+$/),
+        .regex(/^[+\d\s()-]+$/)
+        .optional()
+        .nullable(),
       address: z
         .object({
           region: z.string().trim().max(200).optional().nullable(),
