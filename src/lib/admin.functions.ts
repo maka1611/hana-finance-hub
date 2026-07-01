@@ -2039,9 +2039,10 @@ const AdminCreateInstallmentSchema = z.object({
       phone: z
         .string()
         .trim()
-        .min(5)
         .max(50)
-        .regex(/^[+\d\s()-]+$/),
+        .regex(/^[+\d\s()-]+$/)
+        .optional()
+        .nullable(),
       address: z
         .object({
           region: z.string().trim().max(200).optional().nullable(),
@@ -2167,6 +2168,19 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
         .maybeSingle();
       clientFullName = prof?.full_name ?? null;
     } else {
+      // Идентификация клиента идёт только по email. Телефон — доп. контакт,
+      // никаких lookup'ов/связей аккаунтов по номеру телефона нет.
+      // Если аккаунт с таким email уже существует — не создаём дубликат.
+      const { data: existingProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name")
+        .eq("email", data.client.email)
+        .maybeSingle();
+      if (existingProfile) {
+        throw new Error(
+          `Пользователь с email ${data.client.email} уже зарегистрирован. Выберите его из списка существующих клиентов.`,
+        );
+      }
       // создаём пользователя через auth.admin — триггер handle_new_user создаст profile+role
       tempPassword =
         Math.random().toString(36).slice(2, 10) +
@@ -2176,7 +2190,7 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
         email: data.client.email,
         password: tempPassword,
         email_confirm: true,
-        user_metadata: { full_name: data.client.fullName, phone: data.client.phone },
+        user_metadata: { full_name: data.client.fullName, phone: data.client.phone ?? null },
       });
       if (cuErr || !created.user) {
         throw new Error(cuErr?.message ?? "Не удалось создать пользователя");
@@ -2188,7 +2202,7 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
         id: clientId,
         email: data.client.email,
         full_name: data.client.fullName,
-        phone: data.client.phone,
+        phone: data.client.phone ?? null,
         address: data.client.address ?? null,
       } as never);
       // Сохраняем начальный пароль для доступа админов в профиле клиента
