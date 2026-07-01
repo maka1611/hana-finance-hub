@@ -168,7 +168,7 @@ function AdminNewInstallment() {
     if (mode === "new") {
       if (!newEmail.trim()) return toast.error("Email обязателен");
       if (!newName.trim()) return toast.error("ФИО обязательно");
-      if (!phones[0]?.phone.trim()) return toast.error("Телефон обязателен");
+      // Телефон необязателен — идентификация клиента идёт по email.
     }
     setLoading(true);
     try {
@@ -181,7 +181,7 @@ function AdminNewInstallment() {
                   kind: "new",
                   email: newEmail.trim(),
                   fullName: newName.trim(),
-                  phone: phones[0].phone.trim(),
+                  phone: phones[0]?.phone.trim() || null,
                   address,
                 },
           productName,
@@ -196,7 +196,7 @@ function AdminNewInstallment() {
           extraPhones:
             mode === "new"
               ? phones
-                  .slice(1)
+                  .slice(phones[0]?.phone.trim() ? 1 : 0)
                   .filter((p) => p.phone.trim().length > 0)
                   .map((p) => ({
                     phone: p.phone.trim(),
