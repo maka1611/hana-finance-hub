@@ -122,7 +122,7 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
         want.has("contracts") || want.has("schedules") || want.has("clients") || want.has("investors") || want.has("summary")
           ? supabaseAdmin
               .from("installment_contracts")
-              .select("id,client_id,product_name,product_price,principal,markup_rate,markup_amount,total_sale_price,monthly_payment,term_months,start_date,status,investor_id,created_at")
+             .select("id,client_id,product_name,product_price,principal,markup_rate,markup_amount,total_sale_price,monthly_payment,term_months,start_date,status,investor_id,investor_profit_amount,investor_profit_locked,created_at")
               .is("deleted_at", null)
           : Promise.resolve({ data: [] as any[] }),
         want.has("schedules") || want.has("contracts") || want.has("clients") || want.has("investors") || want.has("summary")
