@@ -151,17 +151,68 @@ function AdminNewInstallment() {
     [productPrice, downPayment, termMonths, markupPct],
   );
 
-  // Auto-pick the least loaded investor under "enforce" policy.
+  // Единый список кандидатов на размещение: инвесторы + средства компании.
+  // id=null означает «Средства компании».
+  type Candidate = {
+    id: string | null;
+    full_name: string;
+    free: number;
+    idleRatio: number;
+    idleDays: number | null;
+    loadRatio: number;
+    kind: "company" | "investor";
+  };
+  const candidates = useMemo<Candidate[]>(() => {
+    const rows: Candidate[] = (investors ?? []).map((i) => ({
+      id: i.id,
+      full_name: i.full_name,
+      free: i.free,
+      idleRatio: i.idleRatio,
+      idleDays: i.idleDays,
+      loadRatio: i.loadRatio,
+      kind: "investor",
+    }));
+    if (companyFunds) {
+      rows.push({
+        id: null,
+        full_name: "Средства компании",
+        free: companyFunds.freeCash,
+        idleRatio: companyFunds.idleRatio ?? 0,
+        idleDays: companyFunds.idleDays ?? null,
+        loadRatio: companyFunds.loadRatio ?? 0,
+        kind: "company",
+      });
+    }
+    return rows;
+  }, [investors, companyFunds]);
+
+  const rankedFitting = useMemo(() => {
+    return candidates
+      .filter((c) => c.free >= calc.principal)
+      .sort((a, b) => {
+        if (b.idleRatio !== a.idleRatio) return b.idleRatio - a.idleRatio;
+        const ad = a.idleDays ?? 9999;
+        const bd = b.idleDays ?? 9999;
+        return bd - ad;
+      });
+  }, [candidates, calc.principal]);
+
+  const primary = rankedFitting[0] ?? null;
+  // Fallback: следующий в очереди другого типа (компания ↔ инвестор).
+  const fallback = useMemo(() => {
+    if (!primary) return null;
+    return rankedFitting.slice(1).find((c) => c.kind !== primary.kind) ?? null;
+  }, [rankedFitting, primary]);
+
+  // Auto-pick under enforce.
   useEffect(() => {
     if (policy !== "enforce") return;
-    const list = investors ?? [];
-    if (list.length === 0) return;
-    const fitting = list
-      .filter((i) => i.free >= calc.principal)
-      .sort((a, b) => b.idleRatio - a.idleRatio);
-    const next = fitting[0]?.id ?? null;
-    if (next && next !== investorId) setInvestorId(next);
-  }, [policy, investors, calc.principal, investorId]);
+    if (!primary) return;
+    if (investorId === primary.id) return;
+    // Разрешаем ручное переключение только между primary и fallback.
+    if (fallback && investorId === fallback.id) return;
+    setInvestorId(primary.id);
+  }, [policy, primary, fallback, investorId]);
 
   // База прибыли инвестора = principal × DEFAULT_MARKUP_RATE × срок × доля инвестора.
   // Пока пользователь не «зафиксировал» — сумма пересчитывается динамически по этой формуле.
@@ -691,34 +742,26 @@ function AdminNewInstallment() {
           <h2 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
             Инвестор <span className="font-normal normal-case tracking-normal text-[11px]">(необязательно)</span>
           </h2>
-          {(investors ?? []).length === 0 ? (
+          {candidates.length === 0 ? (
             <p className="text-[11px] text-muted-foreground">
               Список инвесторов пуст. Добавить можно в разделе «Инвесторы».
             </p>
           ) : (
             <>
               {(() => {
-                const list = investors ?? [];
-                const fitting = list
-                  .filter((i) => i.free >= calc.principal)
-                  .sort((a, b) => {
-                    if (b.idleRatio !== a.idleRatio) return b.idleRatio - a.idleRatio;
-                    const ad = a.idleDays ?? 9999;
-                    const bd = b.idleDays ?? 9999;
-                    return bd - ad;
-                  });
-                const recommended = fitting[0] ?? null;
-                const selected = list.find((i) => i.id === investorId) ?? null;
+                const recommended = primary;
+                const selectedCand =
+                  candidates.find((c) => c.id === investorId) ?? null;
                 const avgIdle =
-                  list.length > 0
-                    ? list.reduce((s, i) => s + i.idleRatio, 0) / list.length
+                  candidates.length > 0
+                    ? candidates.reduce((s, i) => s + i.idleRatio, 0) / candidates.length
                     : 0;
                 const showWarn =
                   policy !== "manual" &&
                   recommended &&
-                  selected &&
-                  selected.id !== recommended.id &&
-                  selected.idleRatio + 0.2 < avgIdle;
+                  selectedCand &&
+                  selectedCand.id !== recommended.id &&
+                  selectedCand.idleRatio + 0.2 < avgIdle;
                 return (
                   <div className="space-y-2">
                     {recommended && (
@@ -751,9 +794,9 @@ function AdminNewInstallment() {
                     )}
                     {policy !== "manual" && !recommended && (
                       <div className="rounded-xl bg-amber-500/10 ring-1 ring-amber-500/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
-                        Ни у одного инвестора нет достаточно свободных средств на сумму{" "}
-                        {formatMoney(calc.principal)}. Можно оформить из собственных
-                        средств или увеличить капитал инвестора.
+                        Ни у одного источника (инвесторы или средства компании) нет
+                        достаточно свободных средств на сумму {formatMoney(calc.principal)}.
+                        Увеличьте капитал инвестора или пополните средства компании.
                       </div>
                     )}
                     {showWarn && (
@@ -771,29 +814,49 @@ function AdminNewInstallment() {
                 value={investorId ?? ""}
                 onChange={(e) => setInvestorId(e.target.value || null)}
                 className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                disabled={policy === "enforce" && Boolean(investorId)}
+                disabled={policy === "enforce" && !fallback}
               >
-                <option value="">
+                <option
+                  value=""
+                  disabled={
+                    policy === "enforce" &&
+                    !(primary?.id === null || (fallback != null && fallback.id === null))
+                  }
+                >
                   — Собственные средства компании
                   {companyFunds
                     ? ` · свободно ${formatMoney(companyFunds.freeCash)} · в обороте ${formatMoney(companyFunds.capitalInUse)}`
                     : ""}
                   {" —"}
                 </option>
-                {(investors ?? []).map((inv) => (
-                  <option key={inv.id} value={inv.id}>
-                    {inv.full_name} · свободно {formatMoney(inv.free)} · загрузка{" "}
-                    {Math.round(inv.loadRatio * 100)}%
-                    {inv.idleDays !== null ? ` · ${inv.idleDays} дн без новых` : ""}
-                    {" · доля "}
-                    {(Number(inv.profit_share_rate) * 100).toFixed(0)}%
-                  </option>
-                ))}
+                {(investors ?? []).map((inv) => {
+                  const allowedInEnforce =
+                    primary?.id === inv.id || fallback?.id === inv.id;
+                  return (
+                    <option
+                      key={inv.id}
+                      value={inv.id}
+                      disabled={policy === "enforce" && !allowedInEnforce}
+                    >
+                      {inv.full_name} · свободно {formatMoney(inv.free)} · загрузка{" "}
+                      {Math.round(inv.loadRatio * 100)}%
+                      {inv.idleDays !== null ? ` · ${inv.idleDays} дн без новых` : ""}
+                      {" · доля "}
+                      {(Number(inv.profit_share_rate) * 100).toFixed(0)}%
+                    </option>
+                  );
+                })}
               </select>
               {policy === "enforce" && (
                 <p className="text-[11px] text-muted-foreground">
                   Действует политика «обязательный автоподбор» — выбран наиболее
-                  свободный инвестор. Изменить может только владелец.
+                  свободный источник ({primary?.full_name ?? "—"}).
+                  {fallback ? (
+                    <>
+                      {" "}Разрешена ручная замена только на следующего в очереди:{" "}
+                      <span className="font-bold text-foreground">{fallback.full_name}</span>.
+                    </>
+                  ) : null}
                 </p>
               )}
               {investorId && (() => {
