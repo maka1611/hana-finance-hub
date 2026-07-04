@@ -143,7 +143,7 @@ export const listInvestors = createServerFn({ method: "GET" })
         supabaseAdmin.from("investors").select("*").order("created_at", { ascending: false }),
         supabaseAdmin
           .from("installment_contracts")
-          .select("id,investor_id,principal,markup_amount,total_sale_price,status,product_name,client_id,created_at"),
+          .select("id,investor_id,principal,markup_amount,total_sale_price,status,product_name,client_id,created_at,investor_profit_amount,investor_profit_locked"),
         supabaseAdmin.from("payment_schedules").select("id,contract_id,status,amount,due_date,seq"),
         supabaseAdmin.from("payments").select("id,contract_id,amount,paid_at"),
       ]);
@@ -174,7 +174,7 @@ export const getInvestor = createServerFn({ method: "POST" })
       supabaseAdmin.from("investors").select("*").eq("id", data.id).single(),
       supabaseAdmin
         .from("installment_contracts")
-        .select("id,investor_id,principal,markup_amount,total_sale_price,status,product_name,client_id,created_at,term_months,start_date")
+        .select("id,investor_id,principal,markup_amount,total_sale_price,status,product_name,client_id,created_at,investor_profit_amount,investor_profit_locked,term_months,start_date")
         .eq("investor_id", data.id)
         .order("created_at", { ascending: false }),
       supabaseAdmin
@@ -250,7 +250,7 @@ export const getInvestorsAggregate = createServerFn({ method: "POST" })
         supabaseAdmin.from("investors").select("*").in("id", data.ids),
         supabaseAdmin
           .from("installment_contracts")
-          .select("id,investor_id,principal,markup_amount,total_sale_price,status,product_name,client_id,created_at")
+          .select("id,investor_id,principal,markup_amount,total_sale_price,status,product_name,client_id,created_at,investor_profit_amount,investor_profit_locked")
           .in("investor_id", data.ids),
         supabaseAdmin
           .from("payment_schedules")
