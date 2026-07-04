@@ -2246,6 +2246,11 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
         start_date: startDate.toISOString().slice(0, 10),
         status: "active",
         investor_id: data.investorId ?? null,
+        investor_profit_locked: data.investorProfitLocked === true && !!data.investorId,
+        investor_profit_amount:
+          data.investorProfitLocked === true && !!data.investorId
+            ? (data.investorProfitAmount ?? 0)
+            : null,
       } as never)
       .select()
       .single();
