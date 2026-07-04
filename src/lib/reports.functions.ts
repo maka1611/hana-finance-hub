@@ -401,7 +401,11 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
             const total = money(c.total_sale_price);
             const paid = sch.reduce((a, s) => a + money(s.paid_amount), 0);
             const remaining = Math.max(total - paid, 0);
-            const profit = Math.round(num(c.markup_amount) * share);
+            const profit = Math.round(
+              (c as { investor_profit_locked?: boolean | null }).investor_profit_locked
+                ? money((c as { investor_profit_amount?: number | string | null }).investor_profit_amount ?? 0)
+                : num(c.markup_amount) * share,
+            );
             const cl = profileById.get(c.client_id);
             aoa.push([
               cl?.full_name ?? "",
