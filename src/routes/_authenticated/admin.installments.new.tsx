@@ -820,8 +820,7 @@ function AdminNewInstallment() {
                   value=""
                   disabled={
                     policy === "enforce" &&
-                    primary?.id !== null &&
-                    fallback?.id !== null
+                    !(primary?.id === null || (fallback != null && fallback.id === null))
                   }
                 >
                   — Собственные средства компании
