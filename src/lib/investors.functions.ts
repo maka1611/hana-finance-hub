@@ -34,6 +34,8 @@ type ContractRow = {
   product_name: string;
   client_id: string;
   created_at: string;
+  investor_profit_amount?: number | string | null;
+  investor_profit_locked?: boolean | null;
 };
 
 type ScheduleRow = {
@@ -64,7 +66,21 @@ function summarizeInvestor(
   const activeContracts = contracts.filter((c) => c.status !== "closed");
   const placed = activeContracts.reduce((s, c) => s + Number(c.principal), 0);
   const totalMarkup = contracts.reduce((s, c) => s + Number(c.markup_amount), 0);
-  const expectedProfit = totalMarkup * shareRate;
+  // Эффективная доля инвестора в наценке для каждого контракта:
+  // если prof зафиксирован — берём investor_profit_amount / markup_amount,
+  // иначе стандартная shareRate.
+  const effectiveShareFor = (c: ContractRow): number => {
+    const markup = Number(c.markup_amount);
+    if (c.investor_profit_locked && markup > 0) {
+      const fixed = Number(c.investor_profit_amount ?? 0);
+      return fixed / markup;
+    }
+    return shareRate;
+  };
+  const expectedProfit = contracts.reduce(
+    (s, c) => s + Number(c.markup_amount) * effectiveShareFor(c),
+    0,
+  );
   const contractIds = new Set(contracts.map((c) => c.id));
   const ownPayments = payments.filter((p) => contractIds.has(p.contract_id));
   // Принципиально: считаем, что каждый платёж пропорционально распределяется
@@ -79,7 +95,7 @@ function summarizeInvestor(
     if (total <= 0) continue;
     const markupShare = Number(c.markup_amount) / total;
     const amt = Number(p.amount);
-    receivedProfit += amt * markupShare * shareRate;
+    receivedProfit += amt * markupShare * effectiveShareFor(c);
     returnedPrincipal += amt * (1 - markupShare);
   }
   const ownSched = schedules.filter((s) => contractIds.has(s.contract_id));
