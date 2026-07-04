@@ -218,6 +218,9 @@ function AdminNewInstallment() {
           clientComment: comment || null,
           markupRate: markupPct / 100,
           investorId: investorId,
+          investorProfitLocked: investorProfitLocked && !!investorId,
+          investorProfitAmount:
+            investorProfitLocked && !!investorId ? investorProfitAmount : null,
           extraPhones:
             mode === "new"
               ? phones
