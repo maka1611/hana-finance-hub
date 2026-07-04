@@ -797,9 +797,17 @@ function AdminNewInstallment() {
                 const inv = (investors ?? []).find((x) => x.id === investorId);
                 if (!inv) return null;
                 const afterPlacement = inv.free - calc.principal;
-                const investorProfit = calc.markupAmount * Number(inv.profit_share_rate);
+                const dynamicInvestorProfit =
+                  calc.markupAmount * Number(inv.profit_share_rate);
+                const investorProfit = investorProfitLocked
+                  ? investorProfitAmount
+                  : dynamicInvestorProfit;
                 const ourProfit = calc.markupAmount - investorProfit;
+                const discountFromBase =
+                  baseInvestorProfit / Number(inv.profit_share_rate || 1) -
+                  calc.markupAmount;
                 return (
+                  <div className="space-y-3">
                   <div className="rounded-xl bg-muted/30 ring-1 ring-border p-3 grid sm:grid-cols-3 gap-3 text-xs">
                     <div>
                       <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">У инвестора останется</div>
@@ -811,13 +819,82 @@ function AdminNewInstallment() {
                       )}
                     </div>
                     <div>
-                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Прибыль инвестора</div>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                        Прибыль инвестора{investorProfitLocked ? " (фикс.)" : ""}
+                      </div>
                       <div className="font-extrabold text-sm">{formatMoney(investorProfit)}</div>
                     </div>
                     <div>
                       <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Наша прибыль</div>
-                      <div className="font-extrabold text-sm">{formatMoney(ourProfit)}</div>
+                      <div className={`font-extrabold text-sm ${ourProfit < 0 ? "text-destructive" : ""}`}>
+                        {formatMoney(ourProfit)}
+                      </div>
+                      {ourProfit < 0 && (
+                        <div className="text-[10px] text-destructive">
+                          Сделка убыточна для компании
+                        </div>
+                      )}
                     </div>
+                  </div>
+                  <div className="rounded-xl ring-1 ring-border p-3 space-y-3 bg-background">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={investorProfitLocked}
+                        onChange={(e) => setInvestorProfitLocked(e.target.checked)}
+                        className="mt-1 size-4 accent-primary"
+                      />
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-bold">
+                          Зафиксировать прибыль инвестора
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Позволяет сделать скидку клиенту (уменьшить наценку %), сохранив
+                          прибыль инвестора в рублях. Разница вычтется из нашей доли.
+                        </div>
+                      </div>
+                    </label>
+                    {investorProfitLocked && (
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-[11px]">Прибыль инвестора, ₽</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={investorProfitAmount || ""}
+                            onChange={(e) =>
+                              setInvestorProfitAmount(
+                                Math.max(0, Number(e.target.value) || 0),
+                              )
+                            }
+                            className="font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setInvestorProfitAmount(baseInvestorProfit)}
+                            className="text-[10px] font-mono uppercase tracking-wider text-primary hover:underline"
+                          >
+                            Сбросить к базовой: {formatMoney(baseInvestorProfit)}
+                          </button>
+                        </div>
+                        <div className="space-y-1 text-[11px] text-muted-foreground">
+                          <div>
+                            База: наценка{" "}
+                            {(DEFAULT_MARKUP_RATE * 100).toFixed(1)}% × {termMonths} мес
+                            × доля {(Number(inv.profit_share_rate) * 100).toFixed(0)}%
+                          </div>
+                          {discountFromBase > 0 && (
+                            <div>
+                              Скидка клиенту от базовой:{" "}
+                              <span className="font-bold text-foreground">
+                                {formatMoney(discountFromBase)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   </div>
                 );
               })()}
