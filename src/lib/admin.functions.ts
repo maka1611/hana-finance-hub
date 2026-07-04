@@ -73,7 +73,7 @@ export const adminStats = createServerFn({ method: "GET" })
     const [contracts, schedules, payments, clients] = await Promise.all([
       supabaseAdmin
         .from("installment_contracts")
-        .select("id,status,total_sale_price,principal,markup_amount,investor_id"),
+        .select("id,status,total_sale_price,principal,markup_amount,investor_id,investor_profit_amount,investor_profit_locked"),
       supabaseAdmin.from("payment_schedules").select("status,amount,due_date"),
       supabaseAdmin.from("payments").select("amount,paid_at,contract_id"),
       supabaseAdmin.from("profiles").select("id"),
@@ -100,6 +100,8 @@ export const adminStats = createServerFn({ method: "GET" })
       principal: number | string;
       markup_amount: number | string;
       investor_id: string | null;
+      investor_profit_amount: number | string | null;
+      investor_profit_locked: boolean | null;
     }>;
     const ss = schedules.data ?? [];
     const ps = (payments.data ?? []) as Array<{
@@ -140,7 +142,11 @@ export const adminStats = createServerFn({ method: "GET" })
       const paid = paidByContract.get(c.id) ?? 0;
       const receivedMarkup = paid * markupShare;
       if (c.investor_id && invById.has(c.investor_id)) {
-        const rate = Number(invById.get(c.investor_id)!.profit_share_rate);
+        const baseRate = Number(invById.get(c.investor_id)!.profit_share_rate);
+        const rate =
+          c.investor_profit_locked && markup > 0
+            ? Number(c.investor_profit_amount ?? 0) / markup
+            : baseRate;
         capitalInvestor += principal;
         const invExp = markup * rate;
         const compExp = markup * (1 - rate);
@@ -332,10 +338,12 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
         markup_amount: number | string;
         principal: number | string;
         investor_id: string | null;
+        investor_profit_amount: number | string | null;
+        investor_profit_locked: boolean | null;
       }>((from, to) => {
         const q = supabaseAdmin
           .from("installment_contracts")
-          .select("id,created_at,total_sale_price,markup_amount,principal,investor_id")
+          .select("id,created_at,total_sale_price,markup_amount,principal,investor_id,investor_profit_amount,investor_profit_locked")
           .order("created_at", { ascending: true });
         return (startIso ? q.gte("created_at", startIso) : q)
           .lt("created_at", endExclusiveIso)
@@ -371,31 +379,45 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
       markup_amount: number | string;
       principal: number | string;
       investor_id: string | null;
+      investor_profit_amount: number | string | null;
+      investor_profit_locked: boolean | null;
     };
     const extraContracts: ContractMeta[] = [];
     if (missingIds.length) {
       const { data: extra } = await supabaseAdmin
         .from("installment_contracts")
-        .select("id,markup_amount,principal,investor_id")
+        .select("id,markup_amount,principal,investor_id,investor_profit_amount,investor_profit_locked")
         .in("id", missingIds);
       if (extra) extraContracts.push(...(extra as ContractMeta[]));
     }
     const contractMeta = new Map<
       string,
-      { markupShare: number; investorId: string | null }
+      { markupShare: number; investorId: string | null; lockedRate: number | null }
     >();
     for (const c of contracts) {
       const total = Number(c.principal) + Number(c.markup_amount);
+      const markup = Number(c.markup_amount);
+      const lockedRate =
+        c.investor_profit_locked && markup > 0
+          ? Number(c.investor_profit_amount ?? 0) / markup
+          : null;
       contractMeta.set(c.id, {
         markupShare: total > 0 ? Number(c.markup_amount) / total : 0,
         investorId: c.investor_id,
+        lockedRate,
       });
     }
     for (const c of extraContracts) {
       const total = Number(c.principal) + Number(c.markup_amount);
+      const markup = Number(c.markup_amount);
+      const lockedRate =
+        c.investor_profit_locked && markup > 0
+          ? Number(c.investor_profit_amount ?? 0) / markup
+          : null;
       contractMeta.set(c.id, {
         markupShare: total > 0 ? Number(c.markup_amount) / total : 0,
         investorId: c.investor_id,
+        lockedRate,
       });
     }
     const { data: invRaw } = await supabaseAdmin
@@ -452,7 +474,11 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
       row.markup += markup;
       row.contracts += 1;
       if (contract.investor_id && investorRate.has(contract.investor_id)) {
-        const rate = investorRate.get(contract.investor_id)!;
+        const baseRate = investorRate.get(contract.investor_id)!;
+        const rate =
+          contract.investor_profit_locked && markup > 0
+            ? Number(contract.investor_profit_amount ?? 0) / markup
+            : baseRate;
         row.capitalInvestor += principal;
         row.profitInvestorsExp += markup * rate;
         row.profitCompanyFromInvExp += markup * (1 - rate);
@@ -470,7 +496,7 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
       if (!meta) continue;
       const receivedMarkup = amount * meta.markupShare;
       if (meta.investorId && investorRate.has(meta.investorId)) {
-        const rate = investorRate.get(meta.investorId)!;
+        const rate = meta.lockedRate ?? investorRate.get(meta.investorId)!;
         row.profitInvestorsGot += receivedMarkup * rate;
         row.profitCompanyFromInvGot += receivedMarkup * (1 - rate);
       } else {
@@ -2070,6 +2096,8 @@ const AdminCreateInstallmentSchema = z.object({
   clientComment: z.string().trim().max(2000).optional().nullable(),
   markupRate: z.number().min(0).max(1).optional(),
   investorId: z.string().uuid().optional().nullable(),
+  investorProfitAmount: z.number().min(0).max(1_000_000_000).optional().nullable(),
+  investorProfitLocked: z.boolean().optional(),
   extraPhones: z
     .array(
       z.object({
@@ -2244,6 +2272,11 @@ export const adminCreateInstallment = createServerFn({ method: "POST" })
         start_date: startDate.toISOString().slice(0, 10),
         status: "active",
         investor_id: data.investorId ?? null,
+        investor_profit_locked: data.investorProfitLocked === true && !!data.investorId,
+        investor_profit_amount:
+          data.investorProfitLocked === true && !!data.investorId
+            ? (data.investorProfitAmount ?? 0)
+            : null,
       } as never)
       .select()
       .single();

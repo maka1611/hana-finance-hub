@@ -507,6 +507,8 @@ export type Database = {
           down_payment: number
           id: string
           investor_id: string | null
+          investor_profit_amount: number | null
+          investor_profit_locked: boolean
           markup_amount: number
           markup_rate: number
           monthly_payment: number
@@ -533,6 +535,8 @@ export type Database = {
           down_payment?: number
           id?: string
           investor_id?: string | null
+          investor_profit_amount?: number | null
+          investor_profit_locked?: boolean
           markup_amount: number
           markup_rate?: number
           monthly_payment: number
@@ -559,6 +563,8 @@ export type Database = {
           down_payment?: number
           id?: string
           investor_id?: string | null
+          investor_profit_amount?: number | null
+          investor_profit_locked?: boolean
           markup_amount?: number
           markup_rate?: number
           monthly_payment?: number

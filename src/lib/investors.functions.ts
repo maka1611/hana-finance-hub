@@ -34,6 +34,8 @@ type ContractRow = {
   product_name: string;
   client_id: string;
   created_at: string;
+  investor_profit_amount?: number | string | null;
+  investor_profit_locked?: boolean | null;
 };
 
 type ScheduleRow = {
@@ -64,7 +66,21 @@ function summarizeInvestor(
   const activeContracts = contracts.filter((c) => c.status !== "closed");
   const placed = activeContracts.reduce((s, c) => s + Number(c.principal), 0);
   const totalMarkup = contracts.reduce((s, c) => s + Number(c.markup_amount), 0);
-  const expectedProfit = totalMarkup * shareRate;
+  // Эффективная доля инвестора в наценке для каждого контракта:
+  // если prof зафиксирован — берём investor_profit_amount / markup_amount,
+  // иначе стандартная shareRate.
+  const effectiveShareFor = (c: ContractRow): number => {
+    const markup = Number(c.markup_amount);
+    if (c.investor_profit_locked && markup > 0) {
+      const fixed = Number(c.investor_profit_amount ?? 0);
+      return fixed / markup;
+    }
+    return shareRate;
+  };
+  const expectedProfit = contracts.reduce(
+    (s, c) => s + Number(c.markup_amount) * effectiveShareFor(c),
+    0,
+  );
   const contractIds = new Set(contracts.map((c) => c.id));
   const ownPayments = payments.filter((p) => contractIds.has(p.contract_id));
   // Принципиально: считаем, что каждый платёж пропорционально распределяется
@@ -79,7 +95,7 @@ function summarizeInvestor(
     if (total <= 0) continue;
     const markupShare = Number(c.markup_amount) / total;
     const amt = Number(p.amount);
-    receivedProfit += amt * markupShare * shareRate;
+    receivedProfit += amt * markupShare * effectiveShareFor(c);
     returnedPrincipal += amt * (1 - markupShare);
   }
   const ownSched = schedules.filter((s) => contractIds.has(s.contract_id));
@@ -127,7 +143,7 @@ export const listInvestors = createServerFn({ method: "GET" })
         supabaseAdmin.from("investors").select("*").order("created_at", { ascending: false }),
         supabaseAdmin
           .from("installment_contracts")
-          .select("id,investor_id,principal,markup_amount,total_sale_price,status,product_name,client_id,created_at"),
+          .select("id,investor_id,principal,markup_amount,total_sale_price,status,product_name,client_id,created_at,investor_profit_amount,investor_profit_locked"),
         supabaseAdmin.from("payment_schedules").select("id,contract_id,status,amount,due_date,seq"),
         supabaseAdmin.from("payments").select("id,contract_id,amount,paid_at"),
       ]);
@@ -158,7 +174,7 @@ export const getInvestor = createServerFn({ method: "POST" })
       supabaseAdmin.from("investors").select("*").eq("id", data.id).single(),
       supabaseAdmin
         .from("installment_contracts")
-        .select("id,investor_id,principal,markup_amount,total_sale_price,status,product_name,client_id,created_at,term_months,start_date")
+        .select("id,investor_id,principal,markup_amount,total_sale_price,status,product_name,client_id,created_at,investor_profit_amount,investor_profit_locked,term_months,start_date")
         .eq("investor_id", data.id)
         .order("created_at", { ascending: false }),
       supabaseAdmin
@@ -234,7 +250,7 @@ export const getInvestorsAggregate = createServerFn({ method: "POST" })
         supabaseAdmin.from("investors").select("*").in("id", data.ids),
         supabaseAdmin
           .from("installment_contracts")
-          .select("id,investor_id,principal,markup_amount,total_sale_price,status,product_name,client_id,created_at")
+          .select("id,investor_id,principal,markup_amount,total_sale_price,status,product_name,client_id,created_at,investor_profit_amount,investor_profit_locked")
           .in("investor_id", data.ids),
         supabaseAdmin
           .from("payment_schedules")
