@@ -73,7 +73,7 @@ export const adminStats = createServerFn({ method: "GET" })
     const [contracts, schedules, payments, clients] = await Promise.all([
       supabaseAdmin
         .from("installment_contracts")
-        .select("id,status,total_sale_price,principal,markup_amount,investor_id"),
+        .select("id,status,total_sale_price,principal,markup_amount,investor_id,investor_profit_amount,investor_profit_locked"),
       supabaseAdmin.from("payment_schedules").select("status,amount,due_date"),
       supabaseAdmin.from("payments").select("amount,paid_at,contract_id"),
       supabaseAdmin.from("profiles").select("id"),
@@ -100,6 +100,8 @@ export const adminStats = createServerFn({ method: "GET" })
       principal: number | string;
       markup_amount: number | string;
       investor_id: string | null;
+      investor_profit_amount: number | string | null;
+      investor_profit_locked: boolean | null;
     }>;
     const ss = schedules.data ?? [];
     const ps = (payments.data ?? []) as Array<{
@@ -140,7 +142,11 @@ export const adminStats = createServerFn({ method: "GET" })
       const paid = paidByContract.get(c.id) ?? 0;
       const receivedMarkup = paid * markupShare;
       if (c.investor_id && invById.has(c.investor_id)) {
-        const rate = Number(invById.get(c.investor_id)!.profit_share_rate);
+        const baseRate = Number(invById.get(c.investor_id)!.profit_share_rate);
+        const rate =
+          c.investor_profit_locked && markup > 0
+            ? Number(c.investor_profit_amount ?? 0) / markup
+            : baseRate;
         capitalInvestor += principal;
         const invExp = markup * rate;
         const compExp = markup * (1 - rate);
