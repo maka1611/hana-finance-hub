@@ -117,6 +117,8 @@ function AdminNewInstallment() {
   });
   const [guarantors, setGuarantors] = useState<Guarantor[]>([]);
   const [investorId, setInvestorId] = useState<string | null>(null);
+  const [investorProfitLocked, setInvestorProfitLocked] = useState<boolean>(false);
+  const [investorProfitAmount, setInvestorProfitAmount] = useState<number>(0);
 
   const readFile = (file: File): Promise<PhotoFile> =>
     new Promise((resolve, reject) => {
