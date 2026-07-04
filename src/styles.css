@@ -261,7 +261,7 @@
   .slide-out-to-right-52 { --tw-exit-translate-x: 13rem; }
 }
 
-@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400 800; font-display: swap; src: local('Inter'); }
+/* Inter and JetBrains Mono are loaded via @fontsource in src/routes/__root.tsx */
 
 /* Girih pattern background for hero */
 .girih-pattern {
