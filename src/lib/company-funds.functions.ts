@@ -36,7 +36,7 @@ export const getCompanyFundsLite = createServerFn({ method: "GET" })
       supabaseAdmin.from("company_expenses").select("amount"),
       supabaseAdmin
         .from("installment_contracts")
-        .select("id,status,principal,markup_amount,investor_id")
+        .select("id,status,principal,markup_amount,investor_id,created_at")
         .is("deleted_at", null),
       supabaseAdmin.from("payments").select("amount,contract_id"),
     ]);
