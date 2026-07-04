@@ -151,17 +151,68 @@ function AdminNewInstallment() {
     [productPrice, downPayment, termMonths, markupPct],
   );
 
-  // Auto-pick the least loaded investor under "enforce" policy.
+  // Единый список кандидатов на размещение: инвесторы + средства компании.
+  // id=null означает «Средства компании».
+  type Candidate = {
+    id: string | null;
+    full_name: string;
+    free: number;
+    idleRatio: number;
+    idleDays: number | null;
+    loadRatio: number;
+    kind: "company" | "investor";
+  };
+  const candidates = useMemo<Candidate[]>(() => {
+    const rows: Candidate[] = (investors ?? []).map((i) => ({
+      id: i.id,
+      full_name: i.full_name,
+      free: i.free,
+      idleRatio: i.idleRatio,
+      idleDays: i.idleDays,
+      loadRatio: i.loadRatio,
+      kind: "investor",
+    }));
+    if (companyFunds) {
+      rows.push({
+        id: null,
+        full_name: "Средства компании",
+        free: companyFunds.freeCash,
+        idleRatio: companyFunds.idleRatio ?? 0,
+        idleDays: companyFunds.idleDays ?? null,
+        loadRatio: companyFunds.loadRatio ?? 0,
+        kind: "company",
+      });
+    }
+    return rows;
+  }, [investors, companyFunds]);
+
+  const rankedFitting = useMemo(() => {
+    return candidates
+      .filter((c) => c.free >= calc.principal)
+      .sort((a, b) => {
+        if (b.idleRatio !== a.idleRatio) return b.idleRatio - a.idleRatio;
+        const ad = a.idleDays ?? 9999;
+        const bd = b.idleDays ?? 9999;
+        return bd - ad;
+      });
+  }, [candidates, calc.principal]);
+
+  const primary = rankedFitting[0] ?? null;
+  // Fallback: следующий в очереди другого типа (компания ↔ инвестор).
+  const fallback = useMemo(() => {
+    if (!primary) return null;
+    return rankedFitting.slice(1).find((c) => c.kind !== primary.kind) ?? null;
+  }, [rankedFitting, primary]);
+
+  // Auto-pick under enforce.
   useEffect(() => {
     if (policy !== "enforce") return;
-    const list = investors ?? [];
-    if (list.length === 0) return;
-    const fitting = list
-      .filter((i) => i.free >= calc.principal)
-      .sort((a, b) => b.idleRatio - a.idleRatio);
-    const next = fitting[0]?.id ?? null;
-    if (next && next !== investorId) setInvestorId(next);
-  }, [policy, investors, calc.principal, investorId]);
+    if (!primary) return;
+    if (investorId === primary.id) return;
+    // Разрешаем ручное переключение только между primary и fallback.
+    if (fallback && investorId === fallback.id) return;
+    setInvestorId(primary.id);
+  }, [policy, primary, fallback, investorId]);
 
   // База прибыли инвестора = principal × DEFAULT_MARKUP_RATE × срок × доля инвестора.
   // Пока пользователь не «зафиксировал» — сумма пересчитывается динамически по этой формуле.
