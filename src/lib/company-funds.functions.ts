@@ -59,9 +59,11 @@ export const getCompanyFundsLite = createServerFn({ method: "GET" })
 
     let capitalOwnInUse = 0;
     let profitOwnAll = 0;
+    let lastOwnContractAt: string | null = null;
     for (const c of (contracts.data ?? []) as Array<{
       id: string; status: string; principal: number | string;
       markup_amount: number | string; investor_id: string | null;
+      created_at?: string;
     }>) {
       if (c.investor_id) continue;
       const principal = Number(c.principal);
@@ -72,15 +74,28 @@ export const getCompanyFundsLite = createServerFn({ method: "GET" })
       profitOwnAll += paid * markupShare;
       const isActive = c.status === "active" || c.status === "overdue" || c.status === "pending";
       if (isActive) capitalOwnInUse += principal;
+      if (c.created_at && (!lastOwnContractAt || c.created_at > lastOwnContractAt)) {
+        lastOwnContractAt = c.created_at;
+      }
     }
 
     const balance = capital + profitOwnAll - expensesTotal;
     const freeCash = balance - capitalOwnInUse;
+    const idleDays = lastOwnContractAt
+      ? Math.max(
+          0,
+          Math.floor((Date.now() - new Date(lastOwnContractAt).getTime()) / 86400000),
+        )
+      : null;
     return {
       balance,
       capitalInUse: capitalOwnInUse,
       freeCash,
       loadPct: balance > 0 ? (capitalOwnInUse / balance) * 100 : 0,
+      lastContractAt: lastOwnContractAt,
+      idleDays,
+      loadRatio: balance > 0 ? capitalOwnInUse / balance : 0,
+      idleRatio: balance > 0 ? (balance - capitalOwnInUse) / balance : 0,
     };
   });
 
