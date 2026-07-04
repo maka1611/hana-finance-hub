@@ -163,6 +163,29 @@ function AdminNewInstallment() {
     if (next && next !== investorId) setInvestorId(next);
   }, [policy, investors, calc.principal, investorId]);
 
+  // База прибыли инвестора = principal × DEFAULT_MARKUP_RATE × срок × доля инвестора.
+  // Пока пользователь не «зафиксировал» — сумма пересчитывается динамически по этой формуле.
+  const baseInvestorProfit = useMemo(() => {
+    const inv = (investors ?? []).find((i) => i.id === investorId);
+    if (!inv) return 0;
+    const baseMarkup = calc.principal * DEFAULT_MARKUP_RATE * termMonths;
+    return Math.round(baseMarkup * Number(inv.profit_share_rate));
+  }, [investors, investorId, calc.principal, termMonths]);
+
+  useEffect(() => {
+    if (!investorProfitLocked) {
+      setInvestorProfitAmount(baseInvestorProfit);
+    }
+  }, [baseInvestorProfit, investorProfitLocked]);
+
+  // Сброс фиксации при смене / отмене инвестора.
+  useEffect(() => {
+    if (!investorId) {
+      setInvestorProfitLocked(false);
+      setInvestorProfitAmount(0);
+    }
+  }, [investorId]);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!productName.trim()) return toast.error("Укажите название товара");
