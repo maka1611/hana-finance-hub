@@ -338,10 +338,12 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
         markup_amount: number | string;
         principal: number | string;
         investor_id: string | null;
+        investor_profit_amount: number | string | null;
+        investor_profit_locked: boolean | null;
       }>((from, to) => {
         const q = supabaseAdmin
           .from("installment_contracts")
-          .select("id,created_at,total_sale_price,markup_amount,principal,investor_id")
+          .select("id,created_at,total_sale_price,markup_amount,principal,investor_id,investor_profit_amount,investor_profit_locked")
           .order("created_at", { ascending: true });
         return (startIso ? q.gte("created_at", startIso) : q)
           .lt("created_at", endExclusiveIso)
@@ -377,31 +379,45 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
       markup_amount: number | string;
       principal: number | string;
       investor_id: string | null;
+      investor_profit_amount: number | string | null;
+      investor_profit_locked: boolean | null;
     };
     const extraContracts: ContractMeta[] = [];
     if (missingIds.length) {
       const { data: extra } = await supabaseAdmin
         .from("installment_contracts")
-        .select("id,markup_amount,principal,investor_id")
+        .select("id,markup_amount,principal,investor_id,investor_profit_amount,investor_profit_locked")
         .in("id", missingIds);
       if (extra) extraContracts.push(...(extra as ContractMeta[]));
     }
     const contractMeta = new Map<
       string,
-      { markupShare: number; investorId: string | null }
+      { markupShare: number; investorId: string | null; lockedRate: number | null }
     >();
     for (const c of contracts) {
       const total = Number(c.principal) + Number(c.markup_amount);
+      const markup = Number(c.markup_amount);
+      const lockedRate =
+        c.investor_profit_locked && markup > 0
+          ? Number(c.investor_profit_amount ?? 0) / markup
+          : null;
       contractMeta.set(c.id, {
         markupShare: total > 0 ? Number(c.markup_amount) / total : 0,
         investorId: c.investor_id,
+        lockedRate,
       });
     }
     for (const c of extraContracts) {
       const total = Number(c.principal) + Number(c.markup_amount);
+      const markup = Number(c.markup_amount);
+      const lockedRate =
+        c.investor_profit_locked && markup > 0
+          ? Number(c.investor_profit_amount ?? 0) / markup
+          : null;
       contractMeta.set(c.id, {
         markupShare: total > 0 ? Number(c.markup_amount) / total : 0,
         investorId: c.investor_id,
+        lockedRate,
       });
     }
     const { data: invRaw } = await supabaseAdmin
