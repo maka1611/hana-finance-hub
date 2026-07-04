@@ -474,7 +474,11 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
       row.markup += markup;
       row.contracts += 1;
       if (contract.investor_id && investorRate.has(contract.investor_id)) {
-        const rate = investorRate.get(contract.investor_id)!;
+        const baseRate = investorRate.get(contract.investor_id)!;
+        const rate =
+          contract.investor_profit_locked && markup > 0
+            ? Number(contract.investor_profit_amount ?? 0) / markup
+            : baseRate;
         row.capitalInvestor += principal;
         row.profitInvestorsExp += markup * rate;
         row.profitCompanyFromInvExp += markup * (1 - rate);
@@ -492,7 +496,7 @@ export const adminAnalyticsSeries = createServerFn({ method: "POST" })
       if (!meta) continue;
       const receivedMarkup = amount * meta.markupShare;
       if (meta.investorId && investorRate.has(meta.investorId)) {
-        const rate = investorRate.get(meta.investorId)!;
+        const rate = meta.lockedRate ?? investorRate.get(meta.investorId)!;
         row.profitInvestorsGot += receivedMarkup * rate;
         row.profitCompanyFromInvGot += receivedMarkup * (1 - rate);
       } else {
