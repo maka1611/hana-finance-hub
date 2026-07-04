@@ -2070,6 +2070,8 @@ const AdminCreateInstallmentSchema = z.object({
   clientComment: z.string().trim().max(2000).optional().nullable(),
   markupRate: z.number().min(0).max(1).optional(),
   investorId: z.string().uuid().optional().nullable(),
+  investorProfitAmount: z.number().min(0).max(1_000_000_000).optional().nullable(),
+  investorProfitLocked: z.boolean().optional(),
   extraPhones: z
     .array(
       z.object({
