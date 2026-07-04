@@ -277,7 +277,9 @@
     linear-gradient(150deg, oklch(0.7 0.15 162 / 0.14) 12%, transparent 12.5%, transparent 87%, oklch(0.7 0.15 162 / 0.14) 87.5%);
 }
 
-.font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+/* IBM Plex Mono renders Cyrillic (Ш/Щ/М) far more legibly than JetBrains Mono
+   at small uppercase label sizes. Keep JetBrains Mono as fallback for code. */
+.font-mono { font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.02em; }
 
 .no-spinner::-webkit-outer-spin-button,
 .no-spinner::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
