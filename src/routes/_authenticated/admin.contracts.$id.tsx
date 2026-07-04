@@ -308,10 +308,28 @@ function AdminContractDetail() {
               <span className="text-muted-foreground">— собственные средства —</span>
             )}
             {currentInvestor && (
-              <span className="text-xs text-muted-foreground">
-                · доля {(Number(currentInvestor.profit_share_rate) * 100).toFixed(0)}% ·
-                прибыль инвестора {formatMoney(Number(contract.markup_amount) * Number(currentInvestor.profit_share_rate))}
-              </span>
+              (() => {
+                const c = contract as {
+                  markup_amount: number | string;
+                  investor_profit_amount?: number | string | null;
+                  investor_profit_locked?: boolean | null;
+                };
+                const markup = Number(c.markup_amount);
+                const investorProfit = c.investor_profit_locked
+                  ? Number(c.investor_profit_amount ?? 0)
+                  : markup * Number(currentInvestor.profit_share_rate);
+                const ourProfit = markup - investorProfit;
+                return (
+                  <span className="text-xs text-muted-foreground">
+                    · доля {(Number(currentInvestor.profit_share_rate) * 100).toFixed(0)}% ·
+                    прибыль инвестора{c.investor_profit_locked ? " (фикс.)" : ""}{" "}
+                    {formatMoney(investorProfit)} · наша{" "}
+                    <span className={ourProfit < 0 ? "text-destructive font-semibold" : ""}>
+                      {formatMoney(ourProfit)}
+                    </span>
+                  </span>
+                );
+              })()
             )}
           </div>
           <select
