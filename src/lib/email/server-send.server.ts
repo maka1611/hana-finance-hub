@@ -140,7 +140,7 @@ export async function notifyInvestorOfFundedContract(contractId: string) {
     const { data: contract } = await supabaseAdmin
       .from('installment_contracts')
       .select(
-        'id, investor_id, product_name, principal, markup_amount, term_months, monthly_payment, start_date',
+        'id, investor_id, product_name, principal, markup_amount, term_months, monthly_payment, start_date, investor_profit_locked, investor_profit_amount',
       )
       .eq('id', contractId)
       .maybeSingle()
@@ -154,7 +154,17 @@ export async function notifyInvestorOfFundedContract(contractId: string) {
     if (!investor?.email || !investor.is_active) return
 
     const shareRate = Number(investor.profit_share_rate ?? 0)
-    const expectedProfit = Number(contract.markup_amount ?? 0) * shareRate
+    const markup = Number(contract.markup_amount ?? 0)
+    const locked = (contract as { investor_profit_locked?: boolean | null }).investor_profit_locked
+    const lockedAmount = Number(
+      (contract as { investor_profit_amount?: number | string | null }).investor_profit_amount ?? 0,
+    )
+    const expectedProfit = locked ? lockedAmount : markup * shareRate
+    const effectiveShareRate = locked
+      ? markup > 0
+        ? lockedAmount / markup
+        : shareRate
+      : shareRate
 
     await sendTransactionalEmailServer({
       templateName: 'installment-funded-by-investor',
@@ -168,7 +178,7 @@ export async function notifyInvestorOfFundedContract(contractId: string) {
         monthlyPayment: Number(contract.monthly_payment ?? 0),
         startDate: contract.start_date,
         expectedProfit,
-        profitShareRate: shareRate,
+        profitShareRate: effectiveShareRate,
       },
     })
   } catch (err) {
