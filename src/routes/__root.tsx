@@ -13,11 +13,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { ThemeProvider } from "@/hooks/use-theme";
 
 import "../styles.css";
-import "@fontsource/inter/400.css";
-import "@fontsource/inter/500.css";
-import "@fontsource/inter/600.css";
-import "@fontsource/inter/700.css";
-import "@fontsource/inter/800.css";
+import "@fontsource/sora/400.css";
+import "@fontsource/sora/500.css";
+import "@fontsource/sora/600.css";
+import "@fontsource/sora/700.css";
+import "@fontsource/sora/800.css";
+import "@fontsource/manrope/400.css";
+import "@fontsource/manrope/500.css";
+import "@fontsource/manrope/600.css";
+import "@fontsource/manrope/700.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/600.css";
@@ -108,8 +112,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "format-detection", content: "telephone=no" },
       { name: "twitter:title", content: "NoorPay" },
       { name: "twitter:description", content: "NoorPay" },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6338f67b-fb61-479c-9be3-0006a17b6b69/id-preview-2687b0d6--7d5b19ed-8907-4cde-9825-df3a9ad75c20.lovable.app-1780500213560.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6338f67b-fb61-479c-9be3-0006a17b6b69/id-preview-2687b0d6--7d5b19ed-8907-4cde-9825-df3a9ad75c20.lovable.app-1780500213560.png" },
+      { name: "theme-color", content: "#0a0a1a", media: "(prefers-color-scheme: dark)" },
     ],
     links: [
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
