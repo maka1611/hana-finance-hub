@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
+import { useEffect, useState as useStateReact } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   calcInstallment,
   DEFAULT_MARKUP_RATE,
@@ -28,10 +30,16 @@ export function Calculator({ onSubmit, compact, markupRate }: CalculatorProps) {
   const [termMonths, setTermMonths] = useState<number>(12);
 
   const rateFn = useServerFn(getEffectiveMarkupRate);
+  const [isAuthed, setIsAuthed] = useStateReact(false);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setIsAuthed(!!data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setIsAuthed(!!s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
   const { data: rateInfo } = useQuery({
     queryKey: ["my-effective-markup-rate"],
     queryFn: () => rateFn(),
-    enabled: markupRate === undefined,
+    enabled: markupRate === undefined && isAuthed,
     staleTime: 60_000,
   });
   const effectiveRate =
