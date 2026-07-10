@@ -37,19 +37,12 @@ function Index() {
     navigate({ to: "/" });
   };
   return (
-    <div className="min-h-screen bg-background text-foreground relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 grid-bg opacity-60" />
-      <div className="pointer-events-none absolute -top-40 -right-40 size-[600px] rounded-full bg-primary/20 blur-3xl" />
-      <div className="pointer-events-none absolute top-1/2 -left-40 size-[500px] rounded-full bg-primary-glow/15 blur-3xl" />
-
-      <nav className="relative z-50 sticky top-0 border-b border-border/60 bg-background/70 backdrop-blur-xl pt-safe">
+    <div className="min-h-screen bg-background text-foreground">
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md pt-safe">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-2 font-display font-bold text-xl tracking-tight">
-              <span className="inline-flex size-8 items-center justify-center rounded-lg bg-gradient-primary shadow-glow">
-                <span className="size-2 rounded-full bg-white/90" />
-              </span>
-              <span>Noor<span className="text-gradient-primary">Pay</span></span>
+            <Link to="/" className="font-extrabold text-xl tracking-tighter uppercase">
+              Noor<span className="text-primary">Pay</span>
             </Link>
             <div className="hidden md:flex gap-6 text-sm font-medium text-muted-foreground">
               <a href="#calc" className="hover:text-primary transition-colors">
@@ -66,13 +59,13 @@ function Index() {
               <>
                 <button
                   onClick={logout}
-                  className="text-sm font-medium px-4 py-2 hover:bg-muted rounded-lg transition-colors"
+                  className="text-sm font-medium px-4 py-2 hover:bg-muted rounded-full transition-colors"
                 >
                   Выйти
                 </button>
                 <Link
                   to="/app"
-                  className="text-sm font-semibold bg-gradient-primary text-primary-foreground px-5 py-2 rounded-lg shadow-glow hover:opacity-95 transition-all"
+                  className="text-sm font-semibold bg-primary text-primary-foreground px-5 py-2 rounded-full hover:opacity-90 transition-all"
                 >
                   Кабинет
                 </Link>
@@ -81,13 +74,13 @@ function Index() {
               <>
                 <Link
                   to="/login"
-                  className="text-sm font-medium px-4 py-2 hover:bg-muted rounded-lg transition-colors"
+                  className="text-sm font-medium px-4 py-2 hover:bg-muted rounded-full transition-colors"
                 >
                   Войти
                 </Link>
                 <Link
                   to="/signup"
-                  className="text-sm font-semibold bg-gradient-primary text-primary-foreground px-5 py-2 rounded-lg shadow-glow hover:opacity-95 transition-all"
+                  className="text-sm font-semibold bg-primary text-primary-foreground px-5 py-2 rounded-full hover:opacity-90 transition-all"
                 >
                   Начать
                 </Link>
@@ -97,65 +90,40 @@ function Index() {
         </div>
       </nav>
 
-      <section id="calc" className="relative z-10 pt-20 pb-24">
+      <section id="calc" className="relative pt-16 pb-24 girih-pattern">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
             <div className="lg:col-span-5">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/60 bg-card/60 backdrop-blur mb-6">
-                <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-                <span className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
-                  Халяльный финтех · 2026
-                </span>
-              </div>
-              <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.02] mb-6 text-balance">
-                Рассрочка <br />
-                <span className="text-gradient-primary">без процентов.</span>
+              <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.05] mb-6 text-balance">
+                Честная рассрочка <br />
+                без процентов.
               </h1>
-              <p className="text-lg text-muted-foreground max-w-[52ch] mb-8 leading-relaxed">
+              <p className="text-lg text-muted-foreground max-w-[60ch] mb-8">
                 Прозрачная наценка, фиксированные платежи и полное соответствие нормам Шариата.
-                Покупайте сегодня — платите потом.
+                <span className="block mt-3">Покупайте сегодня — платите потом.</span>
               </p>
-              <div className="grid grid-cols-3 gap-3 max-w-md">
-                {[
-                  { v: "0%", l: "Ставка" },
-                  { v: "4.5%", l: "Наценка/мес" },
-                  { v: "24ч", l: "Одобрение" },
-                ].map((m) => (
-                  <div
-                    key={m.l}
-                    className="rounded-xl border border-border/60 bg-card/40 backdrop-blur px-4 py-3"
-                  >
-                    <div className="font-display text-2xl font-bold tabular-nums text-foreground">
-                      {m.v}
-                    </div>
-                    <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mt-1">
-                      {m.l}
-                    </div>
-                  </div>
-                ))}
+              <div className="flex flex-wrap items-center gap-4 text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-primary" /> Halal
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-primary" /> Без штрафов
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-primary" /> Фикс-цена
+                </span>
               </div>
             </div>
 
-            <div className="lg:col-span-7 relative">
-              <div className="absolute -inset-4 bg-gradient-primary opacity-20 blur-2xl rounded-3xl pointer-events-none" />
-              <div className="relative rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl p-2 shadow-elevated">
-                <Calculator />
-              </div>
+            <div className="lg:col-span-7">
+              <Calculator />
             </div>
           </div>
         </div>
       </section>
 
-      <section id="principles" className="relative z-10 py-24 border-y border-border/60 bg-card/30 backdrop-blur-sm">
+      <section id="principles" className="py-20 bg-card border-y border-border">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-14 max-w-2xl">
-            <div className="text-[11px] font-mono uppercase tracking-widest text-primary mb-3">
-              Как это работает
-            </div>
-            <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight">
-              Три принципа. Один договор.
-            </h2>
-          </div>
           <div className="grid md:grid-cols-3 gap-10">
             {[
               {
@@ -174,28 +142,23 @@ function Index() {
                 d: "Итоговая цена продажи фиксируется в момент договора и не меняется ни при каких обстоятельствах.",
               },
             ].map((it) => (
-              <div
-                key={it.n}
-                className="group relative rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-6 transition-all hover:border-primary/50 hover:-translate-y-1 hover:shadow-glow"
-              >
-                <div className="font-mono text-xs tracking-widest text-primary mb-6">{it.n}</div>
-                <h3 className="font-display text-2xl font-semibold mb-3">{it.t}</h3>
+              <div key={it.n} className="space-y-4">
+                <div className="size-12 bg-primary/5 rounded-xl flex items-center justify-center text-primary font-bold">
+                  {it.n}
+                </div>
+                <h3 className="text-xl font-bold">{it.t}</h3>
                 <p className="text-muted-foreground leading-relaxed">{it.d}</p>
-                <div className="absolute inset-x-6 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <footer className="relative z-10 py-12 border-t border-border/60">
+      <footer className="py-12 border-t border-border">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2 font-display font-bold text-lg tracking-tight">
-            <span className="inline-flex size-7 items-center justify-center rounded-md bg-gradient-primary">
-              <span className="size-1.5 rounded-full bg-white/90" />
-            </span>
-            <span>Noor<span className="text-gradient-primary">Pay</span></span>
-          </div>
+          <span className="font-extrabold text-lg tracking-tighter uppercase">
+            Noor<span className="text-primary">Pay</span>
+          </span>
           <p className="text-xs text-muted-foreground">
             © 2026 NoorPay. Не является кредитной организацией.
           </p>
